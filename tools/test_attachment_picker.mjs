@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { readAppSource } from "./source-bundle.mjs";
+
+const appSource = readAppSource();
+const stylesSource = fs.readFileSync(new URL("../src/styles/foundation.css", import.meta.url), "utf8");
+const pickerStart = appSource.indexOf("function AttachmentPicker(");
+const pickerEnd = appSource.indexOf("function AttachmentPreview(");
+assert.notEqual(pickerStart, -1, "shared attachment picker should exist");
+assert.notEqual(pickerEnd, -1, "attachment preview should follow the shared picker");
+const pickerSource = appSource.slice(pickerStart, pickerEnd);
+const galleryInput = pickerSource.match(/<input id=\{galleryInputId\}[\s\S]*?\/>/)?.[0] || "";
+const cameraInput = pickerSource.match(/<input id=\{cameraInputId\}[\s\S]*?\/>/)?.[0] || "";
+
+assert.match(pickerSource, /className="ops-attachment-dropzone"/);
+assert.match(pickerSource, /variant = "default"/);
+assert.match(pickerSource, /isWorkspace/);
+assert.match(pickerSource, /ops-attachment-picker-actions/);
+assert.match(pickerSource, /onDrop=\{handleDrop\}/);
+assert.match(pickerSource, /Array\.from\(fileList \|\| \[\]\)/);
+assert.match(pickerSource, /const file = files\[0\]/);
+assert.ok(galleryInput, "gallery/file input should exist");
+assert.doesNotMatch(galleryInput, /capture=/, "gallery/file input must not force the camera");
+assert.ok(cameraInput, "camera input should exist");
+assert.match(cameraInput, /accept="image\/\*"/);
+assert.match(cameraInput, /capture="environment"/);
+assert.match(appSource, /function AttachmentField\([\s\S]*?AttachmentPicker/);
+assert.match(appSource, /function EvidenceField\([\s\S]*?AttachmentPicker/);
+assert.match(appSource, /ops-evidence-inline-workspace/);
+assert.match(appSource, /statusText=\{evidenceStateLabel\}/);
+assert.match(appSource, /file\.size > MAX_ATTACHMENT_BYTES/);
+assert.match(appSource, /await saveStoredAttachment\(attachmentId, file, \{ stationId: round\.stationId \}\)/, "attachment upload should carry station scope for server storage");
+assert.match(appSource, /await deleteStoredAttachment\(previousAttachment\.id\)/);
+assert.match(stylesSource, /\.ops-attachment-picker\.is-drag-over \.ops-attachment-dropzone/);
+assert.match(stylesSource, /\.ops-attachment-picker \{[\s\S]*grid-template-columns/);
+assert.match(stylesSource, /\.ops-attachment-dropzone:focus-within/);
+assert.match(stylesSource, /\.ops-evidence-inline-workspace/);
+assert.match(stylesSource, /\.ops-attachment-status\.is-complete/);
+
+console.log("attachment picker smoke passed");

@@ -1,0 +1,18 @@
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  .ops-shell[data-page-layout="contract-agreement-cover"] .contract-agreement-cover {
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    overflow: hidden;
+  }
+
+  .ops-shell[data-page-layout="contract-agreement-cover"] .contract-agreement-committee {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

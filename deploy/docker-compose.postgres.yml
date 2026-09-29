@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: checklist
+      POSTGRES_USER: checklist
+      POSTGRES_PASSWORD: ${CHECKLIST_POSTGRES_PASSWORD:?set CHECKLIST_POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - checklist-postgres:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${CHECKLIST_S3_ACCESS_KEY:?set CHECKLIST_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${CHECKLIST_S3_SECRET_KEY:?set CHECKLIST_S3_SECRET_KEY}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - checklist-minio:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: ["/bin/sh", "-c"]
+    command: >-
+      "until mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD; do sleep 2; done;
+      mc mb --ignore-existing local/$${CHECKLIST_S3_BUCKET:-checklist-attachments}"
+    environment:
+      MINIO_ROOT_USER: ${CHECKLIST_S3_ACCESS_KEY:?set CHECKLIST_S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${CHECKLIST_S3_SECRET_KEY:?set CHECKLIST_S3_SECRET_KEY}
+      CHECKLIST_S3_BUCKET: ${CHECKLIST_S3_BUCKET:-checklist-attachments}
+
+volumes:
+  checklist-postgres:
+  checklist-minio:

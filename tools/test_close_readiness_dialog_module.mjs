@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { domSafeId } from "../src/app/dom-safe-id.js";
+
+const appSource = readFileSync(new URL("../src/app/App.jsx", import.meta.url), "utf8");
+const checklistPage = readFileSync(new URL("../src/app/pages/ChecklistPage.jsx", import.meta.url), "utf8");
+const dialog = readFileSync(new URL("../src/app/dialogs/CloseReadinessDialog.jsx", import.meta.url), "utf8");
+const foundation = readFileSync(new URL("../src/styles/foundation.css", import.meta.url), "utf8");
+
+assert.match(appSource, /import \{ CloseReadinessDialog \} from "\.\/dialogs\/CloseReadinessDialog\.jsx"/, "App should compose the close-readiness dialog from its own module");
+assert.match(appSource, /import \{ domSafeId \} from "\.\/dom-safe-id\.js"/, "App should use the shared DOM ID helper");
+assert.doesNotMatch(appSource, /function CloseReadinessDialog\s*\(/, "close-readiness rendering should not remain inside App");
+assert.doesNotMatch(appSource, /function domSafeId\s*\(/, "the DOM ID helper should not be duplicated inside App");
+assert.match(appSource, /const PAGE_RUNTIME = \{[\s\S]*\bCloseReadinessDialog\b/, "Checklist page factories should continue receiving the dialog");
+assert.match(checklistPage, /\{[^}]*\bCloseReadinessDialog\b[^}]*\}\s*=\s*runtime/, "Checklist page should continue consuming the passed-in dialog");
+assert.match(dialog, /blockers\.map\(\(entry\) => \(\{ entry, kind: "blocker" \}\)\)[\s\S]*issues\.map\(\(entry\) => \(\{ entry, kind: "issue" \}\)\)/, "blockers and issues should keep their separate presentation kinds");
+assert.match(dialog, /const groupMap = new Map\(\)/, "dialog entries should continue grouping by checklist section");
+assert.match(dialog, /findItem\(entry\)[\s\S]*findSlot\(entry, item\)/, "dialog copy should retain item and evidence-slot context");
+assert.match(dialog, /onClick=\{\(\) => onNavigate\(entry\)\}/, "selecting a blocker should continue navigating to that item");
+assert.match(dialog, /allowConfirm && <Button onClick=\{onConfirm\}/, "close confirmation should remain gated by readiness");
+assert.match(checklistPage, /allowConfirm=\{closeReadiness\.canConfirmClose\}/, "the dialog should read the latest separate close-confirmation readiness");
+assert.match(dialog, /allowConfirm[\s\S]*ข้อมูลยังไม่ครบ/, "the dialog should explain that incomplete data can still be saved when confirmation is allowed");
+assert.match(dialog, /ข้อมูลจาก Vehicle API[\s\S]*ยืนยันปิดรอบได้/, "the dialog should identify Vehicle API gaps as warnings when confirmation is allowed");
+assert.match(dialog, /ยืนยันปิดรอบการตรวจ/, "the dialog should offer its confirmation action when confirmation is allowed");
+assert.match(dialog, /ops-close-readiness-groups[\s\S]*ops-dialog-actions/, "dialog actions should remain outside the long warning list");
+assert.match(foundation, /\.ops-close-readiness-groups\s*\{[^}]*max-height:[^}]*overflow:\s*auto/s, "long warning lists should scroll independently from the confirm action");
+assert.match(checklistPage, /onClose=\{\(\) => setCloseReadinessDialog\(false\)\}/, "canceling the warning dialog should leave the round untouched");
+assert.match(checklistPage, /entry\.id === round\.id \? \{ \.\.\.entry, status: "closed", closedAt: new Date\(\)\.toISOString\(\), updatedAt: new Date\(\)\.toISOString\(\) \}/, "closing should preserve the entered inspection and evidence state");
+assert.match(checklistPage, /navigate\(`#\/history\/\$\{encodeURIComponent\(round\.id\)\}`\)/, "confirming closure should open the read-only history route");
+assert.match(dialog, /event\.key === "Escape"[\s\S]*onClose\(\)/, "Escape should continue dismissing the review dialog");
+assert.match(dialog, /previousFocus instanceof HTMLElement[\s\S]*previousFocus\.focus\(\)/, "dialog close should restore the prior focus target");
+assert.equal(domSafeId("a /b?"), "a--b-", "the shared ID sanitizer should keep the established character mapping");
+assert.equal(domSafeId(""), "item", "empty IDs should keep the existing fallback");
+console.log("test_close_readiness_dialog_module: pass");

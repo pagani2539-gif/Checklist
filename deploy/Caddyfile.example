@@ -1,0 +1,15 @@
+# Replace the hostname and certificate policy with the organization's values.
+checklist.example.com {
+  encode gzip
+  request_body {
+    max_size 20MB
+  }
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "no-referrer"
+    Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  }
+  reverse_proxy 127.0.0.1:4173
+}

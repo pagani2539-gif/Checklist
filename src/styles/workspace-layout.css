@@ -1,0 +1,4783 @@
+/* Layout follows the task: directories, forms, and bounded inspection work. */
+@media screen {
+  .ops-shell[data-page-layout] .ops-page > *,
+  .ops-shell[data-page-layout] .ops-panel-toolbar > *,
+  .ops-shell[data-page-layout] .ops-page-header > * { min-width: 0; }
+  .ops-shell[data-page-layout]:not([data-page-layout="inspection-workspace"]):not([data-page-layout="history-detail"]) .ops-page { gap: 18px; }
+  .ops-shell[data-page-layout] .ops-topbar {
+    position: relative; padding-block: 8px; margin-bottom: 16px;
+  }
+  .ops-shell[data-page-layout] .ops-page-header {
+    align-items: start; gap: 12px 24px;
+  }
+  .ops-shell[data-page-layout] .ops-page-header h1 { overflow-wrap: anywhere; }
+  .ops-shell[data-page-layout] .ops-page-description { max-width: 75ch; }
+
+  /* Overview: station context and the next task have comparable visual weight. */
+  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station {
+    padding: 16px; gap: 16px; align-items: center;
+  }
+  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station .ops-panel-toolbar {
+    display: grid; gap: 8px; margin: 0;
+  }
+  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station .station-summary {
+    padding: 0; border: 0;
+  }
+  .ops-shell[data-page-layout="dashboard"] .ops-latest-round {
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto;
+    gap: 16px; padding: 18px;
+  }
+  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px; padding: 12px 0;
+  }
+  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary > span {
+    min-width: 0; overflow-wrap: anywhere;
+  }
+  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary > span:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+
+  /* Directories: readable names, aligned progress, and a stable action column. */
+  .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-filter-bar {
+    display: grid; grid-template-columns: minmax(240px, 1fr) minmax(240px, 360px);
+    align-items: end; gap: 16px; margin-bottom: 8px;
+  }
+  .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-filter-select { width: auto; min-width: 0; }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 200px) minmax(150px, 240px);
+    padding: 18px 0; gap: 20px;
+  }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-copy h3,
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-copy p {
+    white-space: normal; overflow-wrap: anywhere;
+  }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-progress { min-width: 0; }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions { align-items: stretch; }
+  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-row { gap: 16px; padding: 18px; }
+  .ops-shell[data-page-layout="station-directory"] .station-directory-filters { display: grid; grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(130px, 1fr)); gap: 12px; }
+  .ops-shell[data-page-layout="station-directory"] .station-directory-filters .ops-search { min-width: 0; }
+
+  /* Creation and revision: keep the form readable and the final action nearby. */
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-page { padding-bottom: 20px; }
+  .ops-shell[data-page-layout="revision-setup"] .ops-revision-reason { width: 100%; max-width: none; }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-wizard-actions,
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-panel > .ops-page-actions-end {
+    position: sticky; bottom: 12px; z-index: 8; padding: 12px;
+    border: 1px solid var(--ops-line); border-radius: 12px;
+    background: var(--ops-card); box-shadow: var(--ops-shadow-raised);
+    gap: 10px;
+  }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-stepper { gap: 8px; }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-stepper li { min-height: 60px; padding: 10px; }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-stepper li::after { display: none; }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-stepper li > div { display: grid; }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-stepper strong { white-space: normal; }
+
+  /* Station tabs retain their position while long registers scroll. */
+  .ops-shell[data-page-layout="station-workspace"] .sc-station-workspace { overflow: clip; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-title-line h1 { font-size: clamp(22px, 2vw, 28px); line-height: 1.4; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-metrics article { padding: 10px; gap: 8px; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-metrics strong { font-size: var(--ops-type-heading-md); }
+  .ops-shell[data-page-layout="station-workspace"] .sc-metrics span { white-space: normal; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-readiness { padding: 14px; gap: 10px; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-tabs button { min-height: 48px; }
+
+  /* Dedicated API pages share the review layout, including closed Snapshots. */
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel { padding: 0; border: 0; min-width: 0; }
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > .ops-vehicle-focus-heading > div:first-child { display: none; }
+  .ops-vehicle-api-page .ops-vehicle-focus-heading { justify-content: flex-end; }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;
+  }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div { min-height: 58px; padding: 8px; }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics strong { font-size: 21px; }
+  .ops-vehicle-api-page .ops-vehicle-search-provenance { margin: 0; padding: 8px; }
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria { padding: 8px; gap: 8px; }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout { gap: 12px; align-items: start; }
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation { position: sticky; bottom: 0; padding-block: 8px; background: var(--ops-card); }
+
+  /* Screen preview is a document surface, not another inspection-workspace column. */
+  .checklist-page.is-report-previewing {
+    display: block;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .checklist-page.is-report-previewing > *:not(.ops-print-report):not(.ops-report-preview-toolbar) {
+    display: none !important;
+  }
+  .checklist-page.is-report-previewing > .ops-report-preview-toolbar {
+    display: flex;
+    width: min(100%, 1200px);
+    min-width: 0;
+    margin: 0 auto 14px;
+    padding: 10px 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border: 1px solid var(--ops-line);
+    border-radius: 10px;
+    background: var(--ops-card);
+    box-shadow: var(--ops-shadow);
+  }
+  .checklist-page.is-report-previewing > .ops-report-preview-toolbar > div {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+  .checklist-page.is-report-previewing > .ops-report-preview-toolbar strong {
+    color: var(--ops-ink);
+    font-size: var(--ops-type-label);
+  }
+  .checklist-page.is-report-previewing > .ops-print-report {
+    display: block !important;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow: visible;
+  }
+}
+
+/* Shared navigation stays compact while the mobile tab bar remains visible. */
+@media screen and (max-width: 980px) {
+  .ops-shell[data-page-layout] .ops-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-bottom: 14px;
+    margin-inline: 0;
+    padding-inline: 0;
+    padding-block: 0;
+  }
+
+  .ops-shell[data-page-layout] .ops-topbar-leading {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .ops-shell[data-page-layout] .ops-topbar-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-left: auto;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .ops-shell[data-page-layout] .ops-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "back user logout" "status status status";
+    align-items: center;
+    justify-content: stretch;
+    gap: 7px 8px;
+    margin-bottom: 12px;
+    padding-block: 0;
+  }
+
+  .ops-shell[data-page-layout] .ops-topbar-leading,
+  .ops-shell[data-page-layout] .ops-topbar-actions {
+    display: contents;
+  }
+
+  .ops-shell[data-page-layout] .ops-topbar-context {
+    display: none;
+  }
+
+  .ops-shell[data-page-layout] .ops-shell-back {
+    grid-area: back;
+    min-height: 44px;
+    padding-inline: 8px;
+    gap: 5px;
+    font-size: var(--ops-type-caption);
+  }
+
+  .ops-shell[data-page-layout] .ops-current-user {
+    grid-area: user;
+    max-width: 100%;
+    justify-self: end;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-shell[data-page-layout] .ops-logout-button {
+    grid-area: logout;
+    min-height: 44px;
+    padding: 8px;
+    font-size: var(--ops-type-caption);
+  }
+
+  .ops-shell[data-page-layout] .ops-save-indicator {
+    grid-area: status;
+    justify-self: end;
+    min-height: 34px;
+    margin: 0;
+    padding: 6px 10px;
+    font-size: var(--ops-type-caption-sm);
+  }
+}
+
+@media screen and (max-width: 359px) {
+  .ops-shell[data-page-layout] .ops-current-user {
+    max-width: 52px;
+  }
+
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  }
+
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions > .ops-button {
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: var(--ops-type-caption);
+    white-space: nowrap;
+  }
+}
+
+@media screen and (max-width: 520px) {
+  .ops-station-workspace-header {
+    gap: 10px;
+    padding: 6px 10px 12px;
+  }
+
+  .ops-station-workspace-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 12px;
+    padding: 8px 10px;
+  }
+
+  .ops-station-workspace-meta > span:first-child {
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+
+  .ops-station-workspace-meta > span:last-child {
+    flex: 0 0 auto;
+  }
+
+  .ops-station-workspace-meta strong {
+    display: inline;
+    margin: 0 0 0 4px;
+    font-size: var(--ops-type-meta);
+  }
+}
+
+@media screen and (max-width: 980px) {
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions {
+    bottom: calc(74px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Final cascade for the image-first vehicle workbench, after the older dock
+   and viewport rules above. */
+.ops-vehicle-focus-panel .ops-vehicle-focus-layout {
+  grid-template-columns: minmax(220px, .27fr) minmax(0, 1fr) !important;
+  align-items: stretch;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-queue {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  max-height: min(760px, calc(100dvh - 450px));
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list {
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main {
+  display: flex !important;
+  min-height: 0;
+  max-height: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  grid-template-rows: none !important;
+  overflow: auto;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector {
+  display: grid !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+  grid-column: auto;
+  overflow: visible !important;
+  position: static !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-image {
+  height: clamp(180px, 31vh, 340px);
+  min-height: 170px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button em.is-done,
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector-heading > span.is-done {
+  border: 1px solid var(--ops-color-success-border);
+  background: var(--ops-success-soft);
+  color: var(--ops-success);
+}
+
+@media screen and (max-width: 1279px) {
+  .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media screen and (max-width: 780px) {
+  .ops-vehicle-focus-panel .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-queue {
+    height: auto;
+    max-height: none;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-row-list {
+    max-height: min(46vh, 360px);
+    flex: 0 1 auto;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-facts,
+  .ops-vehicle-focus-panel .ops-vehicle-classification-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-image {
+    height: min(220px, 30vh);
+    min-height: 150px;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media screen and (max-width: 1279px) and (min-height: 561px), screen and (max-height: 560px) {
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: none !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: flex !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > :not(.ops-vehicle-focus-inspector),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: none !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: grid !important;
+  }
+}
+
+/* Image-first vehicle review: keep the queue compact and give the selected
+   vehicle, its evidence, context facts, and review controls one shared pane. */
+.ops-vehicle-focus-panel .ops-vehicle-focus-layout {
+  grid-template-columns: minmax(220px, .27fr) minmax(0, 1fr) !important;
+  align-items: stretch;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-queue {
+  display: flex;
+  min-height: 360px;
+  max-height: min(760px, calc(100dvh - 450px));
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-search {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  font-weight: 750;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--ops-line-strong);
+  border-radius: 8px;
+  background: var(--ops-color-white);
+  color: var(--ops-ink);
+  font: inherit;
+  font-size: var(--ops-type-caption-sm);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list {
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  grid-auto-rows: minmax(54px, auto);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-height: 54px;
+  padding: 7px 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button span {
+  min-width: 0;
+  font-size: var(--ops-type-caption);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button b {
+  grid-column: 2;
+  grid-row: 2;
+  overflow: hidden;
+  color: var(--ops-muted);
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button em {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  font-size: var(--ops-type-micro);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-row-list button em.is-done,
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector-heading > span.is-done {
+  border: 1px solid var(--ops-color-success-border);
+  background: var(--ops-success-soft);
+  color: var(--ops-success);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector-heading > span.is-pending {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-empty {
+  display: grid;
+  min-height: 120px;
+  flex: 1 1 auto;
+  place-items: center;
+  padding: 12px;
+  border: 1px dashed var(--ops-line-strong);
+  border-radius: 9px;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-caption-sm);
+  text-align: center;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  gap: 4px;
+  align-items: center;
+  padding-top: 7px;
+  border-top: 1px solid var(--ops-line);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination > div {
+  display: flex;
+  min-width: 0;
+  justify-content: center;
+  gap: 2px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination button {
+  display: grid;
+  min-width: 26px;
+  min-height: 30px;
+  place-items: center;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ops-ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--ops-type-micro);
+  font-weight: 750;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination button.is-active {
+  border-color: var(--ops-blue);
+  background: var(--ops-blue);
+  color: var(--ops-color-white);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination button:disabled {
+  color: var(--ops-muted-soft);
+  cursor: not-allowed;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination > button {
+  border-color: var(--ops-line);
+  background: var(--ops-color-white);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-pagination > small {
+  grid-column: 1 / -1;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  text-align: center;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-queue-page-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main {
+  display: grid;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  align-content: start;
+  gap: 12px;
+  overflow: visible;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main-heading h4 {
+  font-size: var(--ops-type-body);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main-tools {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main-tools > div {
+  display: flex;
+  gap: 5px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-main-tools .ops-icon-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-section-heading h5 {
+  margin: 0;
+  color: var(--ops-ink);
+  font-size: var(--ops-type-label);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-section-heading > span {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  text-align: right;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-plate-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, .82fr);
+  gap: 9px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-plate-summary > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  align-content: center;
+  padding: 9px 12px;
+  border: 1px solid var(--ops-line);
+  border-radius: 10px;
+  background: var(--ops-paper);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-plate-summary span,
+.ops-vehicle-focus-panel .ops-vehicle-classification-metrics span {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-caption-sm);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-plate-summary strong {
+  overflow-wrap: anywhere;
+  color: var(--ops-ink);
+  font-size: clamp(20px, 2vw, 30px);
+  line-height: 1.2;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-plate-summary > div:first-child strong {
+  font-family: var(--ops-font-mono);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-images {
+  display: block;
+  min-height: 0;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-image {
+  width: 100%;
+  height: clamp(180px, 31vh, 340px);
+  min-height: 170px;
+  aspect-ratio: 16 / 9;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 9px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-facts dd {
+  line-height: 1.45;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-classification-summary {
+  display: grid;
+  gap: 7px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-classification-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-classification-metrics > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  align-content: start;
+  padding: 8px 10px;
+  border: 1px solid var(--ops-line);
+  border-radius: 9px;
+  background: var(--ops-paper);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-classification-metrics strong {
+  overflow-wrap: anywhere;
+  color: var(--ops-ink);
+  font-size: var(--ops-type-label);
+  line-height: 1.4;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-axle-details {
+  padding: 8px 10px;
+  border: 1px solid var(--ops-line);
+  border-radius: 9px;
+  background: var(--ops-paper);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-axle-details summary {
+  color: var(--ops-ink-soft);
+  cursor: pointer;
+  font-size: var(--ops-type-caption-sm);
+  font-weight: 750;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector {
+  display: grid;
+  min-width: 0;
+  height: auto;
+  max-height: none;
+  grid-column: auto;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--ops-line);
+  border-radius: 10px;
+  background: var(--ops-paper);
+  overflow: visible;
+  position: static;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector-heading h4 {
+  margin: 2px 0 0;
+  color: var(--ops-ink);
+  font-size: var(--ops-type-label);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-inspector-heading > span {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-review-dimension-list {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-review-dimension {
+  min-width: 0;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-navigation {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  align-items: center;
+  padding-top: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-navigation .ops-button:last-child {
+  grid-column: auto;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-api-proof {
+  margin-top: 0;
+}
+
+@media screen and (min-width: 1280px) {
+  .checklist-page.is-vehicle-review .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(220px, .34fr) minmax(0, 1fr);
+  }
+
+  .checklist-page.is-vehicle-review .ops-vehicle-focus-queue {
+    min-height: 0;
+    max-height: none;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-review .ops-vehicle-focus-main {
+    height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media screen and (max-width: 780px) {
+  .ops-vehicle-focus-panel .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-queue {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-row-list {
+    max-height: min(46vh, 360px);
+    flex: 0 1 auto;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-facts,
+  .ops-vehicle-focus-panel .ops-vehicle-classification-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-main-tools {
+    gap: 4px;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-main-tools > div {
+    display: none;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-navigation .ops-button:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media screen and (max-width: 1279px) {
+  .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* The checklist's tabbed small-screen workspace now switches between the
+   queue and the unified selected-vehicle pane; its decision tab scrolls to the
+   review controls inside that pane. */
+@media screen and (max-width: 1279px) and (min-height: 561px) {
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > :not(.ops-vehicle-focus-inspector),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > .ops-vehicle-focus-queue {
+    min-height: 0;
+    max-height: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-queue .ops-vehicle-focus-row-list {
+    max-height: none;
+  }
+}
+
+@media screen and (max-height: 560px) {
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: none;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > :not(.ops-vehicle-focus-inspector),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-main > .ops-vehicle-focus-inspector {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main > .ops-vehicle-focus-main-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-focus-queue {
+  min-height: 0;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-focus-row-list {
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-focus-main {
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-focus-inspector {
+  display: grid;
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  overflow: visible;
+  position: static;
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-focus-image {
+  height: clamp(180px, 31vh, 340px);
+  min-height: 170px;
+}
+
+.checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.ops-vehicle-focus-panel.is-context-classification .ops-vehicle-search-metrics.is-classification-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-axle-details > ul {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--ops-ink-soft);
+  font-size: var(--ops-type-caption-sm);
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-api-extra-details > dl {
+  margin-top: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-axle-empty {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px dashed var(--ops-line);
+  border-radius: 9px;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-caption-sm);
+}
+
+@media screen and (max-width: 780px) {
+  .ops-vehicle-focus-panel.is-context-classification .ops-vehicle-search-metrics.is-classification-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification > * {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+@media screen and (max-width: 1279px) {
+  .checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .checklist-page.is-vehicle-review .ops-vehicle-focus-panel .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (min-width: 1280px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(220px, .27fr) minmax(0, 1fr) !important;
+  }
+}
+
+.checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel .ops-vehicle-focus-main {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  grid-template-rows: none;
+}
+
+.checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel .ops-vehicle-focus-inspector {
+  display: grid;
+  height: auto;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel .ops-vehicle-focus-image {
+  height: clamp(180px, 31vh, 340px);
+  min-height: 170px;
+}
+
+@media screen and (max-width: 1279px) and (min-height: 561px) {
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="queue"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: flex;
+  }
+}
+
+@media screen and (max-height: 560px) {
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="queue"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] .ops-vehicle-focus-layout > .ops-vehicle-focus-main {
+    display: flex;
+  }
+}
+
+/* Keep an expanded report editor on its own row. The named `actions` grid area
+   and the wide-screen no-wrap action rule must not constrain its panel width. */
+@media screen and (min-width: 601px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions:has(.ops-report-menu[open]) {
+    grid-area: auto;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    align-self: stretch;
+    justify-self: stretch;
+    min-width: 0;
+    margin: 8px 0 0;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions:has(.ops-report-menu[open]) > .ops-page-actions {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions:has(.ops-report-menu[open]) .ops-report-menu[open] {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media screen and (min-width: 1100px) {
+  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station {
+    grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr);
+  }
+}
+
+@media screen and (min-width: 1280px) and (min-height: 761px) {
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) { height: 100dvh; overflow: hidden; }
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-main {
+    height: 100%; display: flex; flex-direction: column; min-height: 0; padding-block: 12px;
+  }
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar { flex: 0 0 auto; margin-bottom: 8px; }
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-vehicle-api-page {
+    flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+  }
+  .ops-vehicle-api-page > .ops-page-header, .ops-vehicle-api-page > .ops-breadcrumb,
+  .ops-vehicle-api-page > .ops-readonly-banner { flex: 0 0 auto; }
+  .ops-vehicle-api-page > .ops-page-header h1 { font-size: var(--ops-type-page-sm); }
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel {
+    flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+    overflow-y: auto;
+  }
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > :not(.ops-vehicle-focus-layout) { flex-shrink: 0; }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    flex: 1 0 320px; min-height: 320px;
+    grid-template-columns: minmax(170px, .6fr) minmax(0, 1.5fr) minmax(280px, 1fr);
+    grid-template-rows: minmax(0, 1fr); align-items: stretch;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-queue,
+  .ops-vehicle-api-page .ops-vehicle-focus-main,
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    position: static; height: 100%; min-height: 0; overflow-y: auto;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector { grid-column: auto; }
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list { max-height: none; overflow: visible; }
+  .ops-vehicle-api-page .ops-vehicle-review-dimension-list { grid-template-columns: minmax(0, 1fr); }
+  .ops-vehicle-api-page .ops-vehicle-api-page-grid { min-height: 0; overflow-y: auto; }
+}
+
+@media screen and (max-width: 1099px) {
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card { grid-template-columns: minmax(0, 1fr) minmax(130px, 180px); }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions { grid-column: 1 / -1; }
+  .ops-shell[data-page-layout="dashboard"] .ops-latest-round { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media screen and (max-width: 980px) {
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-wizard-actions,
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-panel > .ops-page-actions-end {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-page { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* Shared shell controls remain visible above the mobile navigation. */
+.ops-topbar-leading { gap: 12px; }
+.ops-shell-back { white-space: nowrap; }
+.ops-shell[data-page-layout="dashboard"]:has(.ops-reference-page-header) .ops-topbar,
+.ops-shell[data-page-layout="station-setup"]:has(.ops-station-workspace-header) .ops-topbar {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+.ops-main:has(.checklist-page) > .ops-topbar .ops-save-indicator { display: none; }
+
+@media screen and (max-width: 820px) {
+  .ops-main:has(.checklist-page:not(.is-report-previewing)) {
+    height: calc(100dvh - 68px - env(safe-area-inset-bottom));
+    padding: 8px 12px 10px;
+  }
+}
+
+@media screen and (max-width: 980px) {
+  .ops-shell:has(.ops-reference-page-header) .ops-reference-actions,
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+    padding-inline: var(--ops-main-inline-gutter, 14px) !important;
+  }
+  .ops-shell:has(.ops-reference-page-header) .ops-page {
+    padding-bottom: calc(136px + env(safe-area-inset-bottom));
+  }
+}
+
+@media screen and (max-width: 520px) {
+  .ops-shell:has(.ops-reference-page-header) .ops-reference-actions,
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions {
+    padding-inline: var(--ops-main-inline-gutter, 10px) !important;
+  }
+  .ops-topbar-leading { gap: 8px; }
+  .ops-shell-back { min-height: 40px; padding-inline: 10px; }
+  .ops-topbar-context .ops-eyebrow { font-size: 9px; letter-spacing: 1px; }
+}
+
+@media screen and (max-width: 600px) {
+  .ops-shell[data-page-layout="station-setup"] .ops-station-stepper { gap: 4px; }
+  .ops-shell[data-page-layout="station-setup"] .ops-station-stepper li { display: grid; justify-items: center; align-content: start; min-height: 74px; gap: 5px; padding: 7px 2px; text-align: center; }
+  .ops-shell[data-page-layout="station-setup"] .ops-station-stepper li > div { width: 100%; }
+  .ops-shell[data-page-layout="station-setup"] .ops-station-stepper strong { font-size: var(--ops-type-micro); line-height: 1.25; overflow-wrap: anywhere; }
+  .ops-shell[data-page-layout]:not([data-page-layout="inspection-workspace"]):not([data-page-layout="history-detail"]) .ops-page { gap: 14px; }
+  .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-filter-bar,
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-progress { text-align: left; }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions { justify-content: stretch; }
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions > .ops-button { flex: 1 1 140px; }
+  .ops-shell[data-page-layout="station-directory"] .station-directory-filters { grid-template-columns: minmax(0, 1fr); }
+  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .ops-shell[data-page-layout="dashboard"] .ops-followup-row { grid-template-columns: auto minmax(0, 1fr); }
+  .ops-shell[data-page-layout="dashboard"] .ops-followup-row > .ops-status { grid-column: 2; justify-self: start; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-shell[data-page-layout="station-workspace"] .sc-metrics article:last-child { grid-column: 1 / -1; }
+  .ops-shell[data-page-layout="station-workspace"] .sc-table-wrap {
+    width: 100%; max-width: 100%; contain: inline-size; overscroll-behavior-inline: contain;
+  }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria { grid-template-columns: minmax(0, 1fr); }
+  .ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status { white-space: normal; }
+  .ops-vehicle-api-page .ops-vehicle-focus-queue { max-height: 260px; overflow-y: auto; }
+}
+
+@media screen {
+  .ops-shell[data-page-layout="dashboard"] .ops-page,
+  .ops-shell[data-page-layout="dashboard"] .ops-topbar {
+    width: 100%; max-width: 1280px; margin-inline: auto;
+  }
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-page,
+  .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-topbar {
+    width: 100%; max-width: 1120px; margin-inline: auto;
+  }
+  .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-page,
+  .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-topbar,
+  .ops-shell[data-page-layout="station-workspace"] .ops-page,
+  .ops-shell[data-page-layout="station-workspace"] .ops-topbar {
+    width: 100%; max-width: 1600px; margin-inline: auto;
+  }
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-page,
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar {
+    width: 100%; max-width: none; margin-inline: 0;
+  }
+  .ops-shell[data-page-layout="station-workspace"] .sc-tabs {
+    position: sticky; top: 0; z-index: 12; background: var(--ops-card);
+  }
+
+  /* Keep context visible while leaving the height to the current task. */
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
+    padding-block: 8px; gap: 12px;
+  }
+  .checklist-page:not(.is-report-previewing) .ops-checklist-context-copy h1 {
+    font-size: clamp(22px, 2vw, 28px); line-height: 1.3;
+  }
+  .checklist-page:not(.is-report-previewing) .ops-taskflow-heading {
+    padding-bottom: 10px; margin-bottom: 0;
+  }
+  .checklist-page:not(.is-report-previewing) .ops-taskflow-heading h3 {
+    font-size: clamp(18px, 1.5vw, 22px); margin-block: 4px;
+  }
+
+  /* The API panel already has a task title; its Checklist heading is context. */
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-taskflow-heading h3 {
+    font-size: var(--ops-type-body); line-height: 1.4;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-heading h3 {
+    font-size: 21px; margin-block: 2px;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-heading .ops-eyebrow {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-panel {
+    padding: 0; border: 0; gap: 8px; border-radius: 0;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-search-metrics > div {
+    display: grid; grid-template-columns: 1fr auto; gap: 0 6px;
+    min-height: 48px; align-items: center;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-search-metrics small {
+    grid-column: 1 / -1;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-inspector > .ops-vehicle-review-evidence {
+    flex: 0 0 auto; overflow: visible;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-navigation {
+    position: sticky; bottom: 0; background: var(--ops-card); padding-block: 8px;
+    margin-top: auto;
+  }
+}
+
+@media screen and (min-width: 1280px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review:not(.is-vehicle-focus-mode) > .ops-taskflow-layout {
+    grid-template-columns: minmax(220px, 240px) minmax(0, 1fr);
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(150px, .6fr) minmax(260px, 1.5fr) minmax(240px, 1fr);
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-inspector {
+    grid-column: auto;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-inspector .ops-vehicle-review-dimension-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media screen and (min-width: 1280px) and (max-width: 1439px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-evidence-drawer {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 520px;
+    overflow: visible;
+    border-bottom: 1px solid var(--ops-line);
+    border-left: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 620px;
+    overflow: visible;
+  }
+}
+
+/* Route-specific information architecture. */
+@media screen {
+  .ops-shell[data-page-layout="station-directory"] .station-directory,
+  .ops-shell[data-page-layout="round-queue"] .ops-panel,
+  .ops-shell[data-page-layout="history-library"] .ops-panel { min-width: 0; }
+
+  .ops-shell[data-page-layout="round-queue"] .ops-round-card { border-left: 3px solid #bfdbfe; padding-inline: 16px; }
+  .ops-shell[data-page-layout="history-library"] .ops-round-card { background: #fbfcfe; }
+  .ops-shell[data-page-layout="history-library"] .ops-round-actions { justify-content: flex-end; }
+  .ops-shell[data-page-layout="station-setup"] .ops-wizard-card,
+  .ops-shell[data-page-layout="round-setup"] .ops-wizard-card,
+  .ops-shell[data-page-layout="revision-setup"] .ops-panel { max-width: 100%; }
+  .ops-shell[data-page-layout="history-detail"] .ops-page,
+  .ops-shell[data-page-layout="history-detail"] .ops-topbar { width: 100%; max-width: none; margin-inline: 0; }
+
+  .ops-work-context {
+    display: inline-grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 3px;
+    padding: 7px 10px;
+    border: 1px solid #dbe5f1;
+    border-radius: 10px;
+    background: var(--ops-color-neutral-surface);
+  }
+  .ops-work-context-icon {
+    display: inline-grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 8px;
+    background: #eaf2ff;
+    color: var(--ops-text-black);
+  }
+  .ops-work-context strong,
+  .ops-work-context small { display: block; }
+  .ops-work-context strong { color: var(--ops-ink); font-size: var(--ops-type-caption); line-height: 1.3; }
+  .ops-work-context small { margin-top: 1px; color: var(--ops-muted); font-size: var(--ops-type-micro); line-height: 1.35; }
+
+  .checklist-page[data-checklist-context="measurement"] .ops-value-field {
+    padding: 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: var(--ops-blue-soft);
+  }
+  .checklist-page[data-checklist-context="measurement"] .ops-value-field input { min-height: 52px; font-size: var(--ops-type-heading-sm); font-weight: 750; }
+  .checklist-page[data-checklist-context="asset"] .ops-asset-line {
+    padding: 9px 10px;
+    border: 1px solid #dbe5f1;
+    border-radius: 9px;
+    background: var(--ops-color-neutral-surface);
+  }
+  .checklist-page[data-checklist-context="evidence"]:not(.is-report-previewing) > .ops-taskflow-layout {
+    grid-template-columns: minmax(220px, 260px) minmax(360px, .85fr) minmax(360px, 1.15fr);
+  }
+  .checklist-page[data-checklist-context="issue"] .ops-work-context { border-color: var(--ops-color-warning-border); background: var(--ops-color-warning-surface); }
+  .checklist-page[data-checklist-context="issue"] .ops-work-context-icon { background: #ffedd5; color: var(--ops-warning); }
+  .checklist-page[data-checklist-context="bypass"] .ops-work-context { color: var(--ops-muted); background: #f1f5f9; }
+  .checklist-page[data-checklist-mode="history"] .ops-work-context { border-style: dashed; }
+}
+
+@media screen and (max-width: 1279px) {
+  .checklist-page[data-checklist-context="evidence"]:not(.is-report-previewing) > .ops-taskflow-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Stacked API columns need one scroll owner, not three shrinking viewports.
+   Short laptop windows use the same fallback so controls cannot be clipped. */
+@media screen and (max-width: 1279px), screen and (max-height: 760px) {
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) {
+    height: 100dvh; overflow: hidden;
+  }
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-main {
+    display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden;
+  }
+  .ops-vehicle-api-page {
+    flex: 1 1 0; min-height: 0; padding-bottom: 24px; overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior: contain; scrollbar-gutter: stable;
+  }
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel {
+    display: block; min-height: 0; height: auto; overflow: visible;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(180px, .55fr) minmax(0, 1fr);
+    grid-template-rows: auto auto; align-items: start;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-queue {
+    grid-column: 1; grid-row: 1 / span 2;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-main { grid-column: 2; grid-row: 1; }
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector { grid-column: 2; grid-row: 2; }
+  .ops-vehicle-api-page .ops-vehicle-focus-queue,
+  .ops-vehicle-api-page .ops-vehicle-focus-main,
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    position: static; height: auto; max-height: none; overflow: visible;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list { max-height: none; overflow: visible; }
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation { position: static; }
+  .ops-vehicle-api-page .ops-vehicle-focus-image {
+    aspect-ratio: 16 / 9; min-height: 220px; height: auto;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-image img { width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list.is-vehicle-focus-list {
+    overflow-y: auto; display: block;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-panel {
+    height: auto; min-height: 100%; flex: none;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-layout {
+    flex: none; grid-template-rows: auto; align-items: start;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-queue,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-main,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-inspector {
+    height: auto; overflow: visible;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-queue {
+    max-height: none; overflow: visible;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-image {
+    aspect-ratio: 16 / 9; min-height: 220px; height: auto;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-image img {
+    width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-navigation {
+    position: static;
+  }
+}
+
+@media screen and (max-height: 760px) {
+  .ops-vehicle-api-page > .ops-page-header { gap: 8px 16px; }
+  .ops-vehicle-api-page > .ops-page-header h1 { font-size: var(--ops-type-heading-md); }
+  .ops-vehicle-api-page .ops-vehicle-focus-heading { margin-bottom: 6px; }
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria { padding: 7px; }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div { min-height: 48px; }
+}
+
+@media screen and (max-width: 780px) {
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
+    gap: 6px; padding-block: 4px;
+  }
+  .checklist-page:not(.is-report-previewing) .ops-checklist-context-tools {
+    gap: 5px 8px;
+  }
+  .checklist-page:not(.is-report-previewing) .ops-checklist-progress {
+    gap: 3px;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-focus-heading > .ops-status {
+    max-width: 100%; text-align: left;
+  }
+  .checklist-page:not(.is-report-previewing).is-vehicle-review .ops-vehicle-search-metrics > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-queue,
+  .ops-vehicle-api-page .ops-vehicle-focus-main,
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    grid-column: 1; grid-row: auto;
+  }
+}
+
+/* Checklist inspection workspace: category -> evidence -> item result.
+   Vehicle API keeps its dedicated review workbench. */
+@media screen and (min-width: 1440px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout {
+    grid-template-columns: minmax(280px, 300px) minmax(440px, 1fr) minmax(410px, 430px);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-evidence-drawer {
+    grid-column: 2;
+    grid-row: 1;
+    border-right: 1px solid var(--ops-line);
+    border-left: 0;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main {
+    grid-column: 3;
+    grid-row: 1;
+    padding: 22px 20px 18px;
+  }
+}
+
+@media screen {
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
+    display: grid;
+    min-height: 62px;
+    grid-template-columns: auto auto repeat(3, minmax(128px, auto)) minmax(150px, 1fr) auto;
+    align-items: center;
+    gap: 0;
+    padding: 0 16px;
+    border: 1px solid var(--ops-line);
+    border-radius: 12px;
+    background: var(--ops-color-white);
+  }
+  .ops-checklist-strip-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 22px;
+  }
+  .ops-checklist-strip-title > .ops-icon { color: var(--ops-text-black); }
+  .ops-checklist-strip-title h1 { margin: 0; color: var(--ops-ink); font-size: 21px; line-height: 1.2; }
+  .ops-checklist-strip-metric {
+    display: flex;
+    min-height: 30px;
+    align-items: baseline;
+    gap: 5px;
+    padding: 4px 18px;
+    border-left: 1px solid var(--ops-line);
+    white-space: nowrap;
+  }
+  .ops-checklist-strip-metric small { color: var(--ops-muted); font-size: var(--ops-type-caption-sm); }
+  .ops-checklist-strip-metric strong { color: var(--ops-text-black); font-size: var(--ops-type-meta); }
+  .ops-checklist-context-header > .ops-save-state { justify-self: end; white-space: nowrap; }
+  .ops-checklist-round-actions {
+    position: relative;
+    justify-self: end;
+    min-width: 0;
+    margin-left: 12px;
+  }
+  .ops-checklist-round-actions .ops-page-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* Round actions are always available in the header. Only the report editor
+     expands into the document flow; there is no redundant command drawer. */
+  .ops-checklist-round-actions:has(.ops-report-menu[open]) {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    margin-left: 0;
+  }
+  .ops-checklist-round-actions:has(.ops-report-menu[open]) .ops-report-menu[open] {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .ops-checklist-round-actions:has(.ops-report-menu[open]) .ops-report-menu-panel {
+    position: static;
+    top: auto;
+    right: auto;
+    width: auto;
+    max-width: none;
+    margin-top: 8px;
+    box-shadow: none;
+  }
+  .ops-report-menu:not([open]) > .ops-report-menu-panel { display: none; }
+
+  /* The report editor is intentionally part of the document flow so it can
+     show its full form without covering the workspace.  The normal checklist
+     shell is a single-viewport workbench with overflow locked, so opt out of
+     that lock while the report editor is expanded. */
+  html:has(.checklist-page:not(.is-report-previewing) .ops-report-menu[open]),
+  body:has(.checklist-page:not(.is-report-previewing) .ops-report-menu[open]) {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+  }
+
+  .ops-shell:has(.checklist-page:not(.is-report-previewing) .ops-report-menu[open]) {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    contain: none;
+  }
+
+  .ops-shell:has(.checklist-page:not(.is-report-previewing) .ops-report-menu[open]) .ops-main {
+    height: auto;
+    min-height: 100dvh;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .checklist-page:not(.is-report-previewing):has(.ops-report-menu[open]) {
+    height: auto;
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-heading {
+    min-height: 38px;
+    margin: 0 2px 12px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-heading .ops-eyebrow,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-heading-summary,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-summary {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-items-heading {
+    padding: 10px 12px 7px;
+    border-bottom: 1px solid var(--ops-line);
+    color: var(--ops-muted);
+    font-size: var(--ops-type-caption-sm);
+    font-weight: 800;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel .ops-task-queue-section-toggle {
+    min-height: 54px;
+    grid-template-columns: minmax(62px, auto) minmax(0, 1fr) 16px;
+    grid-template-areas: "code copy chevron";
+    align-items: center;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-code { grid-area: code; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-copy { grid-area: copy; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-chevron { grid-area: chevron; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-copy small,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-progress { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-copy strong {
+    display: -webkit-box;
+    font-size: var(--ops-type-caption);
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel .ops-task-queue-item {
+    min-height: 62px;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas: "meta copy alert";
+    padding: 9px 8px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-item-scope,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-item-copy small { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-item-copy > span {
+    display: -webkit-box;
+    white-space: normal;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding: 22px 20px 18px;
+    background: var(--ops-color-white);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-heading {
+    flex: 0 0 auto;
+    margin-bottom: 10px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-item:not(.is-cleaning) {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-item strong {
+    font-size: var(--ops-type-label);
+    line-height: 1.45;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-item small {
+    display: block;
+    margin-top: 3px;
+    color: var(--ops-muted);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-slots {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-proof-panel.has-attachment .ops-attachment-image-wrap {
+    min-height: clamp(280px, 42vh, 520px);
+    background: #eef4fa;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-proof-panel.has-attachment .ops-attachment-image-wrap img,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-proof-panel.has-attachment .ops-attachment-video {
+    width: 100%;
+    height: 100%;
+    max-height: 520px;
+    object-fit: contain;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-inline-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-attachment-picker.is-workspace .ops-attachment-picker-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-heading {
+    flex: 0 0 auto;
+    margin: 0 0 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--ops-line);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-heading h3 {
+    margin: 3px 0 12px;
+    font-size: var(--ops-type-section);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    overflow: hidden;
+    margin-bottom: 10px;
+    border: 1px solid var(--ops-line);
+    border-radius: 10px;
+    background: var(--ops-color-neutral-surface);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+    padding: 9px 10px;
+    border-right: 1px solid var(--ops-line);
+    border-bottom: 1px solid var(--ops-line);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span:nth-child(even) { border-right: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts small { color: var(--ops-muted); font-size: var(--ops-type-micro); }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts strong { overflow-wrap: anywhere; color: var(--ops-ink); font-size: var(--ops-type-caption); }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-work-context {
+    width: 100%;
+    margin: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding-bottom: 20px;
+    scrollbar-width: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list::-webkit-scrollbar {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main {
+    overflow: hidden;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-grid.ops-status-single-choice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-grid.ops-status-single-choice .ops-status-choice-body {
+    min-height: 54px;
+    padding: 6px 8px;
+    text-align: left;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-copy {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-label,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-description {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-status-result-hint {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-item-pager {
+    position: static;
+    z-index: auto;
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding: 4px 0;
+    border-top: 1px solid var(--ops-line);
+    background: var(--ops-card);
+    box-shadow: 0 -8px 18px rgba(15, 23, 42, .06);
+    backdrop-filter: blur(8px);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-item-pager-position {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-item-pager-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-item-pager > .ops-item-pager-actions .ops-button {
+    min-height: 36px;
+    padding: 4px 6px;
+    font-size: var(--ops-type-caption-sm);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer-help {
+    position: static;
+    margin-top: 12px;
+    padding-bottom: 12px;
+  }
+}
+
+@media screen and (max-width: 780px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-item-pager {
+    bottom: 0;
+    margin-inline: -14px;
+    padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+@media screen and (max-width: 1279px) {
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
+    grid-template-columns: auto repeat(2, minmax(0, 1fr)) auto;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .ops-checklist-strip-metric:nth-of-type(3),
+  .ops-checklist-strip-metric:nth-of-type(4) { display: none; }
+  .ops-checklist-strip-metric { padding-inline: 10px; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout {
+    grid-template-areas: "tabs" "panel";
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-evidence-drawer,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main {
+    display: none;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout[data-workspace-panel="queue"] > .ops-task-queue-panel { display: grid; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout[data-workspace-panel="evidence"] > .ops-evidence-drawer { display: flex; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout[data-workspace-panel="result"] > .ops-taskflow-main { display: flex; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-proof-panel.has-attachment .ops-attachment-image-wrap {
+    min-height: 260px;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header > .ops-checklist-strip-title,
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header > .ops-checklist-round-actions {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header > .ops-checklist-strip-title {
+    padding-right: 0;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header > .ops-checklist-round-actions {
+    justify-self: stretch;
+    margin-left: 0;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header .ops-checklist-round-actions > .ops-page-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header .ops-checklist-round-actions > .ops-page-actions > *,
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header .ops-checklist-round-actions > .ops-page-actions > * > .ops-button,
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header .ops-checklist-round-actions > .ops-page-actions > .ops-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header .ops-checklist-round-actions .ops-secondary-menu > summary {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .ops-checklist-strip-metric,
+  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header > .ops-save-state { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main .ops-status-group .ops-status-choice-grid.ops-status-single-choice {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span {
+    border-right: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-evidence-drawer,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-taskflow-main {
+    padding: 16px;
+  }
+}
+
+/* Shared inspection header and scroll contract. Keep the same information
+   order at every width while allowing the workspace body to own its scroll. */
+@media screen {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header {
+    grid-template-columns: minmax(190px, 1fr) minmax(150px, 1.05fr) minmax(120px, auto) minmax(140px, auto) minmax(140px, auto) minmax(150px, auto) minmax(190px, auto);
+    grid-template-areas: "title section item status evidence save actions";
+    min-height: 62px;
+    align-items: center;
+    gap: 0;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-title { grid-area: title; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-section { grid-area: section; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-item { grid-area: item; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-status { grid-area: status; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-evidence { grid-area: evidence; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-save-state { grid-area: save; justify-self: end; min-width: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions { grid-area: actions; min-width: 0; margin-left: 10px; }
+  .ops-checklist-strip-title-copy { display: grid; min-width: 0; gap: 2px; }
+  .ops-checklist-mobile-context { display: none; min-width: 0; overflow: hidden; color: var(--ops-muted); font-size: var(--ops-type-caption-sm); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+  .ops-checklist-strip-metric { display: grid; align-content: center; gap: 1px; min-width: 0; overflow: hidden; }
+  .ops-checklist-strip-metric strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ops-line-strong) transparent;
+    scroll-padding-block: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list::-webkit-scrollbar { display: block; width: 8px; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--ops-line-strong); }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list::-webkit-scrollbar-track { background: transparent; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > [role="tabpanel"][hidden] { display: none !important; }
+}
+
+@media screen and (max-width: 1279px) and (min-width: 601px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header {
+    grid-template-columns: minmax(0, 1fr) minmax(128px, auto) minmax(240px, auto);
+    grid-template-rows: minmax(36px, auto) minmax(36px, auto);
+    grid-template-areas: "title section save" "title item actions";
+    min-height: 84px;
+    padding: 8px 10px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-status,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-evidence { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric { overflow: hidden; padding-inline: 10px; text-overflow: ellipsis; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions { width: 100%; margin-left: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions .ops-page-actions { justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
+}
+
+@media screen and (min-width: 1280px) and (max-width: 1439px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header {
+    grid-template-columns: minmax(0, 1fr) minmax(128px, auto) minmax(240px, auto);
+    grid-template-rows: minmax(36px, auto) minmax(36px, auto);
+    grid-template-areas: "title section save" "title item actions";
+    min-height: 84px;
+    padding: 8px 10px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-status,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric.is-evidence { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric { overflow: hidden; padding-inline: 10px; text-overflow: ellipsis; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions { width: 100%; margin-left: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions .ops-page-actions { justify-content: flex-end; flex-wrap: nowrap; gap: 6px; }
+}
+
+@media screen and (min-width: 1440px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header {
+    grid-template-columns: minmax(150px, .9fr) minmax(180px, 1fr) minmax(120px, .9fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(162px, auto) minmax(240px, auto);
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions .ops-page-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-width: max-content;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas: "title" "actions";
+    min-height: 116px;
+    align-items: start;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-title { width: 100%; padding-right: 0; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-strip-metric,
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-save-state { display: none; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header .ops-checklist-mobile-context { display: block; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-checklist-context-header > .ops-checklist-round-actions { width: 100%; margin-left: 0; }
+}
+
+/* On compact screens the result panel is the single scroll owner. Keeping the
+   full item card in one scroll prevents a tiny nested list from hiding the
+   lower status choices behind the pager. */
+@media screen and (max-width: 1279px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main {
+    display: block;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ops-line-strong) transparent;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main::-webkit-scrollbar { display: block; width: 8px; }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--ops-line-strong); }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list {
+    display: block;
+    min-height: 0;
+    overflow: visible;
+    padding-bottom: 80px;
+  }
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review):not(.is-vehicle-decision-dock) > .ops-taskflow-layout > .ops-taskflow-main > .ops-item-pager {
+    position: static;
+    bottom: auto;
+    z-index: auto;
+    margin-top: 12px;
+  }
+}
+
+/* Vehicle API Decision Dock: keep the review loop inside one desktop viewport. */
+@media screen and (min-width: 1280px) and (min-height: 561px) {
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) .ops-main {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock {
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .ops-main:has(.checklist-page.is-vehicle-decision-dock),
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main,
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > [data-dock-panel] {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading > *,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > *,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-breadcrumb {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header {
+    flex: 0 0 52px;
+    min-height: 52px;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    padding: 0 12px;
+    border-radius: 12px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-metric:not(.is-section) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-title h1 {
+    font-size: var(--ops-type-heading-sm);
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-metric {
+    padding-inline: 12px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-demo-banner {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-workspace-tabs,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-task-queue-panel,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-taskflow-heading,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-item-pager {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    display: block;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading {
+    flex: 0 0 auto;
+    min-height: 40px;
+    align-items: center;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading h3 {
+    font-size: var(--ops-type-section);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    flex: 0 0 auto;
+    min-height: 64px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, .55fr) minmax(145px, auto);
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button {
+    grid-column: auto;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, .55fr) minmax(145px, auto);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button {
+    grid-column: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance {
+    flex: 0 0 auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 0;
+    min-height: 320px;
+    grid-template-columns: minmax(200px, 220px) minmax(0, 1fr) minmax(280px, 320px);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-queue,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    height: 100%;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-queue {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-groups {
+    flex: 0 0 auto;
+    max-height: 80px;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-row-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+.checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  align-content: start;
+  grid-template-rows: auto auto auto;
+}
+
+.checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-images {
+  min-height: 0;
+  height: auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image {
+  min-height: 180px;
+  height: clamp(180px, 30vh, 320px);
+  aspect-ratio: 16 / 9;
+}
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    grid-column: auto;
+    position: static;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-navigation {
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    padding-top: 8px;
+    background: var(--ops-card);
+  }
+}
+
+@media screen and (min-width: 1280px) and (min-height: 761px) {
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(340px, 390px);
+  }
+}
+
+.ops-vehicle-responsive-tabs {
+  display: none;
+}
+
+/* Compact and mobile Vehicle API review uses the same bounded shell, with a
+   single active panel so the operator never loses the current context. */
+@media screen and (max-width: 1279px) and (min-height: 561px) {
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) .ops-main {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock {
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-breadcrumb,
+  .checklist-page.is-vehicle-decision-dock > .ops-demo-banner {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header {
+    flex: 0 0 48px;
+    min-height: 48px;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 0 8px;
+    border-radius: 10px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-title {
+    padding-right: 8px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-title h1 {
+    font-size: 17px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-metric:not(.is-section) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    display: block;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-workspace-tabs,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-task-queue-panel,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-taskflow-heading,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-item-pager {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    display: block;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list.is-vehicle-focus-list {
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading {
+    flex: 0 0 auto;
+    min-height: 36px;
+    align-items: center;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading h3 {
+    font-size: 19px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    flex: 0 0 auto;
+    min-height: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 7px;
+    gap: 7px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-source,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button {
+    grid-column: 1 / -1;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics {
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div {
+    min-height: 46px;
+    padding: 6px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(3),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(4),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(6) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance {
+    flex: 0 0 auto;
+    max-height: 34px;
+    overflow: hidden;
+    margin: 0;
+    padding: 6px 8px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance span:not(:first-child) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 4px;
+    border: 1px solid var(--ops-line);
+    border-radius: 10px;
+    background: var(--ops-paper);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    min-height: 40px;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ops-muted);
+    cursor: pointer;
+    font-size: var(--ops-type-caption);
+    font-weight: 800;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button.is-active {
+    border-color: var(--ops-color-primary-border);
+    background: var(--ops-color-white);
+    color: var(--ops-text-black);
+    box-shadow: var(--ops-shadow-sm);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 0;
+    min-height: 240px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > [data-dock-panel] {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="queue"] [data-dock-panel="queue"],
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] [data-dock-panel="evidence"],
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] [data-dock-panel="decision"] {
+    display: flex;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] [data-dock-panel="evidence"] {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] [data-dock-panel="decision"] {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-queue {
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-groups {
+    flex: 0 0 auto;
+    max-height: 80px;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-row-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    padding: 10px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    align-content: start;
+    grid-template-rows: auto auto auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-images {
+    min-height: 0;
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image {
+    min-height: 180px;
+    height: clamp(180px, 30vh, 320px);
+    aspect-ratio: 16 / 9;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    position: static;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-navigation {
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    padding-top: 8px;
+    background: var(--ops-card);
+  }
+}
+
+/* Keep the focused API image row in normal flow after the decision-dock
+   rules above. Without this, the constrained grid may resolve the row to a
+   few pixels while the image keeps its intrinsic height and overlaps facts. */
+.checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main {
+  grid-template-rows: auto minmax(180px, auto) auto;
+}
+
+.checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-images {
+  min-height: 180px;
+}
+
+/* Checklist queue presentation: readable parent groups without exposing BOQ
+   section codes. Stable codes remain in the data model and DOM ids. */
+.checklist-page .ops-task-queue-group {
+  overflow: hidden;
+  border: 1px solid var(--ops-line);
+  border-radius: 11px;
+  background: var(--ops-color-white);
+}
+
+.checklist-page .ops-task-queue-group.is-active {
+  border-color: #bfd7fb;
+}
+
+.checklist-page .ops-task-queue-group-toggle {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 12px 10px;
+  background: var(--ops-color-white);
+  color: var(--ops-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.checklist-page .ops-task-queue-group-toggle:hover,
+.checklist-page .ops-task-queue-group.is-active .ops-task-queue-group-toggle {
+  background: var(--ops-blue-soft);
+}
+
+.checklist-page .ops-task-queue-group-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--ops-muted-soft);
+}
+
+.checklist-page .ops-task-queue-group-chevron .ops-icon {
+  width: 14px;
+  height: 14px;
+  transform: rotate(0deg);
+  transition: transform var(--ops-motion-fast) ease;
+}
+
+.checklist-page .ops-task-queue-group.is-expanded .ops-task-queue-group-chevron .ops-icon {
+  transform: rotate(90deg);
+}
+
+.checklist-page .ops-task-queue-group-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.checklist-page .ops-task-queue-group-copy strong {
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-size: var(--ops-type-meta);
+  line-height: 1.4;
+}
+
+.checklist-page .ops-task-queue-group-copy small {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  line-height: 1.4;
+}
+
+.checklist-page .ops-task-queue-group-progress {
+  display: grid;
+  min-width: 84px;
+  gap: 4px;
+  padding-top: 1px;
+}
+
+.checklist-page .ops-task-queue-group-progress-row {
+  display: grid;
+  grid-template-columns: 42px auto;
+  gap: 5px;
+  align-items: center;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+}
+
+.checklist-page .ops-task-queue-group-progress-row strong {
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-micro);
+  text-align: right;
+}
+
+.checklist-page .ops-task-queue-group-progress-row.is-complete strong { color: var(--ops-success); }
+.checklist-page .ops-task-queue-group-progress-row.is-incomplete strong { color: var(--ops-warning); }
+.checklist-page .ops-task-queue-group-progress-row.is-empty strong { color: var(--ops-muted); }
+
+.checklist-page .ops-task-queue-group-meter {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9eef5;
+}
+
+.checklist-page .ops-task-queue-group-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ops-blue);
+}
+
+.checklist-page .ops-task-queue-group-progress-row.is-complete .ops-task-queue-group-meter > span { background: var(--ops-success); }
+.checklist-page .ops-task-queue-group-progress-row.is-incomplete .ops-task-queue-group-meter > span { background: var(--ops-warning); }
+
+.checklist-page .ops-task-queue-group-sections {
+  display: grid;
+  border-top: 1px solid var(--ops-line);
+  background: #fbfcfe;
+}
+
+.checklist-page .ops-task-queue-group-sections > .ops-task-queue-section {
+  border: 0;
+  border-bottom: 1px solid var(--ops-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.checklist-page .ops-task-queue-group-sections > .ops-task-queue-section:last-child {
+  border-bottom: 0;
+}
+
+.checklist-page .ops-task-queue-section-code {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  padding: 3px 6px;
+  border: 1px solid #dce5f0;
+  border-radius: 999px;
+  background: #f5f8fc;
+  color: var(--ops-ink-soft);
+  font-family: var(--ops-font-mono);
+  font-size: var(--ops-type-micro);
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Make the current navigation target unambiguous: the open state and the
+   selected state are different, so selection gets its own blue rail. */
+.checklist-page .ops-task-queue-group.is-active > .ops-task-queue-group-toggle {
+  background: #eaf2ff;
+  box-shadow: inset 4px 0 0 var(--ops-blue);
+  color: var(--ops-text-black);
+}
+
+.checklist-page .ops-task-queue-group.is-active > .ops-task-queue-group-toggle .ops-task-queue-group-copy small {
+  color: var(--ops-text-black);
+}
+
+.checklist-page > .ops-taskflow-layout > .ops-task-queue-panel .ops-task-queue-section-toggle.is-active {
+  background: #eaf2ff;
+  box-shadow: inset 4px 0 0 var(--ops-blue);
+  color: var(--ops-text-black);
+}
+
+.checklist-page .ops-task-queue-equipment-groups {
+  display: grid;
+  background: var(--ops-color-neutral-surface);
+}
+
+.checklist-page .ops-task-queue-equipment-group {
+  overflow: hidden;
+  border-top: 1px solid #edf1f6;
+  background: var(--ops-color-white);
+}
+
+.checklist-page .ops-task-queue-equipment-group.is-active {
+  background: #fbfdff;
+}
+
+.checklist-page .ops-task-queue-equipment-label {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: start;
+  padding: 9px 12px 8px 20px;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: var(--ops-color-neutral-surface);
+  color: var(--ops-ink-soft);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.checklist-page .ops-task-queue-equipment-label:hover,
+.checklist-page .ops-task-queue-equipment-label:focus-visible {
+  background: #f2f7ff;
+}
+
+.checklist-page .ops-task-queue-equipment-label:focus-visible {
+  outline: 2px solid var(--ops-blue);
+  outline-offset: -2px;
+}
+
+.checklist-page .ops-task-queue-equipment-chevron {
+  display: grid;
+  min-height: 18px;
+  place-items: center;
+  color: var(--ops-muted-soft);
+}
+
+.checklist-page .ops-task-queue-equipment-chevron .ops-icon {
+  width: 14px;
+  height: 14px;
+  transform: rotate(0deg);
+  transition: transform var(--ops-motion-fast) ease;
+}
+
+.checklist-page .ops-task-queue-equipment-group.is-expanded .ops-task-queue-equipment-chevron .ops-icon {
+  transform: rotate(90deg);
+}
+
+.checklist-page .ops-task-queue-equipment-group.is-active > .ops-task-queue-equipment-label {
+  background: #edf5ff;
+  color: var(--ops-text-black);
+  border-left-color: var(--ops-blue);
+}
+
+.checklist-page .ops-task-queue-equipment-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.checklist-page .ops-task-queue-equipment-copy strong {
+  overflow-wrap: anywhere;
+  color: currentColor;
+  font-size: var(--ops-type-caption-sm);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.checklist-page .ops-task-queue-equipment-copy small {
+  overflow-wrap: anywhere;
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  line-height: 1.4;
+}
+
+.checklist-page .ops-task-queue-equipment-progress {
+  display: grid;
+  min-width: 76px;
+  gap: 3px;
+  padding-top: 1px;
+}
+
+.checklist-page .ops-task-queue-equipment-progress-row {
+  display: grid;
+  grid-template-columns: 35px auto;
+  gap: 4px;
+  align-items: center;
+  color: var(--ops-muted);
+  font-size: 9px;
+}
+
+.checklist-page .ops-task-queue-equipment-progress-row strong {
+  font-family: var(--ops-font-mono);
+  font-size: 9px;
+  text-align: right;
+}
+
+.checklist-page .ops-task-queue-equipment-progress-row.is-complete strong { color: var(--ops-success); }
+.checklist-page .ops-task-queue-equipment-progress-row.is-incomplete strong { color: var(--ops-warning); }
+.checklist-page .ops-task-queue-equipment-progress-row.is-empty strong { color: var(--ops-muted); }
+
+.checklist-page .ops-task-queue-equipment-meter {
+  display: block;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9eef5;
+}
+
+.checklist-page .ops-task-queue-equipment-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ops-blue);
+}
+
+.checklist-page .ops-task-queue-equipment-progress-row.is-complete .ops-task-queue-equipment-meter > span { background: var(--ops-success); }
+.checklist-page .ops-task-queue-equipment-progress-row.is-incomplete .ops-task-queue-equipment-meter > span { background: var(--ops-warning); }
+
+.checklist-page .ops-task-queue-equipment-items {
+  display: grid;
+  border-top: 1px solid #eef2f6;
+  background: var(--ops-color-white);
+}
+
+.checklist-page .ops-task-queue-equipment-items .ops-task-queue-item {
+  padding-left: 28px;
+}
+
+.checklist-page .ops-task-queue-item.is-active {
+  background: #f1f6fd;
+  box-shadow: inset 3px 0 0 var(--ops-blue);
+}
+
+.checklist-page .ops-task-queue-item.is-active .ops-task-queue-item-copy > span:not(.sr-only) {
+  color: var(--ops-text-black);
+  font-weight: 750;
+}
+
+.checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel .ops-task-queue-section-toggle {
+  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-areas: "copy chevron" "progress progress";
+}
+
+.checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-copy {
+  grid-area: copy;
+}
+
+.checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-task-queue-section-progress {
+  grid-area: progress;
+}
+
+@media screen and (max-width: 700px) {
+  .checklist-page .ops-task-queue-group-toggle {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .checklist-page .ops-task-queue-group-progress {
+    display: none;
+  }
+
+  .checklist-page .ops-task-queue-group-copy strong {
+    font-size: var(--ops-type-caption);
+  }
+
+  .checklist-page .ops-task-queue-equipment-label {
+    padding: 9px 10px 8px 16px;
+  }
+
+  .checklist-page .ops-task-queue-equipment-progress {
+    display: none;
+  }
+
+  .checklist-page .ops-task-queue-equipment-items .ops-task-queue-item {
+    padding-left: 22px;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-task-queue-panel .ops-task-queue-section-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16px;
+    grid-template-areas: "copy chevron";
+  }
+}
+
+/* Prevent intrinsic child widths from creating a clipped phone canvas. */
+@media screen and (max-width: 1279px) and (min-height: 561px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  .ops-main:has(.checklist-page.is-vehicle-decision-dock),
+  .checklist-page.is-vehicle-decision-dock,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main,
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > [data-dock-panel] {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading > *,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > *,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] [data-dock-panel="evidence"] {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-images {
+    display: block;
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-image {
+    height: min(220px, 30vh);
+    min-height: 150px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] .ops-vehicle-focus-image img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+}
+
+/* Short desktop windows keep the criteria in one compact row before the
+   responsive panel tabs take the remaining height. */
+@media screen and (min-width: 1280px) and (min-height: 561px) and (max-height: 760px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, .55fr) minmax(145px, auto);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button {
+    grid-column: auto;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-source {
+    grid-column: auto;
+  }
+}
+
+@media screen and (max-width: 780px) and (min-height: 561px) {
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header {
+    flex-basis: 44px;
+    min-height: 44px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-title h1 {
+    font-size: var(--ops-type-body-compact);
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-save-state {
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--ops-type-micro);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading {
+    min-height: 32px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading h3 {
+    font-size: 17px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading > .ops-status {
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > * {
+    grid-column: 1;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button {
+    width: 100%;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div {
+    min-height: 42px;
+    padding: 5px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics strong {
+    font-size: 17px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics small {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    min-height: 38px;
+    font-size: var(--ops-type-caption-sm);
+  }
+}
+
+/* Tablet-width workspaces keep navigation at the bottom so the evidence or
+   decision panel can use the full reading width. */
+@media screen and (min-width: 781px) and (max-width: 980px) and (min-height: 561px) {
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    order: 1;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs {
+    order: 2;
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    margin-top: 0;
+    background: var(--ops-card);
+    box-shadow: 0 -6px 16px rgba(21, 34, 56, .08);
+  }
+}
+
+@media screen and (max-width: 1099px) and (max-height: 560px) {
+  .checklist-page.is-vehicle-decision-dock {
+    overflow-y: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout {
+    overflow: visible;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    min-height: 0;
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > [data-dock-panel] {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* Strict bounded viewport for the focused Vehicle API workbench. Very short
+   windows still use the same tabbed single-panel model instead of returning
+   the document scroll to the operator. */
+@media screen and (max-height: 560px) {
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ops-shell[data-page-layout="inspection-workspace"]:has(.checklist-page.is-vehicle-decision-dock) .ops-main {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock {
+    height: 100%;
+    min-height: 0;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-breadcrumb,
+  .checklist-page.is-vehicle-decision-dock > .ops-demo-banner,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-workspace-tabs,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-task-queue-panel,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-taskflow-heading,
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main > .ops-item-pager {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header {
+    flex: 0 0 40px;
+    min-height: 40px;
+    padding-inline: 6px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-context-header .ops-checklist-strip-title h1 {
+    font-size: var(--ops-type-body-compact);
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout {
+    display: block;
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main,
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock > .ops-checklist-layout > .ops-taskflow-main {
+    padding: 0;
+    border: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-check-section-list {
+    display: block;
+    padding: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading {
+    min-height: 30px;
+    align-items: center;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading h3 {
+    font-size: var(--ops-type-body);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-heading > .ops-status {
+    max-width: 48%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-height: 0;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field {
+    gap: 2px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field > span {
+    font-size: var(--ops-type-micro);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field input {
+    min-height: 36px;
+    padding-block: 4px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-source {
+    grid-column: 1 / -1;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div {
+    min-height: 36px;
+    padding: 4px;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(3),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(4),
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics > div:nth-child(6) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics strong {
+    font-size: var(--ops-type-body);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-metrics small {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance {
+    max-height: 24px;
+    overflow: hidden;
+    padding: 4px 6px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-search-provenance span:not(:first-child) {
+    display: none;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--ops-line);
+    border-radius: 8px;
+    background: var(--ops-paper);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button {
+    min-height: 36px;
+    overflow: hidden;
+    padding: 5px 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ops-muted);
+    font-size: var(--ops-type-caption-sm);
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-responsive-tabs button.is-active {
+    border-color: var(--ops-color-primary-border);
+    background: var(--ops-color-white);
+    color: var(--ops-text-black);
+    box-shadow: var(--ops-shadow-sm);
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 0;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-layout > [data-dock-panel] {
+    display: none;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="queue"] [data-dock-panel="queue"],
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] [data-dock-panel="evidence"],
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] [data-dock-panel="decision"] {
+    display: flex;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="evidence"] [data-dock-panel="evidence"],
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-panel[data-responsive-panel="decision"] [data-dock-panel="decision"] {
+    display: grid;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-queue {
+    flex-direction: column;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-groups {
+    flex: 0 0 auto;
+    max-height: 64px;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-row-list {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: 8px;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-main-heading,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-images,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image,
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-facts {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-images {
+    display: block;
+    flex: 0 0 auto;
+    height: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image {
+    height: min(180px, 28vh);
+    min-height: 100px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-image img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    position: static;
+    overflow: auto;
+  }
+
+  .checklist-page.is-vehicle-decision-dock .ops-vehicle-focus-navigation {
+    margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    padding-top: 6px;
+    background: var(--ops-card);
+  }
+}
+
+@media screen and (max-height: 560px) and (min-width: 781px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(100px, .55fr) minmax(145px, auto);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-source {
+    grid-column: auto;
+  }
+}
+
+@media screen and (max-height: 560px) and (max-width: 780px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-heading .ops-eyebrow,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-heading > div > span {
+    display: none;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-heading {
+    min-height: 28px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-heading h3 {
+    font-size: var(--ops-type-body-compact);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-heading > .ops-status,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-provenance {
+    display: none;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main-heading > div > span {
+    display: none;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria > .ops-button,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-source {
+    grid-column: auto;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field > span,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-source span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-metrics > div {
+    min-height: 36px;
+    height: 36px;
+    align-items: center;
+  }
+}
+
+/* The outcome note and threshold summary can consume the compact viewport.
+   Keep the one-vehicle decision dock reachable instead of collapsing its
+   active panel below the sticky tabs. */
+@media screen and (max-width: 1279px) and (min-height: 561px) {
+  .checklist-page.is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    flex: 1 1 auto;
+    min-height: 240px !important;
+  }
+}
+
+/* Keep the desktop decision dock usable on short laptop-sized viewports. The
+   summary remains readable, while the inspector navigation stays reachable
+   without making the user scroll the whole workspace just to decide. */
+@media screen and (min-width: 1280px) and (max-height: 900px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-panel {
+    gap: 6px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field {
+    gap: 2px !important;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field > span {
+    font-size: var(--ops-type-micro);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-criteria .ops-field input {
+    min-height: 40px;
+    padding-block: 5px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-metrics {
+    gap: 4px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-metrics > div {
+    min-height: 44px;
+    padding: 5px 6px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-metrics strong {
+    font-size: 17px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-review-outcome-note,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-search-provenance {
+    padding-block: 4px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-layout {
+    gap: 8px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-queue,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main,
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-inspector {
+    padding: 8px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main {
+    gap: 8px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main-heading h4 {
+    font-size: var(--ops-type-label);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main-heading > div > span {
+    margin-top: 2px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-images {
+    min-height: 0;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-image {
+    height: 160px;
+    min-height: 140px;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-main {
+    grid-template-rows: auto minmax(140px, auto) auto;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review.is-vehicle-decision-dock .ops-vehicle-focus-navigation .ops-button {
+    min-height: 44px;
+  }
+}
+
+/* Keep the workspace action dock clear of the fixed bottom navigation. */
+@media screen and (max-width: 980px) {
+  .ops-shell:has(.ops-station-workspace-header) .ops-reference-actions {
+    bottom: calc(74px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .ops-vehicle-focus-panel .ops-vehicle-queue-search input {
+    min-height: 44px;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-queue-pagination {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-queue-pagination > div {
+    display: none;
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-queue-pagination > button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Checklist points to focused vehicle-review pages instead of embedding a
+   second full review workspace inside the inspection form. */
+@media screen and (min-width: 1280px) {
+  .checklist-page.is-vehicle-review-entry > .ops-taskflow-layout { grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); }
+  .checklist-page.is-vehicle-review-entry > .ops-taskflow-layout > .ops-taskflow-main { grid-column: 2 / -1; }
+}
+@media screen and (max-width: 1279px) {
+  .checklist-page.is-vehicle-review-entry > .ops-taskflow-layout { grid-template-columns: minmax(0, 1fr); }
+  .checklist-page.is-vehicle-review-entry > .ops-taskflow-layout > .ops-taskflow-main { grid-column: 1 / -1; }
+}
+.ops-vehicle-review-entry {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 1040px);
+  margin: 20px auto;
+  padding: 20px;
+  border: 1px solid #c9d9ec;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+.ops-vehicle-review-entry-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 11px; background: #e8f1ff; color: var(--ops-blue); }
+.ops-vehicle-review-entry-copy { display: grid; min-width: 0; gap: 5px; }
+.ops-vehicle-review-entry-copy .ops-eyebrow { margin: 0; }
+.ops-vehicle-review-entry-copy h4 { margin: 0; color: var(--ops-ink); font-size: var(--ops-type-heading-sm); }
+.ops-vehicle-review-entry-copy > p:not(.ops-eyebrow) { margin: 0; color: var(--ops-muted); font-size: var(--ops-type-body-compact); line-height: 1.5; }
+.ops-vehicle-review-entry-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; color: var(--ops-muted); font-size: var(--ops-type-caption); }
+.ops-vehicle-review-entry-summary strong { margin-left: 4px; color: var(--ops-ink); }
+.ops-vehicle-review-entry > .ops-button { min-height: 44px; white-space: nowrap; }
+
+/* A short, single-purpose header leaves the queue and evidence visible sooner. */
+.ops-vehicle-api-page { gap: 8px; }
+.ops-vehicle-api-page > .ops-breadcrumb { display: none; }
+.ops-vehicle-api-page > .ops-page-header { align-items: center; gap: 8px 16px; margin: 0; padding: 0 0 8px; border-bottom: 1px solid var(--ops-line); }
+.ops-vehicle-api-page > .ops-page-header h1 { margin: 0; font-size: var(--ops-type-heading-md); line-height: 1.2; }
+.ops-vehicle-api-page > .ops-page-header .ops-eyebrow { margin: 0 0 2px; }
+.ops-vehicle-api-page > .ops-page-header .ops-page-description { display: none; }
+.ops-vehicle-review-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ops-vehicle-review-context-tabs { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--ops-line); border-radius: 9px; background: var(--ops-paper); }
+.ops-vehicle-review-context-tabs a { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; padding: 6px 11px; border-radius: 6px; color: var(--ops-ink); font-size: var(--ops-type-caption); font-weight: 700; text-align: center; text-decoration: none; white-space: nowrap; }
+.ops-vehicle-review-context-tabs a:hover { background: #eaf2ff; }
+.ops-vehicle-review-context-tabs a.is-active { background: var(--ops-blue); color: white; }
+.ops-vehicle-review-context-tabs a:focus-visible { outline: 3px solid var(--ops-focus-ring); outline-offset: 2px; }
+.ops-vehicle-demo-badge { display: inline-flex; min-height: 28px; align-items: center; padding: 4px 8px; border: 1px solid var(--ops-color-info-border); border-radius: 999px; background: var(--ops-color-info-surface); color: var(--ops-color-info-text); font-size: var(--ops-type-caption-sm); font-weight: 700; white-space: nowrap; }
+.ops-vehicle-api-page > .ops-readonly-banner { margin: 0; padding-block: 8px; }
+.ops-vehicle-api-page > .ops-vehicle-focus-panel { gap: 6px; }
+.ops-vehicle-api-page .ops-vehicle-focus-heading { min-height: 24px; margin: 0; }
+.ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status { max-width: 100%; }
+.ops-vehicle-api-page .ops-vehicle-search-metrics { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.ops-vehicle-api-page .ops-vehicle-search-metrics > div { min-height: 44px; padding: 6px 7px; gap: 1px; }
+.ops-vehicle-api-page .ops-vehicle-search-metrics strong { font-size: var(--ops-type-heading-sm); }
+.ops-vehicle-api-page .ops-vehicle-review-outcome-note,
+.ops-vehicle-api-page .ops-vehicle-search-provenance { margin: 0; padding-block: 6px; }
+
+@media screen and (min-width: 781px) {
+  .ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status { white-space: nowrap; }
+}
+
+@media screen and (max-width: 1279px) {
+  .ops-vehicle-api-page .ops-vehicle-search-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ops-vehicle-review-header-actions { justify-content: flex-end; }
+}
+
+@media screen and (max-width: 767px) {
+  .ops-vehicle-review-entry { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; margin: 12px 0; padding: 14px; }
+  .ops-vehicle-review-entry-icon { width: 40px; height: 40px; }
+  .ops-vehicle-review-entry > .ops-button { grid-column: 1 / -1; width: 100%; white-space: normal; }
+  .ops-vehicle-api-page > .ops-page-header { align-items: stretch; flex-direction: column; }
+  .ops-vehicle-review-header-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .ops-vehicle-review-context-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-vehicle-review-context-tabs a { min-width: 0; white-space: normal; }
+  .ops-vehicle-review-header-actions > .ops-button { width: 100%; }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keep the evidence frame proportional to the task, even at very low browser zoom. */
+.ops-vehicle-api-page .ops-vehicle-focus-main {
+  align-content: start;
+}
+
+.ops-vehicle-api-page .ops-vehicle-focus-image {
+  aspect-ratio: auto;
+  min-height: 0;
+  height: clamp(132px, 18vh, 220px);
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-image.is-plate {
+  height: clamp(124px, 15vh, 190px);
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-images.is-plate-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-image-comparison {
+  box-sizing: border-box;
+  display: grid;
+  height: clamp(230px, 28vh, 320px);
+  min-height: 230px;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--ops-line);
+  border-radius: 10px;
+  background: #f7fbff;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-image-comparison.is-plate-crop {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-image-comparison .ops-vehicle-focus-image {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+  max-width: none;
+  margin: 0;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-plate-summary.is-near-crop {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ops-line);
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-plate-summary.is-near-crop > div {
+  padding: 7px 9px;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-plate-summary.is-near-crop strong {
+  font-size: clamp(16px, 1.4vw, 22px);
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-plate-summary.is-near-crop > div {
+  min-height: 0;
+  padding: 5px 7px;
+}
+
+.ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-image.is-overview {
+  height: clamp(300px, 50vh, 620px);
+  min-height: 300px;
+}
+
+.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-images.is-plate-only {
+  display: flex;
+  justify-content: center;
+}
+
+@media screen and (max-width: 520px) {
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-images.is-plate-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The later tablet fallback must not keep a two-column queue beside a
+   narrow evidence pane on phone-sized dedicated review pages. */
+@media screen and (max-width: 780px) {
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-queue,
+  .ops-vehicle-api-page .ops-vehicle-focus-main,
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-dimension-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Short desktop viewports keep the workbench in view and confine scrolling to
+   the queue and the selected vehicle's details. */
+@media screen and (min-width: 1280px) and (max-height: 760px) {
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-main {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    padding-block: 6px;
+  }
+
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar {
+    flex: 0 0 auto;
+    margin-bottom: 4px;
+    padding-block: 3px;
+  }
+
+  .ops-vehicle-api-page {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    padding: 0 12px 4px;
+  }
+
+  .ops-vehicle-api-page > .ops-page-header {
+    flex: 0 0 auto;
+    gap: 4px 12px;
+    padding-bottom: 4px;
+  }
+
+  .ops-vehicle-api-page > .ops-page-header h1 {
+    font-size: var(--ops-type-heading-sm);
+    line-height: 1.15;
+  }
+
+  .ops-vehicle-review-context-tabs a {
+    min-height: 30px;
+    padding-block: 4px;
+  }
+
+  .ops-vehicle-review-header-actions { gap: 5px; }
+  .ops-vehicle-review-header-actions > .ops-button { min-height: 32px; }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > :not(.ops-vehicle-focus-layout) {
+    flex: 0 0 auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-heading {
+    min-height: 18px;
+    margin: 0;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status {
+    min-height: 24px;
+    padding-block: 3px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, .72fr) auto;
+    gap: 6px;
+    padding: 5px 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria .ops-field {
+    gap: 2px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-date-time-trigger {
+    min-height: 34px;
+    padding-block: 5px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-source {
+    min-height: 34px;
+    padding: 4px 7px;
+    gap: 1px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria > .ops-button {
+    min-height: 34px;
+    padding: 5px 9px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics {
+    gap: 4px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div {
+    min-height: 40px;
+    padding: 4px 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div > span,
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div > small {
+    font-size: var(--ops-type-micro);
+    line-height: 1.1;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics strong {
+    font-size: var(--ops-type-label);
+    line-height: 1.1;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-outcome-note,
+  .ops-vehicle-api-page .ops-vehicle-search-provenance {
+    min-height: 22px;
+    overflow: hidden;
+    padding: 3px 6px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.3;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-outcome-note {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-outcome-note > span,
+  .ops-vehicle-api-page .ops-vehicle-search-provenance > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-provenance {
+    display: flex;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-provenance > span + span {
+    padding-left: 8px;
+    border-left: 1px solid var(--ops-line);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-responsive-tabs { display: none; }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    display: grid;
+    min-height: 0;
+    flex: 1 1 0;
+    grid-template-columns: minmax(215px, 250px) minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-queue {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    gap: 6px;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-queue-heading h4,
+  .ops-vehicle-api-page .ops-vehicle-focus-main-heading h4 {
+    font-size: var(--ops-type-label);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-queue-search {
+    gap: 3px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-queue-search input {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list button {
+    padding: 6px 7px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list button small,
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list button b,
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list button em {
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-queue-pagination {
+    flex: 0 0 auto;
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-queue-pagination button {
+    min-height: 30px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main {
+    display: grid !important;
+    min-height: 0;
+    height: 100%;
+    grid-template-columns: minmax(0, 1.7fr) minmax(270px, .9fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    gap: 6px 8px;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-heading {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-heading > div > span {
+    margin-top: 1px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-tools {
+    gap: 3px;
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-tools .ops-icon-button {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-evidence-stack {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-section-heading h5 {
+    font-size: var(--ops-type-caption);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-section-heading > span {
+    font-size: var(--ops-type-micro);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    display: flex !important;
+    flex-direction: column;
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    gap: 6px;
+    padding: 8px;
+    overflow: hidden !important;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-dimension-list {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-api-proof {
+    min-height: 0;
+    padding: 7px;
+    overflow: auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation {
+    position: sticky;
+    bottom: 0;
+    flex: 0 0 auto;
+    margin-top: auto;
+    gap: 5px;
+    padding: 6px 0 0;
+    background: var(--ops-card);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation .ops-button {
+    min-height: 36px;
+    padding-inline: 7px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-image {
+    height: clamp(220px, 36vh, 300px);
+    min-height: 220px;
+  }
+
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-image.is-overview {
+    height: clamp(220px, 36vh, 300px);
+    min-height: 220px;
+  }
+
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-image.is-plate {
+    width: 100%;
+    max-width: 460px;
+    height: clamp(120px, 19vh, 150px);
+    min-height: 120px;
+  }
+}
+
+/* Compact the API summary band on wide screens, including when browser zoom
+   changes the CSS viewport height and bypasses the short-window breakpoint. */
+@media screen and (min-width: 1280px) {
+  .ops-vehicle-api-page { gap: 4px; }
+
+  .ops-vehicle-api-page > .ops-page-header {
+    gap: 4px 12px;
+    padding-bottom: 4px;
+  }
+
+  /* Keep the section name for assistive technology; its visible title and API
+     status are presented in the page header instead. */
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > .ops-vehicle-focus-heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > .ops-vehicle-focus-heading > div {
+    display: block;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > .ops-vehicle-focus-heading > .ops-status {
+    display: none;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel { gap: 4px; }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-heading {
+    min-height: 20px;
+    align-items: center;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status {
+    min-height: 22px;
+    gap: 4px;
+    padding: 2px 7px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.1;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-heading > .ops-status .ops-icon {
+    width: 11px;
+    height: 11px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria {
+    gap: 6px;
+    padding: 5px 6px;
+    border-radius: 9px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria .ops-field {
+    gap: 2px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.15;
+  }
+
+  .ops-vehicle-api-page .ops-date-time-trigger {
+    min-height: 34px;
+    padding-block: 5px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-source {
+    min-height: 34px;
+    gap: 1px;
+    padding: 4px 7px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria > .ops-button {
+    min-height: 34px;
+    padding-block: 5px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics { gap: 4px; }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div {
+    min-height: 34px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 5px;
+    row-gap: 0;
+    padding: 3px 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div > span {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+    overflow: hidden;
+    font-size: var(--ops-type-micro);
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div > strong {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    font-size: var(--ops-type-label);
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div > small {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 2;
+    overflow: hidden;
+    font-size: var(--ops-type-micro);
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-outcome-note {
+    min-height: 20px;
+    gap: 6px;
+    padding: 3px 6px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.2;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-provenance {
+    min-height: 20px;
+    gap: 7px;
+    padding: 3px 6px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.2;
+  }
+}
+
+/* Header/navigation actions are secondary controls on these desktop review
+   pages, so they do not need the shared 48px form-control height. */
+@media screen and (min-width: 1280px) {
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar .ops-button {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: var(--ops-type-caption);
+  }
+
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar .ops-save-indicator {
+    min-height: 30px;
+    padding: 5px 9px;
+    font-size: var(--ops-type-caption-sm);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-button {
+    min-height: 34px;
+    padding: 5px 10px;
+    font-size: var(--ops-type-caption);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-context-tabs a {
+    min-height: 32px;
+    padding: 4px 9px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-status {
+    max-width: 260px;
+    min-height: 28px;
+    flex: 0 1 auto;
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: var(--ops-type-micro);
+    line-height: 1.2;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-status > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media screen and (max-width: 1279px) {
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-status { display: none; }
+}
+
+/* The checklist entry screen has no middle evidence drawer. Give the empty
+   column back to its work area instead of placing the page in column three. */
+@media screen and (min-width: 1280px) {
+  .checklist-page:not(.is-report-previewing).is-vehicle-review-entry > .ops-taskflow-layout {
+    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review-entry > .ops-taskflow-layout > .ops-task-queue-panel {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review-entry > .ops-taskflow-layout > .ops-taskflow-main {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .checklist-page:not(.is-report-previewing).is-vehicle-review-entry > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list {
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .checklist-page.is-vehicle-review-entry .ops-vehicle-review-entry {
+    width: min(100%, 1120px);
+    margin-block: 16px;
+  }
+}
+
+/* Keep the dedicated vehicle workbench in the same place at 100% and 90%
+   browser zoom. The queue stays left; evidence and decisions share one row. */
+@media screen and (min-width: 1280px) {
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-main {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+    padding-block: 8px;
+  }
+
+  .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-topbar {
+    flex: 0 0 auto;
+    margin-bottom: 5px;
+  }
+
+  .ops-vehicle-api-page {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    padding-bottom: 4px;
+  }
+
+  .ops-vehicle-api-page > .ops-page-header,
+  .ops-vehicle-api-page > .ops-readonly-banner {
+    flex: 0 0 auto;
+  }
+
+  .ops-vehicle-api-page > .ops-page-header {
+    gap: 4px 10px;
+    padding-bottom: 4px;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page > .ops-vehicle-focus-panel > :not(.ops-vehicle-focus-layout) {
+    flex: 0 0 auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria .ops-field {
+    gap: 3px;
+  }
+
+  .ops-vehicle-api-page .ops-date-time-trigger,
+  .ops-vehicle-api-page .ops-vehicle-source,
+  .ops-vehicle-api-page .ops-vehicle-focus-criteria > .ops-button {
+    min-height: 38px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics {
+    gap: 4px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div {
+    min-height: 40px;
+    padding: 4px 6px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-outcome-note,
+  .ops-vehicle-api-page .ops-vehicle-search-provenance {
+    padding-block: 4px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-layout {
+    display: grid;
+    min-height: 260px;
+    flex: 1 1 0;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-queue {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    flex-direction: column;
+    grid-column: 1;
+    grid-row: 1;
+    gap: 6px;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-row-list {
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-queue-pagination {
+    flex: 0 0 auto;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main {
+    display: grid !important;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    grid-column: 2;
+    grid-row: 1;
+    grid-template-columns: minmax(0, 1.55fr) minmax(270px, .95fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    gap: 6px 8px;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-heading {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-items: center;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-main-tools > strong {
+    white-space: nowrap;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-evidence-stack {
+    min-width: 0;
+    min-height: 0;
+    grid-column: 1;
+    grid-row: 2;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector {
+    display: flex !important;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    flex-direction: column;
+    grid-column: 2;
+    grid-row: 2;
+    gap: 6px;
+    overflow: hidden;
+    padding: 8px;
+    position: static;
+    container-name: vehicle-inspector;
+    container-type: inline-size;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-dimension-list {
+    min-width: 0;
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-api-proof {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector:has(.ops-vehicle-review-correction) {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector:has(.ops-vehicle-review-evidence) > .ops-vehicle-review-evidence {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-review-dimension-list:has(.ops-vehicle-review-correction) {
+    min-height: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  @container vehicle-inspector (min-width: 390px) {
+    .ops-vehicle-api-page .ops-vehicle-review-correction-fields {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: auto;
+    padding: 6px 0 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--ops-card);
+    box-shadow: 0 -5px 8px var(--ops-card);
+  }
+
+  .ops-vehicle-api-page .ops-vehicle-focus-navigation .ops-button:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-main {
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+  }
+
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-evidence-stack {
+    grid-row: 2;
+  }
+
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-inspector {
+    grid-row: 2;
+  }
+
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-main {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+}
+
+.ops-vehicle-api-proof > summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ops-vehicle-api-proof > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ops-vehicle-api-proof > summary::after {
+  content: "⌄";
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--ops-blue);
+  font-size: 16px;
+  font-weight: 800;
+  transition: transform .15s ease;
+}
+
+.ops-vehicle-api-proof[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.ops-vehicle-api-proof-heading > span {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 2px;
+}
+
+.ops-vehicle-api-proof-heading > span > small {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  line-height: 1.4;
+}
+
+.ops-vehicle-api-proof-details {
+  display: grid;
+  gap: 3px;
+  padding: 6px 0 0 24px;
+}
+
+.ops-vehicle-api-proof-details > small {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-micro);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Keep vehicle facts, photo, and axle weights in one reading column. */
+.ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification {
+  container: vehicle-classification-evidence / inline-size;
+}
+
+.ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-focus-image.is-overview {
+  width: min(100%, 560px);
+  height: clamp(180px, 26vh, 280px);
+  min-height: 0;
+  aspect-ratio: auto;
+  margin-inline: auto;
+}
+
+.ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-focus-image.is-overview:not(.is-clickable) {
+  height: clamp(160px, 25vh, 220px);
+  min-height: 160px;
+  aspect-ratio: auto;
+}
+
+@container vehicle-classification-evidence (max-width: 560px) {
+  .ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-classification-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-focus-facts.is-classification-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container vehicle-classification-evidence (min-width: 561px) and (max-width: 780px) {
+  .ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-classification-metrics,
+  .ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-focus-facts.is-classification-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container vehicle-classification-evidence (min-width: 640px) and (max-width: 780px) {
+  .ops-vehicle-focus-panel .ops-vehicle-focus-evidence-stack.is-classification .ops-vehicle-axle-details > ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Desktop checklist: let the whole result panel own vertical scrolling so the
+   pointer does not need to land on a narrow inner results area. */
+@media screen and (min-width: 1440px) {
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-taskflow-heading {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-check-section-list {
+    height: auto;
+    flex: 0 0 auto;
+    overflow: visible;
+    padding-bottom: 20px;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) > .ops-taskflow-layout > .ops-taskflow-main > .ops-item-pager {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin-top: auto;
+    background: var(--ops-card);
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review)[data-checklist-mode="active"] .ops-taskflow-heading .ops-item-breadcrumb {
+    display: none;
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span {
+    padding: 6px 8px;
+    border-right: 1px solid var(--ops-line);
+  }
+
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span:nth-child(3n),
+  .checklist-page:not(.is-report-previewing):not(.is-vehicle-review) .ops-current-item-facts > span:last-child:nth-child(odd) {
+    grid-column: auto;
+    border-right: 0;
+  }
+}
