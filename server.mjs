@@ -19,9 +19,6 @@ const enforceStationScope = process.env.CHECKLIST_ENFORCE_STATION_SCOPE === 'tru
 if (['oidc', 'local'].includes(authMode) && !enforceStationScope) {
   throw new Error(`CHECKLIST_ENFORCE_STATION_SCOPE=true is required when CHECKLIST_AUTH_MODE=${authMode}`);
 }
-if (['oidc', 'local'].includes(authMode) && process.env.CHECKLIST_COOKIE_SECURE === 'false') {
-  throw new Error(`CHECKLIST_COOKIE_SECURE cannot be false when CHECKLIST_AUTH_MODE=${authMode}`);
-}
 if ((String(process.env.NODE_ENV || '').toLowerCase() === 'production' || String(process.env.CHECKLIST_PUBLIC_MODE || '').toLowerCase() === 'true') && !['local', 'oidc'].includes(authMode)) {
   throw new Error('Production/Public mode requires CHECKLIST_AUTH_MODE=local or CHECKLIST_AUTH_MODE=oidc');
 }
@@ -37,7 +34,11 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
 ].join('; ');
 const store = await createConfiguredStore();
-const attachmentStore = createAttachmentStore({ root: process.env.CHECKLIST_ATTACHMENTS_DIR || path.join(root, 'data', 'attachments') });
+const configuredAttachmentRoot = String(process.env.CHECKLIST_ATTACHMENTS_DIR || path.join(root, 'data', 'attachments')).trim();
+const attachmentRoot = path.isAbsolute(configuredAttachmentRoot)
+  ? configuredAttachmentRoot
+  : path.resolve(root, configuredAttachmentRoot);
+const attachmentStore = createAttachmentStore({ root: attachmentRoot });
 const auth = createAuth({ store });
 const api = createApi({
   store,
@@ -50,7 +51,8 @@ async function resolveVehicleStationTarget(stationId) {
   const current = await store.getState();
   const station = (Array.isArray(current?.state?.stationProfiles) ? current.state.stationProfiles : [])
     .find((entry) => String(entry?.id || '') === String(stationId || ''));
-  return createVehicleSearchConfig(station?.vehicleSearchConfig, '').baseUrl || '';
+  const vehicleSearchConfig = createVehicleSearchConfig(station?.vehicleSearchConfig, '');
+  return vehicleSearchConfig.baseUrl ? vehicleSearchConfig : null;
 }
 
 const contentTypes = {
@@ -74,6 +76,11 @@ function writeSecurityHeaders(response) {
   response.setHeader('Referrer-Policy', 'no-referrer');
   response.setHeader('Content-Security-Policy', contentSecurityPolicy);
   response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+}
+
+function isWithinDirectory(directory, candidate) {
+  const relative = path.relative(directory, candidate);
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 const server = http.createServer(async (request, response) => {
@@ -104,10 +111,28 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  fs.stat(filePath, (error, stats) => {
+  fs.stat(filePath, async (error, stats) => {
     if (error || !stats.isFile()) {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       response.end('Not found');
+      return;
+    }
+
+    let servedFilePath;
+    let realAttachmentRoot;
+    try {
+      [servedFilePath, realAttachmentRoot] = await Promise.all([
+        fs.promises.realpath(filePath),
+        fs.promises.realpath(attachmentStore.root),
+      ]);
+    } catch {
+      response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('Not found');
+      return;
+    }
+    if (isWithinDirectory(realAttachmentRoot, servedFilePath)) {
+      response.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('Forbidden');
       return;
     }
 
@@ -116,7 +141,7 @@ const server = http.createServer(async (request, response) => {
       'Content-Type': contentTypes[extension] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
     });
-    fs.createReadStream(filePath).pipe(response);
+    fs.createReadStream(servedFilePath).pipe(response);
   });
   } catch (error) {
     console.error(JSON.stringify({ event: 'server.error', message: error?.message || 'unknown', path: request.url, method: request.method }));

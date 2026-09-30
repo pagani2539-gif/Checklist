@@ -152,6 +152,22 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
       const status = error.statusCode || (error.message === "Forbidden" ? 403 : 500);
       await store.audit(status === 403 ? "authorization.failure" : "authentication.failure", user, "http", request.url, { status }, id);
       if (status >= 500) console.error(JSON.stringify({ event: "api.error", requestId: id, path: request.url, message: error?.message || "unknown" }));
+      if (status === 409 && user && error.mergeCandidate && Array.isArray(error.mergeConflicts)) {
+        try {
+          sendJson(response, status, {
+            message: error.message || "State version conflict; resolve overlapping fields before saving",
+            requestId: id,
+            conflict: {
+              currentVersion: error.currentVersion,
+              candidateState: await scopeState(user, error.mergeCandidate),
+              paths: error.mergeConflicts,
+            },
+          });
+          return true;
+        } catch {
+          // Fall through to the generic conflict response if safe scoping fails.
+        }
+      }
       sendError(response, status, status === 401 ? "Authentication required" : status >= 500 ? "Internal server error" : error.message || "Request failed", id);
       return true;
     }
@@ -371,7 +387,11 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
         assertContractTopology(nextState);
         assertStateScope(nextState, stationIds);
         const result = await store.saveState(nextState, { expectedVersion: body.expectedVersion, stationIds, actor: user, reason: body.reason || "state-update", requestId: requestIdValue });
-        sendJson(response, 200, { version: result.version, updatedAt: result.updatedAt });
+        sendJson(response, 200, {
+          version: result.version,
+          updatedAt: result.updatedAt,
+          ...(result.mergedConcurrentState ? { state: await scopeState(user, result.state), mergedConcurrentState: true } : {}),
+        });
       }, WRITE_ROLES);
     }
     if (pathname === "/api/v1/stations" && request.method === "GET") {

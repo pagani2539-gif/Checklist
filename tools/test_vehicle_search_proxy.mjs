@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { handleVehicleSearchProxyRequest } from "../server/vehicle-search-proxy.mjs";
-import { normalizeVehicleSearchBaseUrl } from "../src/domain/vehicle-search.js";
+import { normalizeVehicleSearchBaseUrl, testVehicleSearchConnection } from "../src/domain/vehicle-search.js";
 
 function listen(server) {
   return new Promise((resolve, reject) => {
@@ -22,6 +22,7 @@ const testUsers = {
   admin: { id: "admin-user", role: "admin", stationIds: [] },
   "station-a": { id: "station-a-inspector", role: "inspector", stationIds: ["station-a"] },
   "station-b": { id: "station-b-inspector", role: "inspector", stationIds: ["station-b"] },
+  "station-a-viewer": { id: "station-a-viewer", role: "viewer", stationIds: ["station-a"] },
   "unscoped-viewer": { id: "unscoped-viewer", role: "viewer", stationIds: [] },
   contractor: { id: "contractor", role: "contractor", stationIds: ["station-a"] },
 };
@@ -70,6 +71,31 @@ const upstream = http.createServer(async (request, response) => {
 
 const upstreamPort = await listen(upstream);
 const baseUrl = `http://127.0.0.1:${upstreamPort}`;
+const proxyRequests = [];
+const secondUpstream = http.createServer(async (request, response) => {
+  const requestUrl = new URL(request.url || "/", "http://localhost");
+  const targetValue = requestUrl.searchParams.get("target") || "";
+  let targetUrl;
+  try { targetUrl = new URL(targetValue); } catch { targetUrl = null; }
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  proxyRequests.push({ method: request.method, pathname: requestUrl.pathname, target: targetValue, body: Buffer.concat(chunks).toString("utf8") });
+  if (request.method === "POST" && requestUrl.pathname === "/api" && targetUrl?.pathname === "/api/vehicle/search") {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ data: [{ plateNumber: "สถานี-b" }] }));
+    return;
+  }
+  if (request.method === "GET" && requestUrl.pathname === "/api" && targetUrl?.pathname === "/api/vehicle/image") {
+    response.writeHead(200, { "Content-Type": "image/jpeg" });
+    response.end(Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    return;
+  }
+  response.writeHead(404);
+  response.end();
+});
+const secondUpstreamPort = await listen(secondUpstream);
+const proxyTargetBaseUrl = "http://192.168.145.90:3005";
+const proxySearchUrl = `http://127.0.0.1:${secondUpstreamPort}/api?target=${proxyTargetBaseUrl}/api/vehicle/search`;
 const proxy = http.createServer((request, response) => handleVehicleSearchProxyRequest(request, response, {
   auth: testAuth,
   enforceStationTarget: false,
@@ -96,6 +122,19 @@ const persistedTargetProxy = http.createServer((request, response) => handleVehi
 }));
 const persistedTargetProxyPort = await listen(persistedTargetProxy);
 const persistedTargetProxyUrl = `http://127.0.0.1:${persistedTargetProxyPort}`;
+const dynamicProfileTargets = {
+  "station-a": baseUrl,
+  "station-b": { baseUrl: proxyTargetBaseUrl, connectionMode: "proxy", searchUrl: proxySearchUrl },
+};
+const dynamicTargetProxy = http.createServer((request, response) => handleVehicleSearchProxyRequest(request, response, {
+  auth: testAuth,
+  enforceStationScope: true,
+  enforceStationTarget: true,
+  allowedOrigins: new Set(),
+  resolveStationTarget: async (stationId) => dynamicProfileTargets[stationId] || "",
+}));
+const dynamicTargetProxyPort = await listen(dynamicTargetProxy);
+const dynamicTargetProxyUrl = `http://127.0.0.1:${dynamicTargetProxyPort}`;
 
 try {
   const searchResponse = await fetch(`${proxyUrl}/api/vehicle/search`, {
@@ -169,6 +208,47 @@ try {
   });
   assert.equal(persistedStationTargetResponse.status, 200, "the proxy should resolve a saved station target instead of trusting the client URL");
 
+  for (const [stationId, expectedPlate] of [["station-a", "ทดสอบ-1234"], ["station-b", "สถานี-b"]]) {
+    const dynamicTargetResponse = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/search`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ stationId, baseUrl: "http://127.0.0.1:9", payload: { page: 1 } }),
+    });
+    assert.equal(dynamicTargetResponse.status, 200, `${stationId} should use its saved Station Profile target without an environment allowlist`);
+    assert.equal((await dynamicTargetResponse.json()).data[0].plateNumber, expectedPlate);
+  }
+  const dynamicImageResponse = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/image?stationId=station-b&path=crop/station-b.jpg`, { headers: authHeaders() });
+  assert.equal(dynamicImageResponse.status, 200, "images should use the saved Station Profile target without an environment allowlist");
+  assert.equal(new URL(proxyRequests.at(-1).target).pathname, "/api/vehicle/image");
+  assert.equal(new URL(proxyRequests.at(-1).target).searchParams.get("path"), "crop/station-b.jpg");
+  assert.deepEqual(JSON.parse(proxyRequests.find((entry) => entry.method === "POST").body), { page: 1 }, "the external proxy should receive the Vehicle API payload, not app routing metadata");
+
+  const draftConnectionTest = await testVehicleSearchConnection(baseUrl, {
+    fetchImpl: (endpoint, options) => fetch(new URL(endpoint, dynamicTargetProxyUrl), {
+      ...options,
+      headers: { ...options.headers, ...authHeaders() },
+    }),
+    stationProfileId: "new-station-draft",
+    transport: "proxy",
+  });
+  assert.equal(draftConnectionTest.status, 200, "an authorized profile editor should be able to test the unsaved URL through the proxy");
+  const draftProxyConnectionTest = await testVehicleSearchConnection(proxyTargetBaseUrl, {
+    fetchImpl: (endpoint, options) => fetch(new URL(endpoint, dynamicTargetProxyUrl), {
+      ...options,
+      headers: { ...options.headers, ...authHeaders() },
+    }),
+    searchUrl: proxySearchUrl,
+    stationProfileId: "new-proxy-station-draft",
+    transport: "proxy",
+  });
+  assert.equal(draftProxyConnectionTest.status, 200, "an authorized profile editor should be able to test an unsaved Proxy URL through the app proxy");
+  const deniedDraftConnectionTest = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/search`, {
+    method: "POST",
+    headers: { ...authHeaders("station-a-viewer"), "Content-Type": "application/json" },
+    body: JSON.stringify({ stationId: "station-a", baseUrl, connectionTest: true, payload: { page: 1 } }),
+  });
+  assert.equal(deniedDraftConnectionTest.status, 403, "a station viewer must not test an unpersisted Vehicle API target");
+
   const beforeRejectedRequests = upstreamRequests.length;
   const unauthenticatedSearchResponse = await fetch(`${targetProxyUrl}/api/vehicle/search`, {
     method: "POST",
@@ -204,10 +284,12 @@ try {
   assert.equal(missingStationImageResponse.status, 400);
   assert.equal(upstreamRequests.length, beforeRejectedRequests + 2, "rejected auth/scope requests must not reach the upstream API; Inspector may access another station");
 
-  console.log(JSON.stringify({ searchStatus: searchResponse.status, imageStatus: imageResponse.status, authzCases: 7, upstreamRequests: upstreamRequests.length }));
+  console.log(JSON.stringify({ searchStatus: searchResponse.status, imageStatus: imageResponse.status, dynamicStationTargets: 2, draftConnectionTests: 2, authzCases: 7, upstreamRequests: upstreamRequests.length }));
 } finally {
   await close(proxy);
   await close(targetProxy);
   await close(persistedTargetProxy);
+  await close(dynamicTargetProxy);
   await close(upstream);
+  await close(secondUpstream);
 }

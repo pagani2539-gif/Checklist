@@ -8,6 +8,7 @@ restore-drill/
 logs/
 node_modules/
 .codex/
+.pm2/
 .playwright-cli/
 .tmp*/
 dist*/

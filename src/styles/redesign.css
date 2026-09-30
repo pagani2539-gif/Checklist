@@ -4187,8 +4187,14 @@ button.ops-vehicle-focus-image:hover { border-color: var(--ops-blue); box-shadow
 
 /* Authoritative print-page model: the physical 16:9 page owns pagination;
    the cover and item slides only fill its inner safe area. */
+@page presentation16x9 {
+  size: 16in 9in;
+  margin: 0;
+}
+
 @media print {
   .ops-print-report[data-report-mode="presentation"] {
+    page: presentation16x9;
     width: 16in !important;
     margin: 0 !important;
     padding: 0 !important;

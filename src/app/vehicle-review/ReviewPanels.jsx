@@ -357,7 +357,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const [error, setError] = useState("");
     const [activeGroupKey, setActiveGroupKey] = useState("");
     const abortRef = useRef(null);
-    const searchState = normalizeVehicleSearchState(value, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile });
+    const searchState = normalizeVehicleSearchState(value, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile, searchUrl: vehicleSearchConfig.searchUrl, stationProfileId: round?.stationId || round?.snapshot?.stationId });
     const criteriaDirty = Boolean(searchState.fetchedAt) && isVehicleCriteriaDirty(criteria, searchState.criteria);
     const summary = getVehicleSearchReviewSummary(searchState, { reviewVersion, context: context?.key });
     const groups = getVehicleQueueGroups(searchState, { reviewVersion, context: context?.key });
@@ -524,7 +524,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const [lightbox, setLightbox] = useState(null);
     const [responsivePanel, setResponsivePanel] = useState("evidence");
     const abortRef = useRef(null);
-    const searchState = normalizeVehicleSearchState(scopeValue, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile });
+    const searchState = normalizeVehicleSearchState(scopeValue, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile, searchUrl: vehicleSearchConfig.searchUrl, stationProfileId: round?.stationId || round?.snapshot?.stationId });
     const criteriaDirty = Boolean(searchState.fetchedAt) && isVehicleCriteriaDirty(criteria, searchState.criteria);
     const summary = getVehicleSearchReviewSummary(searchState, { reviewVersion, context: context?.key });
     const outcome = getVehicleReviewOutcome(searchState, { reviewVersion, context: context?.key });

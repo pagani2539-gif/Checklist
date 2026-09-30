@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Pool } from "pg";
 import { mergeScopedState } from "./state-scope.mjs";
+import { mergeConcurrentState, STATE_MERGE_IGNORED_KEYS } from "../src/domain/state-merge.js";
 
 export const POSTGRES_STORE_SCHEMA_VERSION = 2;
 
@@ -52,81 +53,6 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-const STATION_SCOPED_COLLECTIONS = ["stationProfiles", "inspectionRounds", "inspectionHistory", "inspectionWorkspaces", "contractStationAssignments", "contractWorkReports"];
-const CLIENT_ONLY_KEYS = new Set(["ui", "activeRoundId", "activeStationId", "items", "inspectionSnapshot", "meta", "lastSaved"]);
-
-function recordScopeKey(collection, record) {
-  if (collection === "stationProfiles") return String(record?.id || "");
-  return String(record?.stationId || record?.snapshot?.stationId || record?.stationSnapshot?.stationId || "");
-}
-
-function groupCollection(collection, value) {
-  const groups = new Map();
-  for (const record of asArray(value)) {
-    const key = recordScopeKey(collection, record);
-    if (!key) continue;
-    const records = groups.get(key) || [];
-    records.push(record);
-    groups.set(key, records);
-  }
-  return groups;
-}
-
-function changedScopeKeys(collection, base, candidate) {
-  const baseGroups = groupCollection(collection, base);
-  const candidateGroups = groupCollection(collection, candidate);
-  const keys = new Set([...baseGroups.keys(), ...candidateGroups.keys()]);
-  return new Set([...keys].filter((key) => stableJson(baseGroups.get(key) || []) !== stableJson(candidateGroups.get(key) || [])));
-}
-
-function mergeDisjointStationStates(base, current, incoming) {
-  if (!base || !current || !incoming) return null;
-  const merged = { ...current };
-  merged.deletedRoundIds = [...new Set([...asArray(current.deletedRoundIds).map(String), ...asArray(incoming.deletedRoundIds).map(String)])];
-  for (const collection of STATION_SCOPED_COLLECTIONS) {
-    const incomingChanges = changedScopeKeys(collection, base[collection], incoming[collection]);
-    const currentChanges = changedScopeKeys(collection, base[collection], current[collection]);
-    if ([...incomingChanges].some((key) => currentChanges.has(key))) return null;
-    const incomingGroups = groupCollection(collection, incoming[collection]);
-    const changedValues = [];
-    const emittedKeys = new Set();
-    for (const record of asArray(current[collection])) {
-      const key = recordScopeKey(collection, record);
-      if (!incomingChanges.has(key)) {
-        changedValues.push(record);
-        continue;
-      }
-      if (!emittedKeys.has(key)) {
-        changedValues.push(...(incomingGroups.get(key) || []));
-        emittedKeys.add(key);
-      }
-    }
-    for (const key of incomingChanges) {
-      if (!emittedKeys.has(key)) changedValues.push(...(incomingGroups.get(key) || []));
-    }
-    merged[collection] = changedValues;
-  }
-  const keys = new Set([...Object.keys(base), ...Object.keys(current), ...Object.keys(incoming)]);
-  for (const key of keys) {
-    if (STATION_SCOPED_COLLECTIONS.includes(key) || CLIENT_ONLY_KEYS.has(key) || key === "version") continue;
-    if (key === "deletedRoundIds") {
-      continue;
-    }
-    if (key === "inspectionRoundContextLinks" || key === "stationInspectionReports") {
-      const deletedRoundIds = new Set(asArray(merged.deletedRoundIds).map(String));
-      merged[key] = asArray(current[key]).filter((record) => !deletedRoundIds.has(String(record?.roundId || "")));
-      continue;
-    }
-    const baseValue = stableJson(base[key] ?? null);
-    const incomingValue = stableJson(incoming[key] ?? null);
-    const currentValue = stableJson(current[key] ?? null);
-    if (incomingValue !== baseValue) {
-      if (currentValue !== baseValue) return null;
-      merged[key] = incoming[key];
-    }
-  }
-  return merged;
-}
 
 function dateValue(value) {
   return value ? new Date(value) : null;
@@ -199,17 +125,22 @@ export class PostgresChecklistStore {
       const currentRow = rows[0];
       const current = { state: currentRow?.payload || null, version: Number(currentRow?.version || 0), updatedAt: currentRow?.updated_at || null, updatedBy: currentRow?.updated_by || null };
       let nextState = state;
+      let mergedConcurrentState = false;
       if (expectedVersion != null && Number(expectedVersion) !== current.version) {
         const baseResult = await client.query("SELECT payload FROM state_revisions WHERE state_version = $1", [Number(expectedVersion)]);
         const baseState = baseResult.rows[0]?.payload;
         const scopedIncoming = Array.isArray(stationIds) ? mergeScopedState(baseState, state, stationIds) : state;
-        nextState = mergeDisjointStationStates(baseState, current.state, scopedIncoming);
-        if (!nextState) {
+        const merge = mergeConcurrentState(baseState, current.state, scopedIncoming, { ignoredKeys: STATE_MERGE_IGNORED_KEYS });
+        nextState = merge.state;
+        if (merge.conflicts.length) {
           const error = new Error("State version conflict; reload before saving");
           error.statusCode = 409;
           error.currentVersion = current.version;
+          error.mergeCandidate = nextState;
+          error.mergeConflicts = merge.conflicts;
           throw error;
         }
+        mergedConcurrentState = true;
       } else if (Array.isArray(stationIds)) {
         nextState = mergeScopedState(current.state, state, stationIds);
       }
@@ -240,7 +171,7 @@ export class PostgresChecklistStore {
       }
       await this.auditWithClient(client, "state.update", actor, "state", "global", { version: nextVersion, reason }, requestId);
       await client.query("COMMIT");
-      return { state: clone(nextState), version: nextVersion, updatedAt, updatedBy: actorId };
+      return { state: clone(nextState), version: nextVersion, updatedAt, updatedBy: actorId, mergedConcurrentState };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

@@ -33,6 +33,7 @@ import { createContractAgreementCoverPage } from "./pages/ContractAgreementCover
 import { createReferenceDataPage } from "./pages/ReferenceDataPage.jsx";
 import { AdminUsersPage, LocalLoginScreen, PasswordChangeScreen } from "./LocalAuthScreens.jsx";
 import ContractContextBar from "./ContractContextBar.jsx";
+import ServerConflictResolver from "./ServerConflictResolver.jsx";
 import { useServerWorkspaceSync } from "./useServerWorkspaceSync.js";
 import {
   buildInspectionSections,
@@ -2576,7 +2577,7 @@ function App() {
   const confirmResolverRef = useRef(null);
   const notify = (message) => { setToast(message); window.clearTimeout(window.__checklistToast); window.__checklistToast = window.setTimeout(() => setToast(""), 2800); };
   const serverSync = useServerWorkspaceSync({ serverStorage, setState, notify });
-  const { authConfig, authRequired, currentUser, downloadConflictDraft, persistServerState, remoteLoaded, returnToServerState, serverConflict } = serverSync;
+  const { authConfig, authRequired, currentUser, downloadConflictDraft, persistServerState, remoteLoaded, resolveServerConflict, returnToServerState, serverConflict } = serverSync;
   const handleShellRouteClick = (event) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = event.target?.closest?.('a[href^="#/"]');
@@ -2884,7 +2885,7 @@ function App() {
       : savedAt
         ? "บันทึกแล้ว"
         : "พร้อมบันทึกอัตโนมัติ";
-  const page = route.name === "adminUsers" ? <AdminUsersPage state={state} /> : renderPage(route, PAGE_COMPONENTS, {
+  const pageContent = route.name === "adminUsers" ? <AdminUsersPage state={state} /> : renderPage(route, PAGE_COMPONENTS, {
     dashboard: { state, update },
     newContract: { state, update, notify, route },
     contractEdit: { state, update, notify, route },
@@ -2907,6 +2908,16 @@ function App() {
     historyVehicleApiReport: { state, route },
     historyRevise: { state, update, notify, requestConfirm, route },
   });
+  const page = <>
+    {serverConflict?.merge && <ServerConflictResolver
+      key={serverConflict.detectedAt}
+      conflict={serverConflict}
+      onDownload={downloadConflictDraft}
+      onResolve={resolveServerConflict}
+      onDiscard={() => returnToServerState(requestConfirm).then((loaded) => { if (loaded) setSavedAt(null); })}
+    />}
+    {pageContent}
+  </>;
   return <div data-page-layout={pageLayout} onClick={handleShellRouteClick} className={`ops-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""} ${isDeepWorkspace ? "is-deep-workspace" : ""}`.trim()}><a className="ops-skip-link" href="#main-content">ข้ามไปยังเนื้อหาหลัก</a><aside className="ops-sidebar" aria-label="เมนูหลัก"><div className="ops-brand"><span className="ops-brand-mark"><Icon name="clipboard" /></span><span className="ops-brand-copy"><strong>CHECKLIST</strong><small>Operations Hub</small></span><button ref={sidebarToggleRef} type="button" className="ops-sidebar-toggle" aria-label={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} aria-expanded={!sidebarCollapsed} aria-controls="primary-navigation" title={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} onClick={() => setSidebarCollapsed((current) => !current)}><Icon name="arrow" /></button></div><nav id="primary-navigation" className="ops-main-nav" aria-label="ส่วนของระบบ">{PRIMARY_ROUTES.map((item) => <a key={item.key} className={activeRoute === item.key ? "is-active" : ""} aria-current={activeRoute === item.key ? "page" : undefined} aria-label={item.label} title={item.label} href={item.hash}><Icon name={item.key === "dashboard" ? "home" : item.key === "contracts" ? "archive" : item.key === "stations" ? "building" : item.key === "inspections" ? "list" : "archive"} /><span className="ops-nav-label-full" aria-hidden="true">{item.label}</span><span className="ops-nav-label-short" aria-hidden="true">{SIDEBAR_SHORT_LABELS[item.key] || item.label}</span></a>)}{serverStorage && currentUser?.role === "admin" && <a className={activeRoute === "adminUsers" ? "is-active" : ""} aria-current={activeRoute === "adminUsers" ? "page" : undefined} aria-label="จัดการผู้ใช้" title="จัดการผู้ใช้" href="#/admin/users"><Icon name="settings" /><span className="ops-nav-label-full" aria-hidden="true">จัดการผู้ใช้</span><span className="ops-nav-label-short" aria-hidden="true">ผู้ใช้</span></a>}</nav></aside><main id="main-content" className="ops-main" tabIndex="-1"><header className="ops-topbar"><div className="ops-topbar-leading"><button type="button" className="ops-button ops-button-secondary ops-shell-back" onClick={() => navigateBack(backFallbackTarget)} disabled={!canGoBack && !backFallbackTarget}><Icon name="arrow" />ย้อนกลับ</button><div className="ops-topbar-context"><p className="ops-eyebrow">FIELD OPERATIONS / CHECKLIST</p></div></div><div className="ops-topbar-actions">{currentUser && <><span className="ops-current-user">{currentUser.displayName}</span><button type="button" className="ops-button ops-button-secondary ops-logout-button" onClick={async () => { await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" }); window.location.reload(); }}>ออกจากระบบ</button></>}<div className={`ops-save-indicator ${isReadOnlySurface ? "is-readonly" : ""} ${serverConflict ? "is-conflict" : ""} ${route.name === "checklist" && route.id === UI_DEMO_ROUND_ID ? "is-demo" : ""}`.trim()} role="status" aria-live="polite"><span className="ops-live-dot" /><span>{shellSaveState}</span></div></div></header>{serverConflict && <section className="ops-server-conflict" role="alert" aria-live="assertive"><div><strong>การบันทึกชนกับข้อมูลส่วนกลาง</strong><p>{serverConflict.draftPreserved ? "ระบบเก็บ draft ไว้ในเบราว์เซอร์และหยุดซิงก์อัตโนมัติเพื่อป้องกันการเขียนทับ ดาวน์โหลดไฟล์เพื่อเก็บสำเนาและตรวจรวมข้อมูลก่อนดำเนินการต่อ" : "การบันทึก draft ลงเครื่องไม่สำเร็จ ข้อมูลยังอยู่ในหน่วยความจำของหน้านี้ ดาวน์โหลดไฟล์ทันทีและอย่าปิดหน้านี้"}</p></div><div className="ops-server-conflict-actions"><button type="button" className="ops-button ops-button-secondary" onClick={downloadConflictDraft}>ดาวน์โหลด draft (JSON)</button><button type="button" className="ops-button ops-button-danger" disabled={!serverConflict.downloaded} onClick={() => returnToServerState(requestConfirm).then((loaded) => { if (loaded) setSavedAt(null); })}>ทิ้ง draft และโหลดข้อมูลส่วนกลาง</button></div></section>}<ContractContextBar state={state} route={route} />{page}</main>{purgeRetry ? <div className="ops-toast ops-toast-retry" role="alert" aria-live="assertive"><Icon name="alert" /><span>{purgeRetry.message}</span><Button onClick={retryStationPurge} variant="secondary" icon="refresh" disabled={purgeRetry.busy}>{purgeRetry.busy ? "กำลังลองใหม่..." : "ลองลบไฟล์แนบอีกครั้ง"}</Button></div> : toast && <div className="ops-toast" role="status" aria-live="polite"><Icon name="check" />{toast}</div>}<ConfirmDialog request={confirmRequest} onResolve={resolveConfirm} /></div>;
 }
 

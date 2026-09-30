@@ -6,7 +6,9 @@ import { readAppSource, readSharedSource } from "./source-bundle.mjs";
 
 const appSource = readAppSource();
 const appModuleSource = fs.readFileSync(new URL("../src/app/App.jsx", import.meta.url), "utf8");
+const checklistPageSource = fs.readFileSync(new URL("../src/app/pages/ChecklistPage.jsx", import.meta.url), "utf8");
 const moduleSource = readSharedSource("reports/PrintableReport.jsx");
+const redesignedStyles = fs.readFileSync(new URL("../src/styles/redesign.css", import.meta.url), "utf8");
 
 const traverse = traverseModule.default.default || traverseModule.default;
 const moduleAst = parse(moduleSource, { sourceType: "module", plugins: ["jsx"] });
@@ -35,6 +37,10 @@ assert.match(moduleSource, /<PrintableVehiclePresentationSlide/);
 assert.match(moduleSource, /src=\{row\.lprImage\} label="ภาพจากกล้อง LPR"/);
 assert.match(moduleSource, /data-presentation-vehicle-slide-count=\{vehicleSlides\.length\}/);
 assert.match(moduleSource, /hasPresentationSlides = model\.sections\.some/);
+assert.match(redesignedStyles, /@page presentation16x9\s*\{\s*size:\s*16in 9in;\s*margin:\s*0;/);
+assert.match(redesignedStyles, /\.ops-print-report\[data-report-mode="presentation"\]\s*\{\s*page:\s*presentation16x9;/);
+assert.doesNotMatch(checklistPageSource, /printLayoutStyle/);
+assert.doesNotMatch(moduleSource, /data-report-print-layout="presentation"/);
 const reportStyles = fs.readFileSync(new URL("../src/styles/foundation.css", import.meta.url), "utf8");
 assert.match(reportStyles, /\.ops-print-cleaning-stage-grid \{ grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 assert.match(reportStyles, /\.ops-print-cleaning-page \{[^}]*break-before: page/);

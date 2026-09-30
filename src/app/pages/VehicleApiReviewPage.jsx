@@ -46,8 +46,8 @@ export function createVehicleApiReviewPage(runtime) {
           ...entry,
           updatedAt: new Date().toISOString(),
           vehicleSearch: entry.snapshot?.vehicleReviewScopeVersion === VEHICLE_REVIEW_SCOPE_VERSION && isVehicleReviewScopeState(nextVehicleSearch)
-            ? normalizeVehicleReviewState(nextVehicleSearch, { dateFrom: entry.meta?.inspectionDate, dateTo: entry.meta?.inspectionDate, stationCode: entry.snapshot?.stationCode }, { baseUrl: entry.snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: entry.snapshot?.vehicleSearchConfig?.apiProfile })
-            : normalizeVehicleSearchState(nextVehicleSearch, { dateFrom: entry.meta?.inspectionDate, dateTo: entry.meta?.inspectionDate, stationCode: entry.snapshot?.stationCode }, { baseUrl: entry.snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: entry.snapshot?.vehicleSearchConfig?.apiProfile }),
+            ? normalizeVehicleReviewState(nextVehicleSearch, { dateFrom: entry.meta?.inspectionDate, dateTo: entry.meta?.inspectionDate, stationCode: entry.snapshot?.stationCode }, { baseUrl: entry.snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: entry.snapshot?.vehicleSearchConfig?.apiProfile, searchUrl: entry.snapshot?.vehicleSearchConfig?.searchUrl, stationProfileId: entry.stationId || entry.snapshot?.stationId })
+            : normalizeVehicleSearchState(nextVehicleSearch, { dateFrom: entry.meta?.inspectionDate, dateTo: entry.meta?.inspectionDate, stationCode: entry.snapshot?.stationCode }, { baseUrl: entry.snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: entry.snapshot?.vehicleSearchConfig?.apiProfile, searchUrl: entry.snapshot?.vehicleSearchConfig?.searchUrl, stationProfileId: entry.stationId || entry.snapshot?.stationId }),
         } : entry),
       }));
     }, [readOnly, round, updateRound]);

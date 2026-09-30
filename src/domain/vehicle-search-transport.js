@@ -61,12 +61,15 @@ export class VehicleSearchError extends Error {
     signal,
     transport = "proxy",
     stationTargetId = "",
+    connectionTest = false,
   }) {
     const normalizedBaseUrl = normalizeVehicleSearchBaseUrl(baseUrl);
     const directEndpoint = buildVehicleSearchDirectEndpoint(normalizedBaseUrl, apiProfile, searchUrl);
+    const normalizedSearchUrl = normalizeVehicleSearchEndpoint(searchUrl);
+    const connectionMode = normalizedSearchUrl && new URL(normalizedSearchUrl).searchParams.has("target") ? "proxy" : "direct";
     const proxyBody = apiProfile === VEHICLE_API_PROFILES.LEGACY_V1
-      ? { baseUrl: normalizedBaseUrl, ...(stationTargetId ? { stationId: stationTargetId } : {}), payload }
-      : { baseUrl: normalizedBaseUrl, ...(stationTargetId ? { stationId: stationTargetId } : {}), apiProfile, payload };
+      ? { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(connectionTest ? { connectionTest: true } : {}), payload }
+      : { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(connectionTest ? { connectionTest: true } : {}), apiProfile, payload };
     const candidates = transport === "direct-first"
       ? [
         { endpoint: directEndpoint, body: payload, mode: "direct" },
@@ -183,6 +186,7 @@ export class VehicleSearchError extends Error {
         signal,
         transport,
         stationTargetId: stationProfileId,
+        connectionTest: true,
       })).response;
     } catch (error) {
       if (error?.name === "AbortError") throw error;

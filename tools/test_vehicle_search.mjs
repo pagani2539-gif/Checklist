@@ -85,6 +85,14 @@ assert.equal(pastedProxyV2.stationPort, 3010);
 assert.equal(pastedProxyV2.proxyHost, "61.19.97.189");
 assert.equal(pastedProxyV2.proxyPort, 3005);
 assert.equal(pastedProxyV2.searchUrl, "http://61.19.97.189:3005/api?target=http://192.168.145.90:3010/api/v2/vehicles/search");
+const pastedProxyLegacy = parseVehicleSearchUrl("http://61.19.97.189:3005/api?target=http://192.168.145.90:3005/api/vehicle/search");
+assert.equal(pastedProxyLegacy.valid, true);
+assert.equal(pastedProxyLegacy.mode, VEHICLE_CONNECTION_MODES.PROXY);
+assert.equal(pastedProxyLegacy.baseUrl, "http://192.168.145.90:3005");
+const pastedDirectLegacy = parseVehicleSearchUrl("http://159.192.123.229:3005/api/vehicle/search");
+assert.equal(pastedDirectLegacy.valid, true);
+assert.equal(pastedDirectLegacy.mode, VEHICLE_CONNECTION_MODES.DIRECT);
+assert.equal(pastedDirectLegacy.baseUrl, "http://159.192.123.229:3005");
 const pastedDirectV2 = parseVehicleSearchUrl("http://192.168.145.90:3010/api/v2/vehicles/search");
 assert.equal(pastedDirectV2.valid, true);
 assert.equal(pastedDirectV2.mode, VEHICLE_CONNECTION_MODES.DIRECT);
@@ -358,7 +366,7 @@ const fetched = await searchVehicles(criteria, {
 });
 assert.equal(calls.length, 1);
 assert.equal(calls[0].options.method, "POST");
-assert.deepEqual(JSON.parse(calls[0].options.body), { baseUrl, payload: {
+assert.deepEqual(JSON.parse(calls[0].options.body), { baseUrl, searchUrl: "", connectionMode: "direct", payload: {
   startDate: "2026-09-08T08:15:00+07:00",
   endDate: "2026-09-08T17:45:00+07:00",
   pageSize: 200,
@@ -383,6 +391,9 @@ const connection = await testVehicleSearchConnection(baseUrl, {
 assert.equal(connection.status, 200);
 assert.deepEqual(JSON.parse(connectionCalls[0].options.body), {
   baseUrl,
+  searchUrl: "",
+  connectionMode: "direct",
+  connectionTest: true,
   payload: { startDate: "2026-09-08T00:00:00+07:00", endDate: "2026-09-08T23:59:00+07:00", pageSize: 200, page: 1 },
 });
 

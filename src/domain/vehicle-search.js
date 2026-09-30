@@ -929,23 +929,50 @@ export function buildVehicleSearchImageUrl(imagePath, baseUrl = VEHICLE_SEARCH_D
   const value = scalarPlate(imagePath).replace(/^\/+/, "");
   const normalizedBaseUrl = normalizeVehicleSearchBaseUrl(baseUrl);
   if (!normalizedBaseUrl || !/^(?:crop|lpr|overview)\/[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=@%/-]*$/.test(value) || value.split("/").includes("..")) return "";
+  // Station-backed image requests must use the same-origin server proxy. It
+  // resolves the persisted Station Profile for Direct mode.
+  if (stationId) {
+    const profileQuery = apiProfile === VEHICLE_API_PROFILES.LEGACY_V1 ? "" : `&apiProfile=${encodeURIComponent(apiProfile)}`;
+    return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}&stationId=${encodeURIComponent(stationId)}&path=${encodeURIComponent(value)}`;
+  }
   const configuredImageUrl = buildVehicleSearchConfiguredImageUrl(value, searchUrl, apiProfile);
   if (configuredImageUrl) return configuredImageUrl;
   if (direct) return `${normalizedBaseUrl}${getVehicleApiAdapter(apiProfile).imagePath}?path=${encodeURIComponent(value)}`;
   const profileQuery = apiProfile === VEHICLE_API_PROFILES.LEGACY_V1 ? "" : `&apiProfile=${encodeURIComponent(apiProfile)}`;
-  const stationQuery = stationId ? `&stationId=${encodeURIComponent(stationId)}` : "";
-  return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}${stationQuery}&path=${encodeURIComponent(value)}`;
+  return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}&path=${encodeURIComponent(value)}`;
 }
 
 function normalizeVehicleImageReference(imageUrl, baseUrl, { apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
   const value = text(imageUrl);
   if (!value) return "";
   if (/^(?:data:|blob:)/i.test(value)) return value;
+  if (value.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}?`)) {
+    try {
+      const parsed = new URL(value, "http://localhost");
+      const imagePath = parsed.searchParams.get("path") || "";
+      return buildVehicleSearchImageUrl(imagePath, baseUrl || parsed.searchParams.get("baseUrl"), {
+        apiProfile: parsed.searchParams.get("apiProfile") || apiProfile,
+        searchUrl,
+        stationId: stationId || parsed.searchParams.get("stationId"),
+      }) || value;
+    } catch {
+      return value;
+    }
+  }
   if (/^https?:/i.test(value)) {
     try {
       const parsed = new URL(value);
-      const matchingProfile = getVehicleApiProfileByImagePath(parsed.pathname);
-      const imagePath = parsed.searchParams.get("path") || "";
+      let imageUrl = parsed;
+      const proxyTarget = parsed.searchParams.get("target");
+      if (proxyTarget) {
+        try {
+          imageUrl = new URL(proxyTarget);
+        } catch {
+          imageUrl = parsed;
+        }
+      }
+      const matchingProfile = getVehicleApiProfileByImagePath(imageUrl.pathname);
+      const imagePath = imageUrl.searchParams.get("path") || "";
       if (matchingProfile && imagePath) {
         return buildVehicleSearchImageUrl(imagePath, parsed.origin || baseUrl, {
           apiProfile: matchingProfile,
@@ -971,6 +998,9 @@ export function buildVehicleSearchDirectImageUrl(imageUrl, fallbackBaseUrl = VEH
   if (value.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}?`)) {
     try {
       const parsed = new URL(value, "http://localhost");
+      // Keep profile-scoped images on the server proxy; a browser-side direct
+      // fallback loses the Station Profile routing and may be blocked by CORS.
+      if (parsed.searchParams.has("stationId")) return "";
       const imagePath = parsed.searchParams.get("path") || "";
       const baseUrl = parsed.searchParams.get("baseUrl") || fallbackBaseUrl;
       const apiProfile = parsed.searchParams.get("apiProfile") || VEHICLE_API_PROFILES.LEGACY_V1;
@@ -997,6 +1027,9 @@ function imageUrlFromRecord(record, imageKeys, baseUrl, { directImages = false, 
 function storedImageUrl(value, baseUrl, { direct = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
   const stored = text(value);
   if (!stored) return null;
+  if (stored.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}?`)) {
+    return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId }) || stored;
+  }
   if (/^(?:https?:|data:|blob:)/i.test(stored)) return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId }) || stored;
   return buildVehicleSearchImageUrl(stored, baseUrl, { direct, apiProfile, searchUrl, stationId }) || buildVehicleSearchDirectImageUrl(stored, baseUrl) || null;
 }
@@ -1049,6 +1082,7 @@ export function normalizeVehicleSearchRows(payload, {
       ...metadata,
       plateNumber: plateNumber || "ไม่พบผลอ่านป้าย",
       province: fieldFromRecord(record, DEFAULT_PROVINCE_KEYS) || null,
+      stationProfileId: text(stationProfileId) || null,
       plateImage,
       lprImage,
       overviewImage,
@@ -1071,7 +1105,7 @@ export function createEmptyVehicleSearchState(criteria = {}) {
   };
 }
 
-export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1 } = {}) {
+export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationProfileId = "" } = {}) {
   const source = value && typeof value === "object" ? value : {};
   const usedIds = new Map();
   const rows = Array.isArray(source.rows)
@@ -1083,17 +1117,17 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
       usedIds.set(baseId, occurrence);
       const storedRowId = text(row?.id);
       const storedImage = text(row?.plateImage || row?.imageUrl || row?.image);
-      const storedStationId = text(row?.stationId);
+      const storedStationId = text(row?.stationProfileId || stationProfileId || row?.stationId);
       const legacyImagePath = storedImage.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}/`)
         ? storedImage.slice(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}/`.length)
         : "";
-      const plateImage = buildVehicleSearchImageUrl(legacyImagePath, baseUrl, { apiProfile, stationId: storedStationId })
-        || normalizeVehicleImageReference(storedImage, baseUrl, { apiProfile, stationId: storedStationId })
+      const plateImage = buildVehicleSearchImageUrl(legacyImagePath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId })
+        || normalizeVehicleImageReference(storedImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId })
         || storedImage;
-      const explicitLprImage = storedImageUrl(row?.lprImage || row?.lprUrl || row?.lprImageUrl, baseUrl, { apiProfile, stationId: storedStationId });
+      const explicitLprImage = storedImageUrl(row?.lprImage || row?.lprUrl || row?.lprImageUrl, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
       const inferredLprPath = lprImagePathFromCropReference(storedImage || plateImage);
-      const lprImage = explicitLprImage || storedImageUrl(inferredLprPath, baseUrl, { apiProfile, stationId: storedStationId });
-      const overviewImage = storedImageUrl(row?.overviewImage || row?.overviewUrl || row?.vehicleImage, baseUrl, { apiProfile, stationId: storedStationId });
+      const lprImage = explicitLprImage || storedImageUrl(inferredLprPath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
+      const overviewImage = storedImageUrl(row?.overviewImage || row?.overviewUrl || row?.vehicleImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
       const province = scalarPlate(row?.province || row?.provinceName || row?.plateProvince);
       const integrityWarnings = Array.isArray(row?.integrityWarnings) ? row.integrityWarnings.map((entry) => ({ code: text(entry?.code), message: text(entry?.message) })).filter((entry) => entry.code && entry.message) : getVehicleSearchIntegrityWarnings(row);
       if (!plateImage && !lprImage && !overviewImage) addWarning(integrityWarnings, "missing-images", "ไม่พบ path ภาพ LPR ภาพป้าย หรือภาพรถสำหรับตรวจสอบ");
@@ -1105,6 +1139,7 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
         plateImage: plateImage || null,
         lprImage,
         overviewImage,
+        stationProfileId: text(row?.stationProfileId || stationProfileId) || null,
         reviewStatus,
         classificationReviewStatus: VEHICLE_REVIEW_STATUS_VALUES.has(row?.classificationReviewStatus) ? row.classificationReviewStatus : "pending",
         axleReviewStatus: VEHICLE_REVIEW_STATUS_VALUES.has(row?.axleReviewStatus) ? row.axleReviewStatus : "pending",

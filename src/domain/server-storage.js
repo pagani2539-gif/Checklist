@@ -32,8 +32,8 @@ async function readPendingFallback() {
   try { return JSON.parse(window.localStorage.getItem(PENDING_FALLBACK_KEY) || "null"); } catch { return null; }
 }
 
-export async function savePendingServerState(state, expectedVersion, reason = "state-update", status = "offline") {
-  const value = { state, expectedVersion, reason, status, queuedAt: new Date().toISOString() };
+export async function savePendingServerState(state, expectedVersion, reason = "state-update", status = "offline", metadata = {}) {
+  const value = { state, expectedVersion, reason, status, ...metadata, queuedAt: new Date().toISOString() };
   if (!canUseIndexedDb()) return writePendingFallback(value);
   try {
     const db = await openPendingDb();
@@ -110,7 +110,7 @@ export async function loadServerState() {
   return parseResponse(response);
 }
 
-export async function saveServerState(state, expectedVersion, reason = "state-update") {
+export async function saveServerState(state, expectedVersion, reason = "state-update", metadata = {}) {
   try {
     const response = await fetchWithTimeout("/api/v1/state", {
       method: "PUT",
@@ -121,10 +121,10 @@ export async function saveServerState(state, expectedVersion, reason = "state-up
     return await parseResponse(response);
   } catch (error) {
     if (error?.status == null) {
-      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "offline");
+      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "offline", metadata);
       error.offline = true;
     } else if (error.status === 409) {
-      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "conflict");
+      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "conflict", { ...metadata, merge: error.payload?.conflict || null });
     }
     throw error;
   }

@@ -648,7 +648,6 @@ export function createPrintableReportComponent(runtime) {
     const vehiclePresentationSlides = getVehiclePresentationSlides(vehicleReport);
     const hasPresentationSlides = model.sections.some((section) => section.items.length > 0) || vehiclePresentationSlides.length > 0;
     return <section className={`ops-print-report company-report-${company.id} company-report-variant-${company.coverVariant} ${preview ? "is-report-preview" : ""} ${draft ? "is-draft" : ""}`.trim()} style={reportThemeStyle} data-company={company.id} data-company-variant={company.coverVariant} data-report-template={model.templateId} data-report-variant={reportVariantId} data-report-design="field-audit-v3" data-report-mode={isPresentation ? "presentation" : "standard"} data-report-draft={draft ? "true" : "false"} aria-label={`${isPresentation ? REPORT_TEXT.aria.presentation : REPORT_TEXT.aria.standard} ${company.name}${draft ? " ฉบับร่าง" : ""}`}>
-      {isPresentation && <style data-report-print-layout="presentation">{"@media print { @page { size: 16in 9in; margin: 0; } }"}</style>}
       {!isPresentation && <CompanyReportCover model={model} companyId={companyId} draft={draft} />}
       {!isPresentation && <div className="company-report-document-details">
         <div className="ops-print-cover-content">
