@@ -1,3 +1,5 @@
+import "../../styles/contracts.css";
+
 function text(value) {
   return String(value ?? "").trim();
 }

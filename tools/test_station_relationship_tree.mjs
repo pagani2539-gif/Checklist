@@ -1,31 +1,33 @@
 import assert from "node:assert/strict";
-import { buildStationRelationshipTree, getRelationshipPathForRecord, getStationRelationshipSystemCount } from "../src/domain/station-relationship-tree.js";
-import { getBoqAddCategory } from "../src/domain/boq-checklist-groups.js";
-import { getWorkSpecEquipmentOwnerVariants } from "../src/domain/work-spec-equipment.js";
+import {
+  buildStationRelationshipTree,
+  getRelationshipCategoryForAsset,
+  getRelationshipCategoryForSystem,
+  getRelationshipPathForRecord,
+  getStationRelationshipSystemCount,
+} from "../src/domain/station-relationship-tree.js";
+import { CENTRAL_EQUIPMENT_MAIN_CATEGORIES } from "../src/domain/equipment-names.js";
 
-const system = (id, canonicalItemId, scope = "") => ({ id, canonicalItemId, scope, quantity: 1, active: true, sourceRefs: [] });
-const asset = (id, type, scope = "") => ({ id, type, scope, active: true, assetNo: `${id}-NO`, sourceRefs: [] });
-
-for (const format of ["SC", "IMPS"]) {
-  const scope = format === "IMPS" ? "ImPS" : "Low Speed";
-  const ownerVariants = getWorkSpecEquipmentOwnerVariants({ type: "CONTROL_COMPUTER" }, scope, ["wim-control"], []);
-  const cabinetVariants = getWorkSpecEquipmentOwnerVariants({ type: "CONTROL_CABINET" }, scope, ["wim-electronics-system"], []);
-
-  assert.deepEqual(ownerVariants.map((item) => item.variantScope), [scope], `${format} Work Spec should offer Control Computer and create its hidden owner on add`);
-  assert.deepEqual(cabinetVariants.map((item) => item.variantScope), [scope], `${format} Work Spec should offer Electronics Cabinet and create its hidden owner on add`);
-  assert.deepEqual(getWorkSpecEquipmentOwnerVariants({ type: "LPR_CAMERA" }, scope, ["lpr-control"], []), [], "visible System owners should remain required before offering their equipment");
-  assert.equal(getBoqAddCategory({ stationFormat: format, type: "CONTROL_COMPUTER", categoryCode: "2.2", scope }).groupId, format === "IMPS" ? "IMPS-02" : "SC-04");
-}
+const system = (id, canonicalItemId, scope = "", extra = {}) => ({ id, canonicalItemId, scope, quantity: 1, active: true, sourceRefs: [], ...extra });
+const asset = (id, type, scope = "", extra = {}) => ({ id, type, scope, active: true, assetNo: `${id}-NO`, sourceRefs: [], ...extra });
+const category = (tree, id) => tree.find((entry) => entry.categories?.some((item) => item.id === id))?.categories[0];
+const scopesFor = (tree, id) => tree.flatMap((entry) => entry.categories?.find((item) => item.id === id)?.scopes || []);
+const scope = (tree, categoryId, label) => tree.flatMap((entry) => entry.categories?.filter((item) => item.id === categoryId).flatMap((item) => item.scopes) || []).find((entry) => entry.scope === label);
+const parent = (scopeNode, canonicalItemId) => scopeNode?.systems.find((entry) => entry.record.canonicalItemId === canonicalItemId);
+const childIds = (systemNode) => (systemNode?.equipment || []).map((entry) => entry.record.id);
 
 const scSystems = [
-  system("wim-1", "wim-sorting", "High Speed"),
+  system("wim-1", "wim-sorting", "High Speed", { laneId: "lane-high", instanceNo: 1 }),
   system("wim-control-1", "wim-control", "High Speed"),
   system("wim-electronics-1", "wim-electronics-system", "High Speed"),
   system("wim-data-high", "wim-high-data-control", "High Speed"),
+  system("wim-report-high", "wim-high-reporting", "High Speed"),
   system("wim-display-high", "wim-high-display", "High Speed"),
   system("wim-data-low", "wim-low-data-control", "Low Speed"),
+  system("wim-report-low", "wim-low-reporting", "Low Speed"),
   system("wim-display-low", "wim-low-display", "Low Speed"),
   system("lpr-high", "lpr-control", "High Speed"),
+  system("lpr-low", "lpr-control", "Low Speed"),
   system("lpr-3d", "lpr-control", "3D"),
   system("cctv-high", "cctv-system", "High Speed"),
   system("vms-low", "vms-control", "Low Speed"),
@@ -34,18 +36,18 @@ const scSystems = [
   system("display", "station-display", "Central"),
 ];
 const scEquipment = [
-  asset("sensor", "WIM_SENSOR", "High Speed"),
-  asset("loop", "WIM_LOOP", "High Speed"),
+  asset("sensor", "WIM_SENSOR", "High Speed", { laneId: "lane-high" }),
+  asset("loop", "WIM_LOOP", "High Speed", { laneId: "lane-high" }),
   asset("computer", "CONTROL_COMPUTER", "High Speed"),
   asset("cabinet", "CONTROL_CABINET", "High Speed"),
   asset("switching", "WIM_SWITCHING_DC", "High Speed"),
-  asset("lpr-camera", "LPR_CAMERA", "3D"),
+  asset("lpr-camera-high", "LPR_CAMERA", "High Speed"),
+  asset("lpr-camera-low", "LPR_CAMERA", "Low Speed"),
+  asset("lpr-camera-3d", "LPR_CAMERA", "3D"),
   asset("fixed", "FIXED_CAMERA", "High Speed"),
   asset("ptz", "PTZ_CAMERA", "High Speed"),
   asset("nvr", "NVR", "High Speed"),
   asset("vms-sign", "VMS_SIGN", "Low Speed"),
-  asset("vms-light", "VMS_LIGHT_SENSOR", "Low Speed"),
-  asset("vms-display", "VMS_DISPLAY", "Low Speed"),
   asset("scanner", "LASER_SCANNER", "3D"),
   asset("controller", "DIMENSION_CONTROLLER", "3D"),
   asset("db-server", "DATABASE_SERVER", "Central"),
@@ -53,73 +55,98 @@ const scEquipment = [
 ];
 
 const scTree = buildStationRelationshipTree({ stationFormat: "SC", systems: scSystems, equipment: scEquipment });
-const scGroup = (code) => scTree.find((entry) => entry.code === code);
-const scCategory = (code, id) => scGroup(code)?.categories.find((entry) => entry.id === id);
+assert.deepEqual(scTree.map((entry) => entry.groupId), ["sc-wim-hs", "sc-lpr-hs", "sc-cctv-hs", "sc-3d", "sc-lpr-3d", "sc-lpr-ls", "sc-vms-ls", "sc-data-control-hs", "sc-data-control-ls", "sc-data-control-central"], "installed SC groups follow the agreed installation-point order and omit empty points");
+assert.equal(getRelationshipCategoryForSystem({ canonicalItemId: "wim-low-reporting" }), "data-control", "WIM High/Low data systems share the Data/Control main category");
+assert.equal(getRelationshipCategoryForAsset({ type: "LPR_CAMERA", scope: "3D" }), "lpr", "LPR cameras remain in LPR regardless of their operational scope");
 
-assert.equal(scCategory("01", "wim-sorting")?.assets.length, 2, "SC High Speed WIM assets stay under WIM Sorting");
-assert.equal(scCategory("01", "wim-control")?.assets.length, 1, "SC WIM Control Computer stays under WIM Control");
-assert.equal(scCategory("01", "wim-electronics")?.assets.length, 2, "SC electronics assets stay under WIM Electronics");
-assert.equal(scCategory("03", "3d")?.assets.length, 2, "SC 3D owns scanner and controller");
-assert.equal(scCategory("03", "lpr")?.assets.length, 1, "SC 3D LPR camera stays in the LPR category of SC-03");
-assert.equal(scCategory("04", "wim-data-control")?.systems.length, 2, "SC Low Speed data systems stay out of High Speed");
-assert.equal(scCategory("01", "wim-data-control")?.systems.some((entry) => entry.canonicalItemId === "wim-high-display"), true, "SC High Speed WIM display processing stays under WIM Data/Control");
-assert.equal(scCategory("04", "wim-data-control")?.systems.some((entry) => entry.canonicalItemId === "wim-low-display"), true, "SC Low Speed WIM display processing stays under WIM Data/Control");
-assert.equal(scCategory("06", "display-processing")?.systems.some((entry) => ["wim-high-display", "wim-low-display"].includes(entry.canonicalItemId)), false, "WIM High/Low display systems do not leak into Central Display/Data Processing");
-assert.equal(scCategory("05", "vms")?.assets.length, 3, "SC Low Speed VMS keeps all three physical items");
-assert.equal(scCategory("06", "data")?.assets.length, 1, "SC Database Server stays in Central Systems");
-assert.equal(scTree.flatMap((group) => group.categories.flatMap((category) => category.systems)).some((entry) => entry.canonicalItemId === "wim-control"), false, "legacy WIM Control System row is hidden from the relationship tree");
-assert.equal(scTree.flatMap((group) => group.categories.flatMap((category) => category.systems)).some((entry) => entry.canonicalItemId === "wim-electronics-system"), false, "legacy WIM Electronics System row is hidden from the relationship tree");
-assert.equal(getStationRelationshipSystemCount({ stationFormat: "SC", systems: scSystems }), scSystems.length - 2, "station System summary excludes the two hidden legacy rows so its count matches the visible relationship tree");
-assert.equal(getRelationshipPathForRecord({ stationFormat: "SC", systems: scSystems, equipment: scEquipment, kind: "asset", recordId: "lpr-camera" }), "SC-03.01 · LPR");
-const scInstalledWimOnly = buildStationRelationshipTree({ stationFormat: "SC", systems: [system("sc-wim-only", "wim-sorting", "High Speed")] });
-assert.deepEqual(scInstalledWimOnly.map((group) => group.groupId), ["SC-01"], "the installed view hides unselected SC groups and keeps the station format in the group name");
+const scWimHigh = scope(scTree, "wim", "High Speed");
+assert.deepEqual(scopesFor(scTree, "wim").map((entry) => entry.scope), ["High Speed"], "SC WIM only shows installed WIM points; Low Speed Data/Control remains separate");
+assert.deepEqual(scopesFor(scTree, "lpr").map((entry) => entry.scope), ["High Speed", "3D", "Low Speed"], "SC LPR workpoints follow the agreed installation order with separate Scope/System records");
+assert.deepEqual(scopesFor(scTree, "data-control").map((entry) => entry.scope), ["High Speed", "Low Speed", "Central"], "SC Data/Control HS, LS and Central remain separate points in order");
+assert.deepEqual(childIds(parent(scWimHigh, "wim-sorting")), ["sensor", "loop"], "WIM Sensor and Loop remain under the WIM System and Lane parent");
+assert.equal(parent(scWimHigh, "wim-control")?.record.id, "wim-control-1", "a real WIM Control parent System is visible");
+assert.deepEqual(childIds(parent(scWimHigh, "wim-control")), ["computer"], "WIM Control Computer is nested under its saved or uniquely inferred parent");
+assert.equal(parent(scWimHigh, "wim-electronics-system")?.record.id, "wim-electronics-1", "a real WIM Electronics parent System is visible");
+assert.deepEqual(childIds(parent(scWimHigh, "wim-electronics-system")), ["cabinet", "switching"], "WIM electronics are nested under their parent System");
+assert.equal(parent(scWimHigh, "wim-sorting").equipment[0].association, "catalog-scope-inferred", "missing parent links use display-only Catalog and Scope matching");
+assert.equal(Object.hasOwn(scEquipment[0], "parentSystemId"), false, "display-only matching never writes a parent id to the original asset");
 
-const impsTree = buildStationRelationshipTree({
-  stationFormat: "IMPS",
-  systems: [system("imps-image", "image-processing-management", "Image Processing"), system("imps-wim", "wim-sorting", "ImPS"), system("imps-lpr", "lpr-control", "3D"), system("imps-cctv", "cctv-system", "ImPS"), system("imps-db", "data-management", "ImPS")],
-  equipment: [asset("imps-processor", "IMAGE_PROCESSOR", "Image Processing"), asset("imps-sensor", "WIM_SENSOR", "ImPS"), asset("imps-lpr-camera", "LPR_CAMERA", "3D"), asset("imps-ptz", "PTZ_CAMERA", "ImPS"), asset("imps-db-server", "DATABASE_SERVER", "ImPS")],
-});
-assert.equal(impsTree.find((group) => group.code === "01")?.categories.find((category) => category.id === "image-processing")?.assets.length, 1, "IMPS Image Processing owns Image Processor");
-assert.equal(impsTree.find((group) => group.code === "03")?.categories.find((category) => category.id === "lpr")?.assets.length, 1, "IMPS 3D LPR stays in IMPS-03");
-assert.equal(impsTree.find((group) => group.code === "05")?.categories.find((category) => category.id === "cctv")?.assets.length, 1, "IMPS CCTV stays in IMPS-05");
-assert.equal(impsTree.find((group) => group.code === "06")?.categories.find((category) => category.id === "data")?.assets.length, 1, "IMPS Database stays in IMPS-06");
-const impsInstalledImageOnly = buildStationRelationshipTree({ stationFormat: "IMPS", systems: [system("imps-image-only", "image-processing-management", "Image Processing")] });
-assert.deepEqual(impsInstalledImageOnly.map((group) => group.groupId), ["IMPS-01"], "the installed view uses the selected IMPS format and hides empty groups");
-
-const scWithOutOfFormatRecords = buildStationRelationshipTree({
-  stationFormat: "SC",
-  systems: scSystems,
-  equipment: [...scEquipment, asset("sc-image-processor", "IMAGE_PROCESSOR", "Image Processing"), asset("sc-unknown", "UNKNOWN", "")],
-});
-const scUnmapped = scWithOutOfFormatRecords.find((group) => group.groupId === "unmapped");
-assert.equal(scUnmapped?.assetCount, 2, "out-of-format and uncategorized SC Assets remain visible in a dedicated group");
-assert.deepEqual(scUnmapped?.categories[0]?.assets.map((entry) => entry.id), ["sc-image-processor", "sc-unknown"]);
-assert.equal(getRelationshipPathForRecord({ stationFormat: "SC", systems: scSystems, equipment: [...scEquipment, asset("sc-image-processor", "IMAGE_PROCESSOR", "Image Processing")], kind: "asset", recordId: "sc-image-processor" }), "นอกแบบ / ยังไม่จัดหมวด");
-
-const impsWithOutOfFormatVms = buildStationRelationshipTree({
-  stationFormat: "IMPS",
-  systems: [],
-  equipment: [asset("imps-out-of-format-vms", "VMS_SIGN", "High Speed")],
-});
-assert.equal(impsWithOutOfFormatVms.find((group) => group.groupId === "unmapped")?.assetCount, 1, "out-of-format IMPS Assets remain visible instead of disappearing");
+assert.deepEqual(childIds(parent(scope(scTree, "lpr", "High Speed"), "lpr-control")), ["lpr-camera-high"], "High Speed LPR camera is under its own Scope System");
+assert.deepEqual(childIds(parent(scope(scTree, "lpr", "Low Speed"), "lpr-control")), ["lpr-camera-low"], "Low Speed LPR camera is under a distinct Scope System");
+assert.deepEqual(childIds(parent(scope(scTree, "lpr", "3D"), "lpr-control")), ["lpr-camera-3d"], "3D LPR camera is under a distinct Scope System");
+assert.deepEqual(scope(scTree, "data-control", "Low Speed").systems.map((entry) => entry.record.canonicalItemId), ["wim-low-data-control", "wim-low-reporting", "wim-low-display"], "all Low Speed WIM Data/Control Systems are grouped under the agreed main category and Scope");
+assert.deepEqual(childIds(parent(scope(scTree, "3d", "3D"), "dimension-management")), ["scanner", "controller"], "3D Equipment nests beneath its management System");
+assert.deepEqual(childIds(parent(scope(scTree, "data-control", "Central"), "data-management")), ["db-server"], "Central database equipment nests beneath its System");
+assert.equal(getRelationshipPathForRecord({ stationFormat: "SC", systems: scSystems, equipment: scEquipment, kind: "asset", recordId: "lpr-camera-low" }), "LPR · Low Speed", "record paths no longer use SC/IMPS .01/.02 as relationship categories");
 
 const scLayout = buildStationRelationshipTree({ stationFormat: "SC", includeEmptyGroups: true, includeCatalogOptions: true });
-assert.equal(scLayout.length, 6, "SC full layout keeps all six station groups visible before installation");
-assert.equal(scLayout.find((group) => group.code === "01")?.categories.find((category) => category.id === "wim-sorting")?.equipmentOptions.map((item) => item.equipmentType).join(","), "WIM_SENSOR,WIM_LOOP", "SC High Speed exposes WIM Sensor and Loop as addable equipment choices");
-assert.equal(scLayout.find((group) => group.code === "04")?.categories.find((category) => category.id === "wim-sorting")?.equipmentOptions.map((item) => item.equipmentType).join(","), "WIM_SENSOR,WIM_LOOP", "SC Low Speed exposes the same WIM equipment choices");
-assert.deepEqual(scLayout.find((group) => group.code === "04")?.categories.find((category) => category.id === "wim-data-control")?.systemOptions.map((item) => item.canonicalItemId), ["wim-low-data-control", "wim-low-reporting", "wim-low-display"], "SC Low Speed shows all three WIM Data/Control systems in the correct category");
-assert.equal(scLayout.find((group) => group.code === "03")?.categories.find((category) => category.id === "lpr")?.equipmentOptions[0]?.scope, "3D", "SC 3D LPR option stays scoped to 3D");
-assert.equal(scLayout.find((group) => group.code === "02")?.categories.find((category) => category.id === "vms")?.equipmentOptions.some((item) => item.equipmentType === "VMS_SIGN"), true, "SC High Speed VMS sign is available in the VMS category");
-assert.equal(scLayout.find((group) => group.code === "05")?.categories.find((category) => category.id === "vms")?.equipmentOptions.some((item) => item.equipmentType === "VMS_SIGN"), true, "SC Low Speed VMS sign is available in the VMS category");
-assert.equal(scLayout.find((group) => group.code === "06")?.categories.find((category) => category.id === "data")?.equipmentOptions[0]?.scope, "Central", "SC Central Database Server does not get duplicate Speed-scope options");
-assert.equal(scLayout.find((group) => group.code === "01")?.categories.find((category) => category.id === "wim-electronics")?.equipmentOptions.some((item) => item.equipmentType === "WIM_AC_DC_POWER_SUPPLY"), true, "SC WIM Electronics uses the same add options in creation and profile views");
-assert.equal(scLayout.flatMap((group) => group.categories.flatMap((category) => category.systemOptions)).some((item) => ["wim-control", "wim-electronics-system"].includes(item.canonicalItemId)), false, "Hidden WIM Control/Electronics System rows stay out of the new layout choices");
+assert.deepEqual(scLayout.map((entry) => entry.groupId), ["sc-wim-hs", "sc-lpr-hs", "sc-cctv-hs", "sc-3d", "sc-lpr-3d", "sc-vms-hs", "sc-wim-ls", "sc-lpr-ls", "sc-cctv-ls", "sc-vms-ls", "sc-data-control-central"], "the SC creation template shows current addable points in the agreed order");
+assert.deepEqual(scope(scLayout, "data-control", "Low Speed")?.systemOptions.map((item) => item.canonicalItemId) || [], [], "retired High/Low WIM Data/Control Systems stay out of new station choices");
+assert.equal(scope(scLayout, "wim", "High Speed").systemOptions.find((item) => item.canonicalItemId === "wim-control")?.virtualOwner, true, "WIM Control appears as the parent choice for its equipment without creating an installed record");
+assert.equal(scope(scLayout, "lpr", "3D").equipmentOptions[0]?.scope, "3D", "SC LPR options preserve the 3D Scope");
+
+const noParentTree = buildStationRelationshipTree({
+  stationFormat: "SC",
+  systems: [system("lpr-a", "lpr-control", "High Speed"), system("lpr-b", "lpr-control", "High Speed")],
+  equipment: [asset("ambiguous-camera", "LPR_CAMERA", "High Speed"), asset("stale-camera", "LPR_CAMERA", "High Speed", { parentSystemId: "removed-system" })],
+});
+const noParentScope = scope(noParentTree, "lpr", "High Speed");
+assert.deepEqual(noParentScope.unlinkedAssets.map((entry) => entry.record.id), ["ambiguous-camera", "stale-camera"], "ambiguous and unresolved saved parents remain visible under 'ยังไม่ผูก System'");
+assert.equal(noParentScope.unlinkedAssets[0].association, "unlinked", "ambiguous Catalog ownership is not guessed");
+assert.equal(noParentScope.unlinkedAssets[1].association, "missing-stored-parent", "a stale saved link is surfaced rather than silently replaced");
+
+const storedParentTree = buildStationRelationshipTree({
+  stationFormat: "SC",
+  systems: [system("stored-high-parent", "lpr-control", "High Speed")],
+  equipment: [asset("stored-parent-camera", "LPR_CAMERA", "Low Speed", { parentSystemId: "stored-high-parent" })],
+});
+assert.deepEqual(childIds(parent(scope(storedParentTree, "lpr", "High Speed"), "lpr-control")), ["stored-parent-camera"], "a saved parent link wins even when the asset's old Scope label differs");
+assert.equal(Object.hasOwn(storedParentTree[0].scopes[0].systems[0].equipment[0].record, "parentSystemId"), true, "the stored relationship remains unchanged in the rendered tree");
+
+const impsSystems = [
+  system("imps-wim", "wim-sorting", "ImPS", { laneId: "imps-lane", instanceNo: 1 }),
+  system("imps-wim-control", "wim-control", "ImPS"),
+  system("imps-wim-electronics", "wim-electronics-system", "ImPS"),
+  system("imps-lpr", "lpr-control", "ImPS"),
+  system("imps-lpr-3d", "lpr-control", "3D"),
+  system("imps-cctv", "cctv-system", "ImPS"),
+  system("imps-dimension", "dimension-management", "3D"),
+  system("imps-image", "image-processing-management", "Image Processing"),
+  system("imps-data", "data-management", "ImPS"),
+  system("imps-display", "station-display", "ImPS"),
+  system("imps-vms-old", "vms-control", "ImPS"),
+];
+const impsEquipment = [
+  asset("imps-sensor", "WIM_SENSOR", "ImPS", { laneId: "imps-lane" }),
+  asset("imps-lpr-camera", "LPR_CAMERA", "ImPS"),
+  asset("imps-lpr-3d-camera", "LPR_CAMERA", "3D"),
+  asset("imps-fixed-camera", "FIXED_CAMERA", "ImPS"),
+  asset("imps-image-camera", "FIXED_CAMERA", "Image Processing"),
+  asset("imps-image-processor", "IMAGE_PROCESSOR", "Image Processing"),
+  asset("imps-scanner", "LASER_SCANNER", "3D"),
+  asset("imps-db", "DATABASE_SERVER", "ImPS"),
+  asset("imps-display-equipment", "IMPS_DISPLAY_PROCESSING", "ImPS"),
+];
+const impsTree = buildStationRelationshipTree({ stationFormat: "IMPS", systems: impsSystems, equipment: impsEquipment });
+assert.deepEqual(impsTree.map((entry) => entry.groupId), ["imps-image-processing", "imps-wim", "imps-lpr", "imps-cctv", "imps-3d", "imps-lpr-3d", "imps-data-control", "legacy-vms-imps"], "IMPS uses the agreed point order and preserves historical out-of-layout VMS at the end");
+assert.deepEqual(scopesFor(impsTree, "lpr").map((entry) => entry.scope), ["ImPS", "3D"], "IMPS LPR keeps separate ImPS and 3D workpoints");
+assert.deepEqual(scopesFor(impsTree, "data-control").map((entry) => entry.scope), ["ImPS"], "IMPS Data/Control uses the agreed ImPS Scope");
+assert.deepEqual(childIds(parent(scope(impsTree, "wim", "ImPS"), "wim-sorting")), ["imps-sensor"], "IMPS WIM Sensor stays under its parent");
+assert.deepEqual(childIds(parent(scope(impsTree, "lpr", "ImPS"), "lpr-control")), ["imps-lpr-camera"], "IMPS LPR camera has a separate ImPS System record");
+assert.deepEqual(childIds(parent(scope(impsTree, "lpr", "3D"), "lpr-control")), ["imps-lpr-3d-camera"], "IMPS 3D LPR remains a separate Scope");
+assert.deepEqual(childIds(parent(scope(impsTree, "image-processing", "Image Processing"), "image-processing-management")), ["imps-image-camera", "imps-image-processor"], "Image Processing camera and processor nest under their System");
+assert.deepEqual(childIds(parent(scope(impsTree, "data-control", "ImPS"), "data-management")), ["imps-db"], "IMPS Database equipment nests under Data/Control System");
+assert.equal(category(impsTree, "vms")?.scopes[0]?.systems[0]?.record.id, "imps-vms-old", "an installed historical item remains visible after the current workpoints");
 
 const impsLayout = buildStationRelationshipTree({ stationFormat: "IMPS", includeEmptyGroups: true, includeCatalogOptions: true });
-assert.equal(impsLayout.length, 6, "IMPS full layout keeps all six station groups visible before installation");
-assert.equal(impsLayout.find((group) => group.code === "03")?.categories.find((category) => category.id === "3d")?.equipmentOptions.map((item) => item.equipmentType).join(","), "LASER_SCANNER,DIMENSION_CONTROLLER", "IMPS 3D exposes scanner and controller choices");
-assert.equal(impsLayout.find((group) => group.code === "03")?.categories.find((category) => category.id === "lpr")?.equipmentOptions.some((item) => item.scope === "3D"), true, "IMPS 3D LPR camera remains a separate scoped choice");
-assert.equal(impsLayout.find((group) => group.code === "01")?.categories.find((category) => category.id === "image-processing")?.systemOptions.map((item) => item.canonicalItemId).join(","), "image-processing-management", "IMPS Image Processing presents one correctly scoped System choice");
-assert.equal(impsLayout.find((group) => group.code === "05")?.categories.find((category) => category.id === "cctv")?.equipmentOptions.some((item) => item.equipmentType === "JOYSTICK"), false, "Camera Joystick remains unavailable in IMPS");
+assert.deepEqual(impsLayout.map((entry) => entry.groupId), ["imps-image-processing", "imps-wim", "imps-lpr", "imps-cctv", "imps-3d", "imps-lpr-3d", "imps-data-control"], "IMPS creation shows addable workpoints in the agreed order");
+assert.deepEqual(scope(impsLayout, "lpr", "ImPS").systemOptions.map((item) => item.canonicalItemId), ["lpr-control"], "IMPS LPR scope has a separate System template");
+assert.deepEqual(scope(impsLayout, "lpr", "3D").equipmentOptions.map((item) => item.equipmentType), ["LPR_CAMERA"], "IMPS 3D LPR camera remains available only in the 3D Scope");
+assert.equal(scope(impsLayout, "image-processing", "Image Processing").systemOptions[0]?.canonicalItemId, "image-processing-management", "IMPS Image Processing System uses the agreed Scope name");
 
-console.log("station relationship tree mapping passed", { scGroups: scTree.length, impsGroups: impsTree.length });
+const emptySc = buildStationRelationshipTree({ stationFormat: "SC", includeEmptyGroups: true, includeCatalogOptions: true });
+assert.deepEqual(emptySc.map((entry) => entry.groupId), ["sc-wim-hs", "sc-lpr-hs", "sc-cctv-hs", "sc-3d", "sc-lpr-3d", "sc-vms-hs", "sc-wim-ls", "sc-lpr-ls", "sc-cctv-ls", "sc-vms-ls", "sc-data-control-central"], "empty SC layout shows addable workpoints and hides unsupported categories");
+assert.equal(getStationRelationshipSystemCount({ stationFormat: "SC", systems: scSystems }), scSystems.length, "all installed SC Systems are counted including WIM Control and Electronics parents");
+assert.deepEqual(CENTRAL_EQUIPMENT_MAIN_CATEGORIES.map((entry) => entry.id), ["wim", "lpr", "cctv", "3d", "image-processing", "vms", "data-control", "station-infrastructure"], "the Checklist and equipment tree share the same canonical eight-category order");
+
+console.log("station relationship tree mapping passed", { scCategories: scTree.length, impsCategories: impsTree.length, scOptions: emptySc.length });

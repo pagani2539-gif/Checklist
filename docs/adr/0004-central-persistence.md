@@ -16,7 +16,7 @@ Checklist เดิมเป็น local-first MVP: state อยู่ใน `lo
 - ใช้ `app_state`/`state_revisions` เป็น compatibility state-document seam ระหว่าง migration โดย projection tables ต้องสอดคล้องกับ state ล่าสุด
 - ใช้ optimistic version ระดับ state/round, audit log และ station scope ทุก query ที่เข้าถึงข้อมูลสถานี
 - release ใหม่เริ่ม PostgreSQL ฐานใหม่; import ข้อมูลเดิมผ่าน `tools/import_postgres_state.mjs` หลังตรวจสอบและสร้าง manifest เท่านั้น ห้าม import browser storage อัตโนมัติ
-- `VITE_STORAGE_MODE=server` ทำให้ client โหลด/บันทึกผ่าน API และเก็บ offline draft ใน IndexedDB เพื่อ sync ภายหลัง; `VITE_STORAGE_MODE=local` ยังสงวนไว้สำหรับ local-first browser mode แต่ไม่ใช่ server persistence
+- **การตัดสินใจเดิม (ถูกแทนที่โดย Amendment 2026-10-03):** `VITE_STORAGE_MODE=server` ทำให้ client โหลด/บันทึกผ่าน API และเก็บ offline draft ใน IndexedDB เพื่อ sync ภายหลัง; `VITE_STORAGE_MODE=local` ยังสงวนไว้สำหรับ local-first browser mode แต่ไม่ใช่ server persistence
 - backup production ใช้ `tools/backup_postgres.mjs` โดยตั้งเป้า RPO 1 ชั่วโมง / RTO 4 ชั่วโมง และต้องเก็บสำเนาไว้นอกเครื่อง production
 
 ## Consequences
@@ -28,3 +28,7 @@ Checklist เดิมเป็น local-first MVP: state อยู่ใน `lo
 - localStorage/IndexedDB เป็น source of truth: ใช้ไม่ได้กับ multi-user และ restore กลาง
 - SQLite เป็น server storage backend: ถูกตัดออกเพื่อลด source of truth และ migration path ที่ซ้ำซ้อน ระบบ server ต้องใช้ PostgreSQL เท่านั้น
 - import browser data อัตโนมัติ: เสี่ยงนำข้อมูลทดลอง/ข้อมูลคนละสถานีปะปน จึงให้เริ่มฐานข้อมูลใหม่
+
+## Amendment 2026-10-03: Remove browser recovery drafts
+
+At the user's explicit request, server mode no longer stores or restores unsaved workspace drafts in IndexedDB/localStorage. This supersedes the offline-draft part of the original Decision. Legacy pending drafts are discarded on startup, never replayed. Central autosave, version checks and immutable closed Snapshots remain. Failed saves discard queued edits and reload central data; if reload fails, further writes remain blocked until central data can be loaded. No export/download is required. Local MVP storage and server-persisted draft inspection rounds are separate and remain supported.

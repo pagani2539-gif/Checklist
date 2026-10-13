@@ -1,9 +1,12 @@
+import CustomSelect from "./CustomSelect.jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { filterReferenceOptions, referenceOptionsFor } from "../domain/reference-data.js";
 
 function optionLabel(option) {
   return [option?.code, option?.name].filter(Boolean).join(" · ") || "ไม่ระบุ";
 }
+
+const regionLabels = { central: 'ภาคกลาง', west: 'ภาคตะวันตก', north: 'ภาคเหนือ', northeast: 'ภาคตะวันออกเฉียงเหนือ', east: 'ภาคตะวันออก', south: 'ภาคใต้' };
 
 function emitChange(onChange, value) {
   onChange?.({ target: { value } });
@@ -50,7 +53,7 @@ export function MasterSelect({
     {open && <div className="master-select-menu" role="listbox" aria-label={label || placeholder}>
       <input autoFocus className="master-select-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้นหาด้วยรหัสหรือชื่อ" onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }} />
       {allowClear && value && <button type="button" className="master-select-option is-clear" onClick={() => select("")}>ล้างค่า</button>}
-      {filtered.length ? filtered.map((option) => <button type="button" role="option" aria-selected={option.id === value} className={`master-select-option ${option.id === value ? "is-selected" : ""}`} key={option.id} onClick={() => select(option.id)}><span>{optionLabel(option)}</span>{option.regionCode && <small>{option.regionCode}</small>}</button>) : <div className="master-select-empty">{emptyText}</div>}
+      {filtered.length ? filtered.map((option) => <button type="button" role="option" aria-selected={option.id === value} className={`master-select-option ${option.id === value ? "is-selected" : ""}`} key={option.id} onClick={() => select(option.id)}><span>{optionLabel(option)}</span>{option.regionCode && <small>{regionLabels[option.regionCode] || option.regionCode}</small>}</button>) : <div className="master-select-empty">{emptyText}</div>}
     </div>}
   </div>;
 }
@@ -92,8 +95,8 @@ export function ContractContextSelect({ contracts = [], workPackages = [], stati
   const packageStationIds = new Set(stations.filter((station) => !workPackageId || station.workPackageId === workPackageId).map((station) => station.id));
   const visibleStations = stations.filter((station) => !workPackageId || packageStationIds.has(station.id));
   return <div className="ops-form-grid ops-context-picker">
-    <label className="ops-field"><span>สัญญา <em>(จำเป็น)</em></span><select value={contractId} onChange={(event) => onChange?.({ contractId: event.target.value, workPackageId: "", stationId: "" })}><option value="">เลือกสัญญา</option>{contracts.map((entry) => <option key={entry.id} value={entry.id}>{entry.contractNo} · {entry.title}</option>)}</select></label>
-    <label className="ops-field"><span>งวดงาน <em>(จำเป็น)</em></span><select value={workPackageId} disabled={!contractId} onChange={(event) => onChange?.({ contractId, workPackageId: event.target.value, stationId: "" })}><option value="">เลือกงวด</option>{packages.map((entry) => <option key={entry.id} value={entry.id}>{entry.reportSequence || entry.packageNo} · {entry.title}</option>)}</select></label>
-    <label className="ops-field"><span>สถานี <em>(จำเป็น)</em></span><select value={stationId} disabled={!workPackageId} onChange={(event) => onChange?.({ contractId, workPackageId, stationId: event.target.value })}><option value="">เลือกสถานีในงวด</option>{visibleStations.map((entry) => <option key={entry.id} value={entry.id}>{entry.stationCode} · {entry.stationName} · {entry.province || "ไม่ระบุจังหวัด"}</option>)}</select></label>
+    <label className="ops-field"><span>สัญญา <em>(จำเป็น)</em></span><CustomSelect value={contractId} onChange={(event) => onChange?.({ contractId: event.target.value, workPackageId: "", stationId: "" })}><option value="">เลือกสัญญา</option>{contracts.map((entry) => <option key={entry.id} value={entry.id}>{entry.contractNo} · {entry.title}</option>)}</CustomSelect></label>
+    <label className="ops-field"><span>งวดงาน <em>(จำเป็น)</em></span><CustomSelect value={workPackageId} disabled={!contractId} onChange={(event) => onChange?.({ contractId, workPackageId: event.target.value, stationId: "" })}><option value="">เลือกงวด</option>{packages.map((entry) => <option key={entry.id} value={entry.id}>{entry.reportSequence || entry.packageNo} · {entry.title}</option>)}</CustomSelect></label>
+    <label className="ops-field"><span>สถานี <em>(จำเป็น)</em></span><CustomSelect value={stationId} disabled={!workPackageId} onChange={(event) => onChange?.({ contractId, workPackageId, stationId: event.target.value })}><option value="">เลือกสถานีในงวด</option>{visibleStations.map((entry) => <option key={entry.id} value={entry.id}>{entry.stationCode} · {entry.stationName} · {entry.province || "ไม่ระบุจังหวัด"}</option>)}</CustomSelect></label>
   </div>;
 }

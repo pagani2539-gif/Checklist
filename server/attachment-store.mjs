@@ -32,13 +32,20 @@ export class FilesystemAttachmentStore {
   }
 
   filePath(storageName) {
-    const safeName = path.basename(String(storageName || ""));
+    const safeName = String(storageName || "");
+    if (!safeName || safeName.includes('\\') || safeName.includes(':') || safeName.includes('\0') || safeName.split('/').some(part => !part || part === '.' || part === '..')) throw new Error("Invalid attachment storage name");
     const filePath = path.resolve(this.root, safeName);
-    if (!safeName || !filePath.startsWith(`${this.root}${path.sep}`)) throw new Error("Invalid attachment storage name");
+    if (!filePath.startsWith(`${this.root}${path.sep}`)) throw new Error("Invalid attachment storage name");
+    const realRoot = fs.realpathSync(this.root);
+    let existing = filePath;
+    while (!fs.existsSync(existing)) existing = path.dirname(existing);
+    const real = fs.realpathSync(existing);
+    if (real !== realRoot && !real.startsWith(`${realRoot}${path.sep}`)) throw new Error("Attachment path escapes storage root");
     return filePath;
   }
 
   async put(storageName, body) {
+    fs.mkdirSync(path.dirname(this.filePath(storageName)), { recursive: true });
     fs.writeFileSync(this.filePath(storageName), body, { flag: "wx", mode: 0o600 });
   }
 

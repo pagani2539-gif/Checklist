@@ -138,7 +138,7 @@ for (const bypassStatus of ["server-site", "not-installed"]) {
 const model = buildReportTemplateModel(complete);
 const reportCleaningItems = model.sections.flatMap((section) => section.items).filter((item) => item.isEquipmentCleaning);
 assert.equal(reportCleaningItems.length, cleaningItems.length);
-assert.equal(reportCleaningItems.some((item) => item.label === "Equipment Cleaning · WIM Control Computer · เครื่องคอมพิวเตอร์ควบคุม WIM · PC-GEN-01"), true);
+assert.equal(reportCleaningItems.some((item) => item.label === "ทำความสะอาดอุปกรณ์ · WIM Control Computer · PC-GEN-01"), true);
 reportCleaningItems.forEach((item) => {
   assert.ok(item.assetNo);
   assert.deepEqual(item.evidenceSlots.map((slot) => slot.cleaningStage), ["before", "during", "after"]);
@@ -176,7 +176,7 @@ assert.equal(auditedEquipmentCleaning.length, 11, "the audited station has one c
 assert.equal(auditedAreaCleaning.length, 2, "the audited station has one room and one cabinet-area row");
 assert.ok(auditedAreaCleaning.some((item) => item.label === "ทำความสะอาดพื้นที่ห้องควบคุม"));
 assert.ok(auditedAreaCleaning.filter((item) => item.cleaningAssetType === "CONTROL_CABINET")
-  .every((item) => item.label.startsWith("Control Cabinet Surrounding Area Cleaning · ")));
+  .every((item) => item.label.startsWith("ทำความสะอาดพื้นที่โดยรอบตู้ควบคุม · ")));
 assert.equal(auditedRoundItems.filter((item) => item.isEquipmentCleaning || item.isAreaCleaning)
   .reduce((total, item) => total + item.evidenceSlots.length, 0), 39, "the 13 cleaning rows require 39 photos");
 assert.deepEqual(new Set(auditedEquipmentCleaning.map((item) => item.assetId)), new Set(auditedRound.snapshot.equipment

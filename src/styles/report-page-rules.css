@@ -1,0 +1,6 @@
+/* Keep named Presentation pages after the shared A4 print rules. Chrome's
+   print cascade otherwise falls back to the later anonymous A4 page size. */
+@page presentation16x9 {
+  size: 16in 9in;
+  margin: 0;
+}

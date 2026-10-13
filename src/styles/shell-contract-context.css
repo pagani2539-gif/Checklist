@@ -1,0 +1,6 @@
+.contract-context-bar { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 22px; border-bottom: 1px solid #dfe7f1; background: #f7faff; color: #53677f; font-size: .83rem; }
+.contract-context-bar svg { color: var(--ops-text-black); }
+.contract-context-bar a { color: var(--ops-text-black); font-weight: var(--ops-weight-extrabold); text-decoration: none; }
+.contract-context-bar a:hover { text-decoration: underline; }
+.contract-context-label { color: #718199; font-size: .75rem; }
+.ops-round-contract-context { color: var(--ops-text-black) !important; font-weight: var(--ops-weight-bold); }

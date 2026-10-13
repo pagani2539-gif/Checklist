@@ -4,13 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { assertIsolatedTestDatabaseUrl } from "./database_url_test_support.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const connectionString = process.env.CHECKLIST_SERVER_TEST_DATABASE_URL || process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL || process.env.CHECKLIST_DATABASE_URL;
-if (!connectionString) {
-  console.log("test_server_api: skipped (set CHECKLIST_SERVER_TEST_DATABASE_URL or CHECKLIST_POSTGRES_TEST_DATABASE_URL for PostgreSQL integration coverage)");
+const configuredConnectionString = process.env.CHECKLIST_SERVER_TEST_DATABASE_URL || process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL;
+if (!configuredConnectionString) {
+  console.log("test_server_api: skipped (set CHECKLIST_SERVER_TEST_DATABASE_URL or CHECKLIST_POSTGRES_TEST_DATABASE_URL for isolated PostgreSQL integration coverage)");
   process.exit(0);
 }
+const connectionString = assertIsolatedTestDatabaseUrl(configuredConnectionString, {
+  variableName: process.env.CHECKLIST_SERVER_TEST_DATABASE_URL ? "CHECKLIST_SERVER_TEST_DATABASE_URL" : "CHECKLIST_POSTGRES_TEST_DATABASE_URL",
+});
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "checklist-server-test-"));
 const attachmentsDir = path.join(tempRoot, "attachments");

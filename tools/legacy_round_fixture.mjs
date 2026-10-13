@@ -1,5 +1,5 @@
 import { createSnapshot, createInspectionRound, MASTER_TEMPLATE_VERSION } from "../src/domain/master-checklist.js";
-import { getEvidenceCatalogForSnapshot } from "../src/domain/evidence-checklist.js";
+import { createChecklistCopySnapshot, getEvidenceCatalogForSnapshot } from "../src/domain/evidence-checklist.js";
 
 // Explicit fixture for regression tests of pre-item-control rounds. These tests
 // keep their original PDF-position/N/A expectations; new rounds are exercised
@@ -7,6 +7,11 @@ import { getEvidenceCatalogForSnapshot } from "../src/domain/evidence-checklist.
 export function createLegacyInspectionRound(profile, meta = {}, overrides = {}) {
   if (overrides.snapshot) return createInspectionRound(profile, meta, overrides);
   const createdSnapshot = createSnapshot(profile, overrides);
+  createdSnapshot.checklistCopy = overrides.checklistCopy || createChecklistCopySnapshot();
+  createdSnapshot.checklistWordingVersion = null;
+  delete createdSnapshot.vehicleReviewSystemsVersion;
+  delete createdSnapshot.vehicleReviewSystems;
+  delete createdSnapshot.automaticSoftwareTestsVersion;
   const legacyVehicleLabels = {
     "5.1.plate-document": "เอกสารผลการจำแนกป้ายทะเบียน",
     "5.1.vehicle-document": "เอกสารผลการจำแนกประเภทรถ",

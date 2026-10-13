@@ -7,13 +7,17 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { hashLocalPassword } from "../server/auth.mjs";
 import { createPostgresStore } from "../server/postgres-store.mjs";
+import { assertIsolatedTestDatabaseUrl } from "./database_url_test_support.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const connectionString = process.env.CHECKLIST_LOCAL_AUTH_TEST_DATABASE_URL || process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL || process.env.CHECKLIST_DATABASE_URL;
-if (!connectionString) {
+const configuredConnectionString = process.env.CHECKLIST_LOCAL_AUTH_TEST_DATABASE_URL || process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL;
+if (!configuredConnectionString) {
   console.log("test_local_auth: skipped (set CHECKLIST_LOCAL_AUTH_TEST_DATABASE_URL for PostgreSQL integration coverage)");
   process.exit(0);
 }
+const connectionString = assertIsolatedTestDatabaseUrl(configuredConnectionString, {
+  variableName: process.env.CHECKLIST_LOCAL_AUTH_TEST_DATABASE_URL ? "CHECKLIST_LOCAL_AUTH_TEST_DATABASE_URL" : "CHECKLIST_POSTGRES_TEST_DATABASE_URL",
+});
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "checklist-local-auth-"));
 const port = 48100 + Math.floor(Math.random() * 500);
@@ -139,7 +143,7 @@ try {
     const emptyScope = await request("/api/v1/admin/users", { method: "POST", headers: { Cookie: adminCookie, "Content-Type": "application/json" }, body: JSON.stringify({ username: `noscope.${usernameTag}`, displayName: "No station", role: "viewer", stationIds: [], password: "Temporary-Test-2026!" }) });
     assert.equal(emptyScope.response.status, 400);
 
-    const created = await request("/api/v1/admin/users", { method: "POST", headers: { Cookie: adminCookie, "Content-Type": "application/json" }, body: JSON.stringify({ username: `field.${usernameTag}`, displayName: "Field operator", role: "inspector", stationIds: [], password: "Temporary-Test-2026!" }) });
+    const created = await request("/api/v1/admin/users", { method: "POST", headers: { Cookie: adminCookie, "Content-Type": "application/json" }, body: JSON.stringify({ username: `field.${usernameTag}`, displayName: "Field operator", role: "viewer", stationIds: [stationA, stationB], password: "Temporary-Test-2026!" }) });
     assert.equal(created.response.status, 201);
     assert.equal(created.body.user.mustChangePassword, true);
     const inspectorId = created.body.user.id;

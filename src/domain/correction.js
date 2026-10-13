@@ -1,3 +1,5 @@
+import { CHECKLIST_PROGRESS_POLICY_VERSION } from "./inspection-status.js";
+
 export const CORRECTION_EDITOR_ID = "local-browser-user";
 export const CORRECTION_EDITOR_LABEL = "ผู้ใช้เครื่องนี้";
 export const REVISION_EDITOR_LABEL = CORRECTION_EDITOR_LABEL;
@@ -66,6 +68,7 @@ export function createRevisionRound(original, { reason, createdAt = new Date().t
     ...source,
     id: `round-revision-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     status: "draft",
+    progressPolicyVersion: CHECKLIST_PROGRESS_POLICY_VERSION,
     createdAt,
     updatedAt: createdAt,
     closedAt: null,

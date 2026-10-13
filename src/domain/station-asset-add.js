@@ -24,9 +24,12 @@ export function addStationAssetWithOwner(draft, {
     && String(system.scope || "").trim() === targetScope;
   const explicitParent = parentSystemId
     ? draft.stationSystems.find((system) => system.id === parentSystemId && system.active !== false
-      && (!ownerDefinition || isOwner(system)))
+      && (!ownerDefinition || (system.canonicalItemId || system.systemId) === ownerDefinition.id))
     : null;
-  const scopedOwner = ownerDefinition ? draft.stationSystems.find(isOwner) : null;
+  if (parentSystemId && !explicitParent) return draft;
+  const scopedOwners = ownerDefinition ? draft.stationSystems.filter(isOwner) : [];
+  if (!explicitParent && scopedOwners.length > 1) return draft;
+  const scopedOwner = scopedOwners.length === 1 ? scopedOwners[0] : null;
   const parent = explicitParent || scopedOwner || null;
   const createdOwner = !parent && ownerDefinition && typeof createSystemRecord === "function"
     ? createSystemRecord(ownerDefinition, createId, { scope: targetScope })

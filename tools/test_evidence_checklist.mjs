@@ -130,13 +130,37 @@ const userEditedStoredCopy = {
 const preservedUserCopy = migrateChecklistCopyForCurrentTemplate(userEditedStoredCopy);
 assert.equal(preservedUserCopy.sections.find((section) => section.code === "1.1")?.items.find((item) => item.id === "1.1.staff")?.label, "ชื่อที่ผู้ใช้แก้เอง", "user-edited copy is preserved during migration");
 
-const noLaneRound = createInspectionRound({ ...profile, id: "station-no-lane", lanes: [] });
+const makeLinkedLprProfile = (id, scopes) => {
+  const lanes = scopes.map((scope, index) => makeLane(index + 1, { id: `${id}-lane-${index + 1}`, scope }));
+  const systems = scopes.map((scope, index) => ({
+    id: `${id}-lpr-system-${index + 1}`,
+    canonicalItemId: "lpr-control",
+    systemId: "lpr-control",
+    scope,
+    quantity: 1,
+    laneId: lanes[index].id,
+    active: true,
+  }));
+  return {
+    ...profile,
+    id,
+    lanes,
+    stationSystems: [...(profile.stationSystems || []).filter((system) => system.canonicalItemId !== "lpr-control"), ...systems],
+  };
+};
+const noLaneRound = createInspectionRound({ ...profile, id: "station-no-lane", lanes: [], stationSystems: (profile.stationSystems || []).filter((system) => system.canonicalItemId !== "lpr-control") });
 assert.equal(getItemsForSnapshot(noLaneRound.snapshot).some((item) => item.sectionCode === "3.1"), false, "a station without Lane must not create Lane checklist rows");
-const twoLaneRound = createInspectionRound({ ...profile, id: "station-two-lane", lanes: [makeLane(1), makeLane(2)] });
+const twoLaneRound = createInspectionRound(makeLinkedLprProfile("station-two-lane", ["High Speed", "Low Speed"]));
 assert.equal(getItemsForSnapshot(twoLaneRound.snapshot).filter((item) => item.sectionCode === "3.1").length, 4, "two lanes create exactly two checks per lane");
-assert.deepEqual(getItemsForSnapshot(twoLaneRound.snapshot).filter((item) => item.sectionCode === "3.1").map((item) => item.laneId), ["lane-1", "lane-1", "lane-2", "lane-2"]);
-const fourLaneRound = createInspectionRound({ ...profile, id: "station-four-lane", lanes: [1, 2, 3, 4].map((lane) => makeLane(lane)) });
+assert.deepEqual(getItemsForSnapshot(twoLaneRound.snapshot).filter((item) => item.sectionCode === "3.1").map((item) => item.laneId), ["station-two-lane-lane-1", "station-two-lane-lane-1", "station-two-lane-lane-2", "station-two-lane-lane-2"]);
+const closedLinkedRound = normalizeRound({ ...twoLaneRound, status: "closed", closedAt: "2026-10-01T00:00:00.000Z" }, [profile], profile);
+assert.deepEqual(closedLinkedRound.snapshot, twoLaneRound.snapshot, "closing and normalizing a round does not recalculate its LPR-linked Lane Snapshot");
+const fourLaneRound = createInspectionRound(makeLinkedLprProfile("station-four-lane", ["High Speed", "High Speed", "Low Speed", "3D"]));
 assert.equal(getItemsForSnapshot(fourLaneRound.snapshot).filter((item) => item.sectionCode === "3.1").length, 8, "Lane topology can exceed the three lanes shown in the source PDF");
+for (const [format, scopes] of [["SC", ["High Speed", "Low Speed", "3D"]], ["IMPS", ["ImPS", "3D"]]]) {
+  const laneScopedRound = createInspectionRound({ ...makeLinkedLprProfile(`station-${format.toLowerCase()}-lpr-scopes`, scopes), stationFormat: format, stationTemplateId: format });
+  assert.deepEqual(new Set(getItemsForSnapshot(laneScopedRound.snapshot).filter((item) => item.sectionCode === "3.1").map((item) => item.laneId)), new Set(laneScopedRound.snapshot.lanes.map((lane) => lane.id)), `${format} LPR Lane checks follow exact Systems across ${scopes.join(", ")}`);
+}
 const historicalV4 = getItemsForSnapshot({
   ...round.snapshot,
   id: "snapshot-v4-history",

@@ -1,6 +1,10 @@
+import { normalizeImageAnnotation } from './image-annotation.js';
+import { getRoundVehicleSearchConfig, getRoundVehicleConnectionSnapshot } from './round-vehicle-connection.js';
+import { VEHICLE_REVIEW_SYSTEMS_VERSION, AUTOMATIC_SOFTWARE_TESTS_VERSION, getVehicleSystemInstallation, snapshotVehicleSystems, normalizeSystemVehicleSearch, getSystemVehicleSearch, isSystemVehicleRound } from "./vehicle-review-systems.js";
 import {
   EVIDENCE_CHECKLIST_SECTIONS,
   CHECKLIST_POLICY_VERSION,
+  CHECKLIST_WORDING_VERSION,
   PREVIOUS_CHECKLIST_POLICY_VERSION,
   LEGACY_CHECKLIST_POLICY_VERSION,
   HISTORICAL_CHECKLIST_POLICY_VERSION,
@@ -9,6 +13,8 @@ import {
   PREVIOUS_NO_WIM_CHECKLIST_POLICY_VERSION,
   PREVIOUS_LPR_SCOPE_CHECKLIST_POLICY_VERSION,
   PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION,
+  PREVIOUS_CHECKLIST_POLICY_VERSION_V9,
+  PREVIOUS_CHECKLIST_POLICY_VERSION_V10,
   DEDICATED_ASSET_CHECKLIST_RECIPE_VERSION,
   WIM_SORTING_EVIDENCE_VERSION,
   getActivePhysicalEquipment,
@@ -27,7 +33,9 @@ import {
   getEvidenceCatalogForSnapshot,
   getEvidenceSectionsForSnapshot,
   getEvidenceSummary,
+  shouldIncludeEvidenceSlotInSummary,
   createChecklistCopySnapshot,
+  createContextualChecklistCopy,
   buildChecklistTemplateSections,
   getChecklistCopyForSnapshot,
   normalizeChecklistCopy,
@@ -54,10 +62,10 @@ import {
   CHECKLIST_SECTION_TITLES,
 } from "./evidence-checklist.js";
 import { getLaneScope } from "./station-lane-scope.js";
-import { isEvidenceBypassItemStatus, isReportHiddenItemStatus } from "./inspection-status.js";
+import { CHECKLIST_PROGRESS_POLICY_VERSION, isEvidenceBypassItemStatus, isReportHiddenItemStatus, usesLegacyChecklistProgressPolicy } from "./inspection-status.js";
 import { normalizeCorrectionHistory } from "./correction.js";
 import { EQUIPMENT_ORDER_VERSION, sortEquipmentForDisplay } from "./ordering.js";
-import { createVehicleSearchConfig, createVehicleReviewState, getVehicleReviewContext, getVehicleReviewOutcome, getVehicleReviewState, getVehicleReviewDimensions, getVehicleReviewScopeEntries, getVehicleReviewScopeState, getVehicleSearchIssueRows, getVehicleSearchSummary, isVehicleApiReviewItem, isVehicleSearchItem, isVehicleReviewScopeState, normalizeVehicleReviewState, normalizeVehicleSearchState, VEHICLE_API_REVIEW_VERSION, VEHICLE_REVIEW_SCOPE_VERSION, VEHICLE_SEARCH_ITEM_ID } from "./vehicle-search.js";
+import { createVehicleSearchConfig, createVehicleReviewState, getVehicleReviewContext, getVehicleReviewOutcome, getVehicleReviewState, getVehicleReviewDimensions, getVehicleReviewScopeEntries, getDaytimeVehicleClassificationDataset, getVehicleSearchIssueRows, getVehicleSearchSummary, isVehicleApiReviewItem, isVehicleSearchItem, isVehicleReviewScopeState, normalizeVehicleReviewState, normalizeVehicleSearchState, VEHICLE_API_REVIEW_VERSION, VEHICLE_REVIEW_SCOPE_VERSION, VEHICLE_SEARCH_ITEM_ID } from "./vehicle-search.js";
 import { WIM_ELECTRONICS_SUB_EQUIPMENT_TYPES, normalizeWimElectronicsOutputVoltages, getWimElectronicsSubEquipmentType, getWimElectronicsHierarchyIssue } from "./wim-electronics.js";
 import { getCentralEquipmentName, getCentralSystemNameForRecord, getCentralChecklistSectionName, CENTRAL_STATION_CATEGORIES_BY_CODE, formatCentralNameEnglishFirst } from "./equipment-names.js";
 import { BOQ_CHECKLIST_PRESENTATION_VERSION, getBoqChecklistDisplaySections, getCanonicalEquipmentCategoryCode } from "./boq-checklist-groups.js";
@@ -73,12 +81,12 @@ export const STATUS_OPTIONS = [
 
 export const MASTER_TEMPLATE_VERSION = EVIDENCE_TEMPLATE_VERSION;
 export { EQUIPMENT_ORDER_VERSION };
-export { CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION, LEGACY_CHECKLIST_POLICY_VERSION, HISTORICAL_CHECKLIST_POLICY_VERSION, PRIOR_CHECKLIST_POLICY_VERSION, PREVIOUS_CURRENT_CHECKLIST_POLICY_VERSION, PREVIOUS_NO_WIM_CHECKLIST_POLICY_VERSION, PREVIOUS_LPR_SCOPE_CHECKLIST_POLICY_VERSION, PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION, DEDICATED_ASSET_CHECKLIST_RECIPE_VERSION, getActivePhysicalEquipment, getChecklistScopeState, getNewRoundChecklistItems, getStationChecklistItems, getStationChecklistSections, resolveStationChecklistConfig };
+export { CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION, LEGACY_CHECKLIST_POLICY_VERSION, HISTORICAL_CHECKLIST_POLICY_VERSION, PRIOR_CHECKLIST_POLICY_VERSION, PREVIOUS_CURRENT_CHECKLIST_POLICY_VERSION, PREVIOUS_NO_WIM_CHECKLIST_POLICY_VERSION, PREVIOUS_LPR_SCOPE_CHECKLIST_POLICY_VERSION, PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION_V9, PREVIOUS_CHECKLIST_POLICY_VERSION_V10, DEDICATED_ASSET_CHECKLIST_RECIPE_VERSION, getActivePhysicalEquipment, getChecklistScopeState, getNewRoundChecklistItems, getStationChecklistItems, getStationChecklistSections, resolveStationChecklistConfig };
 export const STATION_DRAFT_TEMPLATE_VERSION = LANE_ASSET_EVIDENCE_TEMPLATE_VERSION;
 export const LEGACY_MASTER_TEMPLATE_VERSION = "checklist-master-v2";
 export const MASTER_CHECKLIST_COPY_REVISION = "master-checklist-copy-v1";
 export const LEGACY_MASTER_CHECKLIST_COPY_REVISION = "master-checklist-copy-legacy-frozen";
-export { EVIDENCE_CHECKLIST_SECTIONS, EVIDENCE_STATUS_OPTIONS, EVIDENCE_TEMPLATE_VERSION, LANE_ASSET_EVIDENCE_TEMPLATE_VERSION, PREVIOUS_EVIDENCE_TEMPLATE_VERSION, LEGACY_EVIDENCE_TEMPLATE_VERSION, EVIDENCE_ASSET_TYPE_MAPPING, EVIDENCE_TYPE_TO_GROUP, getEvidenceAssetRequirement, getEvidenceCatalogForSnapshot, getEvidenceSummary, isEvidenceTemplateVersion, isCurrentEvidenceTemplateVersion, isLaneAssetEvidenceTemplateVersion, CLEANING_POLICY_VERSION, CLEANING_TARGET_TYPES, CLEANING_STAGE_DEFINITIONS, WIM_SORTING_EVIDENCE_VERSION, VIDEO_EVIDENCE_PURGE_VERSION, VIDEO_EVIDENCE_ITEM_IDS, VIDEO_EVIDENCE_SLOT_IDS, buildCleaningEvidenceItems, isCleaningEvidenceComplete, isEvidenceSlotComplete, CHECKLIST_COPY_REVISION, LEGACY_CHECKLIST_COPY_REVISION, CHECKLIST_SECTION_TITLES, buildChecklistTemplateSections, createChecklistCopySnapshot, normalizeChecklistCopy, migrateChecklistCopyForCurrentTemplate, updateChecklistCopy, isEvidenceBypassItemStatus, isReportHiddenItemStatus };
+export { CHECKLIST_PROGRESS_POLICY_VERSION, EVIDENCE_CHECKLIST_SECTIONS, EVIDENCE_STATUS_OPTIONS, EVIDENCE_TEMPLATE_VERSION, LANE_ASSET_EVIDENCE_TEMPLATE_VERSION, PREVIOUS_EVIDENCE_TEMPLATE_VERSION, LEGACY_EVIDENCE_TEMPLATE_VERSION, EVIDENCE_ASSET_TYPE_MAPPING, EVIDENCE_TYPE_TO_GROUP, getEvidenceAssetRequirement, getEvidenceCatalogForSnapshot, getEvidenceSummary, shouldIncludeEvidenceSlotInSummary, isEvidenceTemplateVersion, isCurrentEvidenceTemplateVersion, isLaneAssetEvidenceTemplateVersion, CLEANING_POLICY_VERSION, CLEANING_TARGET_TYPES, CLEANING_STAGE_DEFINITIONS, WIM_SORTING_EVIDENCE_VERSION, VIDEO_EVIDENCE_PURGE_VERSION, VIDEO_EVIDENCE_ITEM_IDS, VIDEO_EVIDENCE_SLOT_IDS, buildCleaningEvidenceItems, isCleaningEvidenceComplete, isEvidenceSlotComplete, CHECKLIST_COPY_REVISION, LEGACY_CHECKLIST_COPY_REVISION, CHECKLIST_SECTION_TITLES, buildChecklistTemplateSections, createChecklistCopySnapshot, normalizeChecklistCopy, migrateChecklistCopyForCurrentTemplate, updateChecklistCopy, isEvidenceBypassItemStatus, isReportHiddenItemStatus };
 
 export const BOQ_SYSTEMS = Object.freeze([
   { systemId: "wim", order: 1, displayLabel: "ระบบชั่งน้ำหนักขณะรถเคลื่อนที่ (WIM)", sourceLabel: "WEIGH-IN-MOTION (WIM)", sourceRefs: ["2"] },
@@ -653,6 +661,7 @@ export function normalizeAttachment(attachment) {
     type: String(attachment.type || "image/*"),
     size: Number.isFinite(Number(attachment.size)) ? Number(attachment.size) : 0,
     addedAt: attachment.addedAt || new Date().toISOString(),
+    ...(normalizeImageAnnotation(attachment.imageAnnotation) ? { imageAnnotation: normalizeImageAnnotation(attachment.imageAnnotation) } : {}),
   };
 }
 
@@ -683,7 +692,7 @@ export function getEquipmentEnglishLabel(equipment) {
 export function getEquipmentDisplayLabel(equipment) {
   const english = getEquipmentEnglishLabel(equipment);
   const thai = getEquipmentLabel(equipment);
-  return [english, thai].filter(Boolean).join(" · ");
+  return english || thai;
 }
 
 export function getStationSystemLabel(system) {
@@ -700,7 +709,7 @@ export function getStationSystemDisplayLabel(system) {
   const centralName = getCentralSystemNameForRecord(system);
   const english = getStationSystemEnglishLabel(system);
   const thai = getStationSystemLabel(system);
-  return formatCentralNameEnglishFirst(centralName) || [english, thai].filter(Boolean).join(" · ");
+  return centralName?.nameEn || english || thai;
 }
 
 export function getEquipmentCategoryCode(equipment) {
@@ -713,14 +722,14 @@ export function getEquipmentGroupsForRegister(equipment = [], { includeEmptyGrou
   const equipmentList = Array.isArray(equipment) ? equipment : [];
   return STATION_ASSET_CATEGORIES.map((category) => {
     const systemTypes = ALL_EQUIPMENT_TYPES
-      .filter((type) => !type.legacyOnly)
+      .filter((type) => !type.legacyOnly || equipmentList.some(asset => asset.active !== false && asset.type === type.value))
       .filter((type) => type.groupCode === category.code)
       .filter(Boolean)
       .map((type) => ({
         ...type,
         nameTh: type.label,
-        label: formatCentralNameEnglishFirst(getCentralEquipmentName(type.value)) || [type.nameEn, type.label].filter(Boolean).join(" · "),
-        displayLabel: formatCentralNameEnglishFirst(getCentralEquipmentName(type.value)) || [type.nameEn, type.label].filter(Boolean).join(" · "),
+        label: getCentralEquipmentName(type.value)?.nameEn || type.nameEn || type.label,
+        displayLabel: getCentralEquipmentName(type.value)?.nameEn || type.nameEn || type.label,
         items: sortEquipmentForDisplay(equipmentList.filter((entry) => entry?.type === type.value), lanes),
       }));
     const customTypes = [...new Set(equipmentList
@@ -779,6 +788,7 @@ export function makeEquipment(type, index, overrides = {}) {
     systemId: overrides.systemId || definition.systemId || null,
     parentSystemId: String(overrides.parentSystemId || "") || null,
     parentAssetId: String(overrides.parentAssetId || "") || null,
+    powerInputType: ["AC", "DC"].includes(overrides.powerInputType) ? overrides.powerInputType : "",
     wimElectronicsRole: String(overrides.wimElectronicsRole || wimDefinition?.role || "") || null,
     outputVoltages: wimDefinition?.value === "WIM_SWITCHING_DC"
       ? normalizeWimElectronicsOutputVoltages(overrides.outputVoltages)
@@ -1086,6 +1096,8 @@ export function normalizeEquipment(equipment, index = 0) {
     parentSystemId: String(equipment?.parentSystemId || "") || null,
     parentAssetId: String(equipment?.parentAssetId || "") || null,
     wimElectronicsRole: String(equipment?.wimElectronicsRole || getWimElectronicsSubEquipmentType(type)?.role || "") || null,
+    powerInputType: ["AC", "DC"].includes(equipment?.powerInputType) ? equipment.powerInputType : "",
+    ...(equipment?.acDcSplitVersion ? { acDcSplitVersion: equipment.acDcSplitVersion } : {}),
     outputVoltages: type === "WIM_SWITCHING_DC" ? normalizeWimElectronicsOutputVoltages(equipment?.outputVoltages) : [],
     sourceRefs: Array.isArray(equipment?.sourceRefs) ? equipment.sourceRefs.map(String) : [...(definition.sourceRefs || [])],
     scope: String(equipment?.scope || "").trim() || null,
@@ -1100,6 +1112,7 @@ function normalizeStationSystem(system, index = 0, fallbackSeeds = LEGACY_PRESEN
   const fallback = stableFallback || legacyStableFallback || fallbackSeeds[index] || {};
   const canonicalItemId = String(system?.canonicalItemId || "");
   const isWimInstance = isWimSortingSystemRecord(system);
+  const isLprInstance = canonicalItemId === "lpr-control";
   return {
     id: String(system?.id || fallback.id || createId("system")),
     systemId: String(system?.systemId || fallback.systemId || "other"),
@@ -1115,7 +1128,7 @@ function normalizeStationSystem(system, index = 0, fallbackSeeds = LEGACY_PRESEN
     recordKind: "system",
     active: system?.active !== false,
     canonicalItemId,
-    laneId: isWimInstance ? String(system?.laneId || "") || null : null,
+    laneId: isWimInstance || isLprInstance ? String(system?.laneId || "") || null : null,
     instanceNo: isWimInstance ? Math.max(1, Number(system?.instanceNo || index + 1)) : null,
     scope: String(system?.scope || "Station-wide"),
     unit: String(system?.unit || system?.referenceUnit || fallback.referenceUnit || "ระบบ"),
@@ -1327,6 +1340,8 @@ export function normalizeStationProfile(profile, index = 0) {
     checklistConfig: normalizeChecklistConfig(profile?.checklistConfig),
     vehicleSearchConfig: createVehicleSearchConfig(profile?.vehicleSearchConfig),
     readinessConfirmedAt: profile?.readinessConfirmedAt || null,
+    ...(profile?.acDcSplitVersion ? { acDcSplitVersion: profile.acDcSplitVersion } : {}),
+    ...(profile?.acDcSplitArchive ? { acDcSplitArchive: profile.acDcSplitArchive } : {}),
   };
   normalized.equipment = synchronizeGeneratedAssetNos(normalized.equipment, normalized.stationSystems);
   normalized.checklistConfig = normalizeChecklistConfig(resolveStationChecklistConfig(normalized));
@@ -1335,7 +1350,8 @@ export function normalizeStationProfile(profile, index = 0) {
 
 export function createStationDraft(stationFormat = DEFAULT_STATION_FORMAT) {
   const format = normalizeStationFormat(stationFormat);
-  return { stationFormat: format, stationTemplateId: format, checklistPresentationVersion: BOQ_CHECKLIST_PRESENTATION_VERSION, stationCode: "", stationName: "", provinceId: "", province: "", direction: "unspecified", templateVersion: STATION_DRAFT_TEMPLATE_VERSION, stationSystems: [], lanes: [], equipment: [], checklistConfig: normalizeChecklistConfig(), vehicleSearchConfig: createVehicleSearchConfig(), readinessConfirmedAt: null };
+  const id = createId("station");
+  return { id, stationFormat: format, stationTemplateId: format, checklistPresentationVersion: BOQ_CHECKLIST_PRESENTATION_VERSION, stationCode: `ST-${id.slice("station-".length).toUpperCase()}`, stationName: "", provinceId: "", province: "", direction: "unspecified", templateVersion: STATION_DRAFT_TEMPLATE_VERSION, stationSystems: [], lanes: [], equipment: [], checklistConfig: normalizeChecklistConfig(), vehicleSearchConfig: createVehicleSearchConfig(), readinessConfirmedAt: null };
 }
 
 export function createEmptyStationDraft(stationFormat = DEFAULT_STATION_FORMAT) {
@@ -1349,8 +1365,11 @@ export function validateStationDraft(draft = {}, profiles = []) {
   const activeLanes = (Array.isArray(draft?.lanes) ? draft.lanes : []).filter((lane) => lane?.active !== false);
   const activeSystems = (Array.isArray(draft?.stationSystems) ? draft.stationSystems : []).filter((system) => system?.active !== false && Number(system?.quantity ?? 0) > 0);
   const wimSystems = activeSystems.filter(isWimSortingSystemRecord);
+  const lprSystems = activeSystems.filter((system) => String(system?.canonicalItemId || system?.systemId || "") === "lpr-control");
+  const lprCameras = activeEquipment.filter((equipment) => String(equipment?.type || "").toUpperCase() === "LPR_CAMERA");
   const wimSystemById = new Map(wimSystems.map((system) => [String(system.id), system]));
-  const errors = { assetNoById: {}, serialById: {}, laneById: {}, wimSystemLaneById: {}, wimParentById: {} };
+  const lprSystemById = new Map(lprSystems.map((system) => [String(system.id), system]));
+  const errors = { assetNoById: {}, serialById: {}, laneById: {}, wimSystemLaneById: {}, wimParentById: {}, lprSystemLaneById: {}, lprSystemQuantityById: {}, lprCameraBySystemId: {}, lprCameraParentById: {} };
 
   wimSystems.forEach((system) => {
     const laneId = String(system?.laneId || "").trim();
@@ -1365,6 +1384,24 @@ export function validateStationDraft(draft = {}, profiles = []) {
     wimSystemLanes.set(laneId, [...(wimSystemLanes.get(laneId) || []), system.id]);
   });
   const duplicateWimSystemLaneIds = [...wimSystemLanes.values()].filter((ids) => ids.length > 1).flat();
+
+  const lprSystemLanes = new Map();
+  lprSystems.forEach((system) => {
+    const laneId = String(system?.laneId || "").trim();
+    const lane = activeLanes.find((entry) => entry.id === laneId);
+    if (!lane) errors.lprSystemLaneById[system.id] = activeLanes.length ? "กรุณาผูก LPR System กับ Lane ที่ติดตั้งจริง" : "กรุณาสร้าง Lane ก่อนผูก LPR System";
+    else if (String(getLaneScope(lane, activeSystems) || "").trim() !== String(system.scope || "").trim()) errors.lprSystemLaneById[system.id] = "Lane ต้องอยู่ใน Scope เดียวกับ LPR System";
+    if (laneId) lprSystemLanes.set(laneId, [...(lprSystemLanes.get(laneId) || []), system.id]);
+    if (Number(system?.quantity ?? 1) !== 1) errors.lprSystemQuantityById[system.id] = "LPR System หนึ่งรายการแทนหนึ่ง Lane และต้องมีจำนวน 1 ระบบ";
+    const cameras = lprCameras.filter((camera) => String(camera?.parentSystemId || "") === String(system.id));
+    if (cameras.length !== 1) errors.lprCameraBySystemId[system.id] = cameras.length ? "LPR System หนึ่งระบบต้องมีกล้องจริงเพียง 1 ตัว" : "กรุณาเพิ่มกล้อง LPR จริง 1 ตัวใต้ระบบนี้";
+  });
+  const duplicateLprSystemLaneIds = [...lprSystemLanes.values()].filter((ids) => ids.length > 1).flat();
+  lprCameras.forEach((camera) => {
+    const parent = lprSystemById.get(String(camera?.parentSystemId || ""));
+    if (!parent) errors.lprCameraParentById[camera.id] = "กรุณาผูกกล้อง LPR กับ LPR System ที่ใช้งานอยู่";
+    else if (String(camera?.scope || "").trim() !== String(parent.scope || "").trim()) errors.lprCameraParentById[camera.id] = "Scope ของกล้องต้องตรงกับ LPR System แม่";
+  });
 
   if (!stationCode) errors.stationCode = "กรุณากรอกรหัสสถานี";
   else if (profiles.some((profile) => String(profile?.stationCode || "").trim().toLowerCase() === stationCode.toLowerCase())) errors.stationCode = "รหัสสถานีนี้มีอยู่แล้ว กรุณาใช้รหัสอื่น";
@@ -1433,13 +1470,16 @@ export function validateStationDraft(draft = {}, profiles = []) {
   }).length;
   if (incompleteDetails) warnings.push(`มีอุปกรณ์ ${incompleteDetails} รายการที่ยังไม่มีตำแหน่งติดตั้งหรือ Serial Number ครบ`);
 
-  const { assetNoById, serialById, laneById, wimSystemLaneById, wimParentById, ...stationErrors } = errors;
+  const { assetNoById, serialById, laneById, wimSystemLaneById, wimParentById, lprSystemLaneById, lprSystemQuantityById, lprCameraBySystemId, lprCameraParentById, ...stationErrors } = errors;
   const hasAssetErrors = Object.keys(assetNoById).length > 0;
   const hasSerialErrors = Object.keys(serialById).length > 0;
   const hasLaneErrors = Object.keys(laneById).length > 0;
   const hasWimSystemLaneErrors = Object.keys(wimSystemLaneById).length > 0;
   const hasWimParentErrors = Object.keys(wimParentById).length > 0;
-  return { valid: !Object.keys(stationErrors).length && !hasAssetErrors && !hasSerialErrors && !hasLaneErrors && !hasWimSystemLaneErrors && !hasWimParentErrors && !duplicateLaneIds.length && !duplicateWimSystemLaneIds.length, errors: { ...stationErrors, assetNoById, serialById, laneById, wimSystemLaneById, wimParentById, duplicateLaneIds, duplicateWimSystemLaneIds }, warnings };
+  const hasLprSystemLaneErrors = Object.keys(lprSystemLaneById).length > 0;
+  const hasLprSystemQuantityErrors = Object.keys(lprSystemQuantityById).length > 0;
+  const hasLprCameraErrors = Object.keys(lprCameraBySystemId).length > 0 || Object.keys(lprCameraParentById).length > 0;
+  return { valid: !Object.keys(stationErrors).length && !hasAssetErrors && !hasSerialErrors && !hasLaneErrors && !hasWimSystemLaneErrors && !hasWimParentErrors && !hasLprSystemLaneErrors && !hasLprSystemQuantityErrors && !hasLprCameraErrors && !duplicateLaneIds.length && !duplicateWimSystemLaneIds.length && !duplicateLprSystemLaneIds.length, errors: { ...stationErrors, assetNoById, serialById, laneById, wimSystemLaneById, wimParentById, lprSystemLaneById, lprSystemQuantityById, lprCameraBySystemId, lprCameraParentById, duplicateLaneIds, duplicateWimSystemLaneIds, duplicateLprSystemLaneIds }, warnings };
 }
 
 export function getStationReadiness(profile = {}) {
@@ -1447,7 +1487,10 @@ export function getStationReadiness(profile = {}) {
   const systems = (profile.stationSystems || []).filter((entry) => entry?.active !== false && Number(entry?.quantity || 0) > 0);
   const lanes = (profile.lanes || []).filter((entry) => entry?.active !== false);
   const wimSystems = systems.filter(isWimSortingSystemRecord);
+  const lprSystems = systems.filter((system) => String(system?.canonicalItemId || system?.systemId || "") === "lpr-control");
+  const lprCameras = equipment.filter((asset) => String(asset?.type || "").toUpperCase() === "LPR_CAMERA");
   const wimSystemById = new Map(wimSystems.map((system) => [String(system.id), system]));
+  const lprSystemById = new Map(lprSystems.map((system) => [String(system.id), system]));
   const blockers = [];
   const warnings = [];
   if (!equipment.length && !systems.length) blockers.push({ code: "EMPTY_REGISTER", message: "เพิ่ม Asset หรือ System อย่างน้อย 1 รายการ" });
@@ -1478,6 +1521,22 @@ export function getStationReadiness(profile = {}) {
     if (laneId) wimSystemLanes.set(laneId, [...(wimSystemLanes.get(laneId) || []), system.id]);
     if (!equipment.some((asset) => isWimEquipmentType(asset.type) && asset.parentSystemId === system.id)) warnings.push({ code: "WIM_SYSTEM_NO_CHILD_ASSETS", systemId: system.id, message: `WIM Sorting System ${system.instanceNo || ""} ยังไม่มี Sensor หรือ Loop` });
   }
+  const lprSystemLanes = new Map();
+  for (const system of lprSystems) {
+    const lane = lanes.find((entry) => entry.id === system.laneId);
+    if (!lane) blockers.push({ code: "LPR_SYSTEM_LANE_REQUIRED", systemId: system.id, message: "LPR System ต้องผูกกับ Lane ที่ติดตั้งจริง" });
+    else if (String(getLaneScope(lane, systems) || "").trim() !== String(system.scope || "").trim()) blockers.push({ code: "LPR_SYSTEM_LANE_SCOPE_MISMATCH", systemId: system.id, laneId: lane.id, message: "Lane และ LPR System ต้องอยู่ใน Scope เดียวกัน" });
+    if (Number(system.quantity ?? 1) !== 1) blockers.push({ code: "LPR_SYSTEM_QUANTITY_INVALID", systemId: system.id, message: "LPR System หนึ่งรายการแทนหนึ่ง Lane และต้องมีจำนวน 1 ระบบ" });
+    if (system.laneId) lprSystemLanes.set(system.laneId, [...(lprSystemLanes.get(system.laneId) || []), system.id]);
+    const childCameras = lprCameras.filter((asset) => String(asset.parentSystemId || "") === String(system.id));
+    if (childCameras.length !== 1) blockers.push({ code: childCameras.length ? "LPR_CAMERA_DUPLICATE" : "LPR_CAMERA_REQUIRED", systemId: system.id, assetIds: childCameras.map((asset) => asset.id), message: childCameras.length ? "LPR System หนึ่งระบบต้องมีกล้องจริงเพียง 1 ตัว" : "LPR System ต้องมีกล้องจริง 1 ตัว" });
+  }
+  for (const ids of lprSystemLanes.values()) if (ids.length > 1) blockers.push({ code: "LPR_SYSTEM_LANE_DUPLICATE", systemIds: ids, message: "ห้ามผูก LPR System มากกว่า 1 ระบบกับ Lane เดียวกัน" });
+  for (const asset of lprCameras) {
+    const parent = lprSystemById.get(String(asset.parentSystemId || ""));
+    if (!parent) blockers.push({ code: "LPR_CAMERA_PARENT_REQUIRED", assetId: asset.id, message: "กล้อง LPR ต้องผูกกับ LPR System ที่ใช้งานอยู่" });
+    else if (String(asset.scope || "").trim() !== String(parent.scope || "").trim()) blockers.push({ code: "LPR_CAMERA_SCOPE_MISMATCH", assetId: asset.id, systemId: parent.id, message: "Scope ของกล้อง LPR ต้องตรงกับระบบแม่" });
+  }
   for (const ids of wimSystemLanes.values()) if (ids.length > 1) blockers.push({ code: "WIM_SYSTEM_LANE_DUPLICATE", systemIds: ids, message: "ห้ามผูก WIM Sorting System มากกว่า 1 ระบบกับ Lane เดียวกัน" });
   assetNos.forEach((ids) => { if (ids.length > 1) blockers.push({ code: "DUPLICATE_ASSET_NO", assetIds: ids, message: "Asset No. ซ้ำ" }); });
   for (const system of systems) if (!Array.isArray(system.checklistMapping) && !system.systemId) blockers.push({ code: "CHECKLIST_MAPPING_REQUIRED", systemId: system.id, message: "System ไม่มี Checklist mapping" });
@@ -1494,7 +1553,7 @@ export function createStationProfileFromDraft(draft = {}, index = 0) {
   }));
   return normalizeStationProfile({
     ...draft,
-    id: createId("station"),
+    id: String(draft?.id || createId("station")),
     stationFormat: normalizeStationFormat(draft?.stationFormat),
     stationTemplateId: normalizeStationFormat(draft?.stationTemplateId || draft?.stationFormat),
     stationCode: String(draft?.stationCode || "").trim(),
@@ -1535,7 +1594,7 @@ function applyVehicleApiReviewCopy(copy) {
 
 export function createSnapshot(profile, { checklistCopy, masterChecklistCopy } = {}) {
   const migratedChecklistCopy = migrateChecklistCopyForCurrentTemplate(checklistCopy);
-  const apiChecklistCopy = applyVehicleApiReviewCopy(migratedChecklistCopy);
+  const apiChecklistCopy = createContextualChecklistCopy(applyVehicleApiReviewCopy(migratedChecklistCopy));
   const currentChecklistCopy = /^checklist-copy-local-/.test(String(checklistCopy?.revision || ""))
     ? { ...apiChecklistCopy, revision: checklistCopy.revision }
     : apiChecklistCopy;
@@ -1552,13 +1611,19 @@ export function createSnapshot(profile, { checklistCopy, masterChecklistCopy } =
   });
   const snapshotSystems = Array.isArray(profile.stationSystems) ? profile.stationSystems.map(normalizeStationSystem) : [];
   const snapshotSystemById = new Map(snapshotSystems.filter(isWimSortingSystemRecord).map((system) => [system.id, system]));
-  const snapshot = { id: createId("snapshot"), stationFormat: normalizeStationFormat(profile?.stationFormat), stationTemplateId: normalizeStationFormat(profile?.stationTemplateId || profile?.stationFormat), templateVersion, cleaningPolicyVersion: CLEANING_POLICY_VERSION, orderingVersion: EQUIPMENT_ORDER_VERSION, vehicleReviewVersion: VEHICLE_API_REVIEW_VERSION, vehicleReviewScopeVersion: VEHICLE_REVIEW_SCOPE_VERSION, copyRevision: currentChecklistCopy.revision, checklistCopy: currentChecklistCopy, masterCopyRevision: currentMasterChecklistCopy.revision, masterChecklistCopy: currentMasterChecklistCopy, createdAt: new Date().toISOString(), stationId: profile.id, stationCode: profile.stationCode, stationName: profile.stationName, province: profile.province || "", direction: profile.direction || "unspecified", stationSystems: snapshotSystems, lanes: snapshotLanes, equipment: snapshotEquipment.map((equipment) => {
+  const snapshot = { id: createId("snapshot"), stationFormat: normalizeStationFormat(profile?.stationFormat), stationTemplateId: normalizeStationFormat(profile?.stationTemplateId || profile?.stationFormat), templateVersion, threeDCleaningVersion: '3d-cleaning-v1', cleaningPolicyVersion: CLEANING_POLICY_VERSION, orderingVersion: EQUIPMENT_ORDER_VERSION, vehicleReviewVersion: VEHICLE_API_REVIEW_VERSION, vehicleReviewScopeVersion: VEHICLE_REVIEW_SCOPE_VERSION, copyRevision: currentChecklistCopy.revision, checklistCopy: currentChecklistCopy, masterCopyRevision: currentMasterChecklistCopy.revision, masterChecklistCopy: currentMasterChecklistCopy, createdAt: new Date().toISOString(), stationId: profile.id, stationCode: profile.stationCode, stationName: profile.stationName, province: profile.province || "", direction: profile.direction || "unspecified", stationSystems: snapshotSystems, lanes: snapshotLanes, equipment: snapshotEquipment.map((equipment) => {
     const parentSystem = snapshotSystemById.get(equipment.parentSystemId);
     return parentSystem ? { ...equipment, laneId: parentSystem.laneId } : equipment;
   }), checklistConfig: normalizeChecklistConfig(profile.checklistConfig), vehicleSearchConfig: createVehicleSearchConfig(profile?.vehicleSearchConfig, "") };
+  snapshot.vehicleReviewSystemsVersion = VEHICLE_REVIEW_SYSTEMS_VERSION;
+  snapshot.automaticSoftwareTestsVersion = AUTOMATIC_SOFTWARE_TESTS_VERSION;
+  snapshot.vehicleReviewSystems = snapshotVehicleSystems(profile);
   snapshot.checklistPolicyVersion = CHECKLIST_POLICY_VERSION;
+  snapshot.checklistWordingVersion = CHECKLIST_WORDING_VERSION;
   snapshot.wimSortingEvidenceVersion = WIM_SORTING_EVIDENCE_VERSION;
   snapshot.assetChecklistRecipeVersion = DEDICATED_ASSET_CHECKLIST_RECIPE_VERSION;
+  snapshot.wimElectronicsInspectionVersion = "device-points-v1";
+  snapshot.acDcSplitVersion = "separate-ac-dc-v1";
   snapshot.checklistPresentationVersion = BOQ_CHECKLIST_PRESENTATION_VERSION;
   snapshot.equipment = getActivePhysicalEquipment(snapshot.equipment);
   snapshot.checklistConfig = normalizeChecklistConfig(resolveStationChecklistConfig(snapshot));
@@ -1571,12 +1636,24 @@ export function normalizeSnapshot(snapshot, fallbackProfile) {
   const templateVersion = snapshot.templateVersion || fallbackProfile?.templateVersion || MASTER_TEMPLATE_VERSION;
   const masterChecklistCopy = getMasterChecklistCopyForSnapshot(snapshot);
   const normalizedFormat = normalizeStationFormat(snapshot.stationFormat || fallbackProfile?.stationFormat);
+  // Keep the explicit additive upgrade when a saved round is loaded.
+  // Older Snapshots without this marker retain their original checklist.
   const normalized = { id: snapshot.id || createId("snapshot"), stationFormat: normalizedFormat, stationTemplateId: normalizeStationFormat(snapshot.stationTemplateId || fallbackProfile?.stationTemplateId || normalizedFormat), templateVersion, cleaningPolicyVersion: snapshot.cleaningPolicyVersion || null, orderingVersion: snapshot.orderingVersion || null, vehicleReviewVersion: snapshot.vehicleReviewVersion || null, vehicleReviewScopeVersion: snapshot.vehicleReviewScopeVersion || null, createdAt: snapshot.createdAt || new Date().toISOString(), stationId: snapshot.stationId || fallbackProfile.id, stationCode: String(snapshot.stationCode || fallbackProfile.stationCode), stationName: String(snapshot.stationName || fallbackProfile.stationName), province: String(snapshot.province || fallbackProfile?.province || ""), direction: snapshot.direction || fallbackProfile?.direction || "unspecified", stationSystems: Array.isArray(snapshot.stationSystems) ? snapshot.stationSystems.map(normalizeStationSystem) : [], lanes: Array.isArray(snapshot.lanes) ? snapshot.lanes.map(normalizeLane).filter((lane) => lane.active !== false) : [], equipment: Array.isArray(snapshot.equipment) ? snapshot.equipment.map(normalizeEquipment).filter((equipment) => equipment.active !== false) : [], checklistConfig: normalizeChecklistConfig(snapshot.checklistConfig), vehicleSearchConfig: createVehicleSearchConfig(snapshot.vehicleSearchConfig, ""), masterCopyRevision: masterChecklistCopy.revision, masterChecklistCopy, ...(snapshot.contractId ? { contractId: snapshot.contractId } : {}), ...(snapshot.workPackageId ? { workPackageId: snapshot.workPackageId } : {}), ...(snapshot.contractContext && typeof snapshot.contractContext === "object" ? { contractContext: snapshot.contractContext } : {}) };
+  if (snapshot.threeDCleaningVersion === '3d-cleaning-v1') normalized.threeDCleaningVersion = snapshot.threeDCleaningVersion;
+  if (snapshot.vehicleReviewSystemsVersion === VEHICLE_REVIEW_SYSTEMS_VERSION) {
+    normalized.vehicleReviewSystemsVersion = snapshot.vehicleReviewSystemsVersion;
+    normalized.vehicleReviewSystems = (snapshot.vehicleReviewSystems || []).map(system => ({ ...system, config: createVehicleSearchConfig(system.config, "") }));
+  }
+  if (snapshot.automaticSoftwareTestsVersion === AUTOMATIC_SOFTWARE_TESTS_VERSION) normalized.automaticSoftwareTestsVersion = snapshot.automaticSoftwareTestsVersion;
   if (Object.hasOwn(snapshot, "torItems")) normalized.torItems = snapshot.torItems;
   if (snapshot.checklistPresentationVersion) normalized.checklistPresentationVersion = snapshot.checklistPresentationVersion;
   if (snapshot.checklistPolicyVersion) normalized.checklistPolicyVersion = snapshot.checklistPolicyVersion;
+  if (snapshot.checklistWordingVersion) normalized.checklistWordingVersion = String(snapshot.checklistWordingVersion);
   if (snapshot.wimSortingEvidenceVersion) normalized.wimSortingEvidenceVersion = String(snapshot.wimSortingEvidenceVersion);
   if (snapshot.assetChecklistRecipeVersion) normalized.assetChecklistRecipeVersion = String(snapshot.assetChecklistRecipeVersion);
+  if (snapshot.acDcSplitVersion) normalized.acDcSplitVersion = snapshot.acDcSplitVersion;
+  if (snapshot.acDcSplitLinks) normalized.acDcSplitLinks = snapshot.acDcSplitLinks;
+  if (snapshot.wimElectronicsInspectionVersion) normalized.wimElectronicsInspectionVersion = String(snapshot.wimElectronicsInspectionVersion);
   if (!snapshot.checklistPolicyVersion) normalized.checklistConfig = { disabledTemplateIds: normalized.checklistConfig.disabledTemplateIds };
   if (!isEvidenceTemplateVersion(templateVersion)) return normalized;
   const withCatalog = {
@@ -1671,9 +1748,10 @@ export function getPrintableSectionsForSnapshot(snapshot, templateVersion = snap
 export function emptyItem(item) { return { value: "", status: item?.applicable === false ? "na" : "pending", note: "", attachment: null, evidence: emptyEvidence(item) }; }
 export function buildItemState(items, previous = {}) { if (items.some((item) => Array.isArray(item.evidenceSlots) && item.evidenceSlots.length)) return buildEvidenceItemState(items, previous); return Object.fromEntries(items.map((item) => { const legacyValue = previous[item.id] || previous[item.templateId] || {}; return [item.id, { ...emptyItem(item), ...legacyValue, attachment: normalizeAttachment(legacyValue.attachment), ...(item.applicable === false ? { status: "na" } : {}) }]; })); }
 function normalizeRoundVehicleSearch(value, snapshot, fallbackCriteria) {
+  if (snapshot?.vehicleReviewSystemsVersion === VEHICLE_REVIEW_SYSTEMS_VERSION) return normalizeSystemVehicleSearch(value, snapshot, fallbackCriteria);
   const options = { baseUrl: snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: snapshot?.vehicleSearchConfig?.apiProfile };
+  if (isVehicleReviewScopeState(value)) return normalizeVehicleReviewState(value, fallbackCriteria, options);
   if (snapshot?.vehicleReviewScopeVersion === VEHICLE_REVIEW_SCOPE_VERSION) {
-    if (isVehicleReviewScopeState(value)) return normalizeVehicleReviewState(value, fallbackCriteria, options);
     if (value && typeof value === "object" && (Object.hasOwn(value, "fetchedAt") || Object.hasOwn(value, "rows"))) return normalizeVehicleSearchState(value, fallbackCriteria, options);
     return createVehicleReviewState(fallbackCriteria);
   }
@@ -1694,6 +1772,7 @@ function buildInspectionRound(profile, meta = {}, overrides = {}) {
     createdAt: timestamp,
     updatedAt: overrides.updatedAt || timestamp,
     closedAt: overrides.closedAt || null,
+    progressPolicyVersion: overrides.progressPolicyVersion || CHECKLIST_PROGRESS_POLICY_VERSION,
     templateVersion: overrides.templateVersion || snapshot.templateVersion,
     snapshot,
     inspectionItems: buildItemState(items, overrides.inspectionItems || overrides.items || {}),
@@ -1703,6 +1782,12 @@ function buildInspectionRound(profile, meta = {}, overrides = {}) {
   };
 }
 export function createInspectionRound(profile, meta = {}, overrides = {}) {
+  if (!overrides.snapshot) {
+    const installation = getVehicleSystemInstallation(profile);
+    if (installation.errors.length) throw new Error(installation.errors.map(error => error.message).join(' · '));
+    const systems = snapshotVehicleSystems(profile);
+    if (systems.length > 1 && systems.some(system => !system.config.baseUrl)) throw new Error("กำหนด IP ให้แต่ละระบบในทะเบียนสถานีก่อนสร้างรอบใหม่");
+  }
   const round = buildInspectionRound(profile, meta, overrides);
   if (!overrides.snapshot && !getNewRoundChecklistItems(round.snapshot).length) {
     throw new Error("ไม่มีรายการตรวจที่เปิดใช้งาน");
@@ -1728,6 +1813,7 @@ export function normalizeRound(round, profiles, fallbackProfile, forcedStatus = 
   const snapshotInput = rawSnapshot ? { ...rawSnapshot, templateVersion: rawSnapshot.templateVersion || declaredTemplateVersion, ...(migratedDraftChecklistCopy ? { checklistCopy: migratedDraftChecklistCopy } : {}), ...(status === "draft" && !rawSnapshot.vehicleSearchConfig ? { vehicleSearchConfig: profile.vehicleSearchConfig } : {}) } : (status === "closed" ? { ...createSnapshot(profile), templateVersion: declaredTemplateVersion } : rawSnapshot);
   const normalizedSnapshot = normalizeSnapshot(snapshotInput, profile);
   const shouldUpgradeDraft = status === "draft" && !isEvidenceTemplateVersion(declaredTemplateVersion);
+  if (!rawSnapshot) { delete normalizedSnapshot.vehicleReviewSystemsVersion; delete normalizedSnapshot.vehicleReviewSystems; delete normalizedSnapshot.automaticSoftwareTestsVersion; }
   const snapshotBeforeCatalog = shouldUpgradeDraft
     ? { ...normalizedSnapshot, templateVersion: MASTER_TEMPLATE_VERSION, cleaningPolicyVersion: null }
     : normalizedSnapshot;
@@ -1749,6 +1835,7 @@ export function normalizeRound(round, profiles, fallbackProfile, forcedStatus = 
     createdAt,
     updatedAt: round?.updatedAt || round?.archivedAt || createdAt,
     closedAt: status === "closed" ? (round?.closedAt || round?.archivedAt || createdAt) : null,
+    progressPolicyVersion: round?.progressPolicyVersion || null,
     templateVersion: shouldUpgradeDraft ? MASTER_TEMPLATE_VERSION : declaredTemplateVersion,
     snapshot,
     inspectionItems: buildItemState(getItemsForSnapshot(snapshot), round?.inspectionItems || round?.items || {}),
@@ -1759,17 +1846,51 @@ export function normalizeRound(round, profiles, fallbackProfile, forcedStatus = 
     reason: String(round?.reason || round?.revisionReason || ""),
     revisionCreatedAt: round?.revisionCreatedAt || null,
     revisionCreatedByLabel: String(round?.revisionCreatedByLabel || ""),
-    vehicleSearch: normalizeRoundVehicleSearch(round?.vehicleSearch, snapshot, { dateFrom: round?.meta?.inspectionDate, dateTo: round?.meta?.inspectionDate, stationCode: snapshot.stationCode }),
+    ...(round?.acDcSplitArchive ? { acDcSplitArchive: round.acDcSplitArchive } : {}),
+    ...(round?.vehicleEvidenceArchive ? { vehicleEvidenceArchive: round.vehicleEvidenceArchive } : {}),
+    ...(round?.vehicleConnectionUpdates ? { vehicleConnectionUpdates: round.vehicleConnectionUpdates } : {}),
+    vehicleSearch: normalizeRoundVehicleSearch(round?.vehicleSearch, getRoundVehicleConnectionSnapshot({ ...round, snapshot }), { dateFrom: round?.meta?.inspectionDate, dateTo: round?.meta?.inspectionDate, stationCode: snapshot.stationCode }),
     meta: { ...defaultMeta, ...(round?.meta || {}), projectName: round?.meta?.projectName || snapshot.stationName || profile.stationName },
   };
 }
+export function getChecklistItemsProgress(items, round, options = {}) {
+  const values = round?.inspectionItems || {};
+  const legacy = usesLegacyChecklistProgressPolicy(round);
+  const applicableItems = items.filter((item) => {
+    const status = values[item.id]?.status;
+    if (item.applicable === false || isVehicleApiReviewItem(item, round?.snapshot)) return false;
+    if (legacy ? status === "na" : isEvidenceBypassItemStatus(status)) return false;
+    return options.excludeSkipped !== true || !isReportHiddenItemStatus(status);
+  });
+  const isRecorded = (status) => legacy
+    ? Boolean(status) && status !== "pending"
+    : ["normal", "damaged", "waiting"].includes(status);
+  const doneItems = applicableItems.filter((item) => isRecorded(values[item.id]?.status));
+  return {
+    applicableItems,
+    total: applicableItems.length,
+    done: doneItems.length,
+    pending: applicableItems.length - doneItems.length,
+    progress: applicableItems.length ? Math.round(doneItems.length / applicableItems.length * 100) : 0,
+  };
+}
+
+export function getPendingChecklistItems(round) {
+  const items = getItemsForSnapshot(round?.snapshot, round?.templateVersion || round?.snapshot?.templateVersion);
+  const progress = getChecklistItemsProgress(items, round);
+  const legacy = usesLegacyChecklistProgressPolicy(round);
+  return progress.applicableItems.filter((item) => {
+    const status = round?.inspectionItems?.[item.id]?.status;
+    return legacy ? !status || status === "pending" : !["normal", "damaged", "waiting"].includes(status);
+  });
+}
+
 export function getInspectionProgressModel(round, options = {}) {
   const items = getItemsForSnapshot(round?.snapshot, round?.templateVersion || round?.snapshot?.templateVersion);
   const values = round?.inspectionItems || {};
-  const applicable = items.filter((item) => item.applicable !== false && !isVehicleApiReviewItem(item, round?.snapshot) && (
-    options.excludeSkipped !== true || !isReportHiddenItemStatus(values[item.id]?.status)
-  ));
-  const done = applicable.filter((item) => values[item.id]?.status !== "pending").length;
+  const progress = getChecklistItemsProgress(items, round, options);
+  const applicable = progress.applicableItems;
+  const done = progress.done;
   const issues = applicable.filter((item) => ["damaged", "waiting"].includes(values[item.id]?.status)).length;
   const evidence = isEvidenceTemplateVersion(round?.templateVersion || round?.snapshot?.templateVersion)
     ? getEvidenceSummary(round)
@@ -1803,8 +1924,8 @@ const CLOSE_EVIDENCE_STATUS_LABELS = Object.fromEntries(EVIDENCE_STATUS_OPTIONS.
 
 /**
  * Return checklist completeness and whether a user may confirm closing a draft.
- * All incomplete results, evidence, and Vehicle API reviews remain visible as
- * findings but can be acknowledged at close without changing their stored state.
+ * Pending results, required evidence, and Vehicle API reviews remain visible as
+ * findings but can be acknowledged at close; bypass-status rows require no work.
  */
 export function getCloseReadiness(round) {
   const sections = buildInspectionSections(round?.snapshot, round?.templateVersion || round?.snapshot?.templateVersion);
@@ -1812,15 +1933,17 @@ export function getCloseReadiness(round) {
   const blockers = [];
   const issues = [];
   const push = (collection, payload) => collection.push({
-    id: `${payload.type}-${payload.itemId}-${payload.slotId || "item"}`,
     ...payload,
+    id: `${payload.type}-${payload.itemId}-${payload.slotId || "item"}-${payload.scope || "station"}-${payload.rowId || ""}-${collection.length}`,
   });
 
     sections.flatMap((section) => section.items.map((item) => ({ section, item })))
     .filter(({ item }) => item.applicable !== false && !isVehicleApiReviewItem(item, round?.snapshot))
     .forEach(({ section, item }) => {
       const itemValue = values[item.id] || {};
-      if (isEvidenceBypassItemStatus(itemValue.status)) return;
+      if (isEvidenceBypassItemStatus(itemValue.status)) {
+        return;
+      }
       if ((itemValue.status || "pending") === "pending") {
         push(blockers, { type: "item", itemId: item.id, sectionCode: section.code, label: item.label, message: "ยังไม่ได้เลือกสถานะการตรวจ" });
       } else if (["damaged", "waiting"].includes(itemValue.status)) {
@@ -1838,6 +1961,11 @@ export function getCloseReadiness(round) {
         const evidence = itemValue.evidence?.[slot.id] || {};
         const evidenceStatus = evidence.status || "pending";
         const slotLabel = slot.displayLabel || slot.sourceLabel || item.label;
+        if ((slot.documentRequired || slot.valueRequired) && evidenceStatus === "complete" && !isEvidenceSlotComplete(slot, evidence)) {
+          push(blockers, { type: "evidence-required", itemId: item.id, slotId: slot.id, sectionCode: section.code, label: slotLabel,
+            message: slot.documentRequired ? "ยังขาดไฟล์เอกสารจริง" : "ยังไม่ได้ระบุค่าที่ทดสอบ" });
+          return;
+        }
         if (slot.cleaningStage || slot.photoRequired) {
           if (!isEvidenceSlotComplete(slot, evidence)) {
             const message = evidenceStatus === "complete" && !evidence.attachment?.id
@@ -1867,8 +1995,8 @@ export function getCloseReadiness(round) {
       });
     });
 
-  const vehicleSearchConfig = createVehicleSearchConfig(round?.snapshot?.vehicleSearchConfig, "");
-  const vehicleSearch = round?.snapshot?.vehicleReviewScopeVersion === VEHICLE_REVIEW_SCOPE_VERSION
+  const vehicleSearchConfig = getRoundVehicleSearchConfig(round);
+  const vehicleSearch = round?.snapshot?.vehicleReviewScopeVersion === VEHICLE_REVIEW_SCOPE_VERSION || isVehicleReviewScopeState(round?.vehicleSearch)
     ? normalizeVehicleReviewState(round?.vehicleSearch, {}, { baseUrl: vehicleSearchConfig.baseUrl, apiProfile: vehicleSearchConfig.apiProfile })
     : normalizeVehicleSearchState(round?.vehicleSearch, {}, { baseUrl: vehicleSearchConfig.baseUrl, apiProfile: vehicleSearchConfig.apiProfile });
   const vehicleSearchSummary = getVehicleSearchSummary(vehicleSearch);
@@ -1883,18 +2011,26 @@ export function getCloseReadiness(round) {
     || isEvidenceBypassItemStatus(vehicleSearchItemValue.status)
   ));
   if (vehicleReviewItems.length) {
-    const config = vehicleSearchConfig;
-    const primaryItem = vehicleReviewItems.find((item) => getVehicleReviewContext(item)?.key === "plate") || vehicleReviewItems[0];
-    const scopeEntries = isVehicleReviewScopeState(vehicleSearch)
-      ? getVehicleReviewScopeEntries(vehicleSearch)
-      : [{ key: "all", label: "", state: vehicleSearch }];
-    scopeEntries.forEach(({ key: scopeKey, label: scopeLabel, state: scopeState }) => {
+    const scopeEntries = vehicleReviewItems.flatMap(item => {
+      const itemSearch = getSystemVehicleSearch(round, item.vehicleReviewSystemKey, getVehicleReviewContext(item)?.key);
+      const entries = !isSystemVehicleRound(round) && getVehicleReviewContext(item)?.key === "classification"
+        ? [{ key: "all", label: "ชุดทดสอบคัดแยกประเภท", state: getDaytimeVehicleClassificationDataset(itemSearch) }]
+        : isVehicleReviewScopeState(itemSearch) ? getVehicleReviewScopeEntries(itemSearch) : [{ key: "all", label: "", state: itemSearch }];
+      return entries.map(entry => ({ ...entry, reviewItem: item }));
+    });
+    scopeEntries.forEach(({ key: scopeKey, label: scopeLabel, state: scopeState, reviewItem }) => {
+      const config = isSystemVehicleRound(round) ? getRoundVehicleSearchConfig(round, reviewItem.vehicleReviewSystemKey) : vehicleSearchConfig;
+      const primaryItem = reviewItem;
+      if (isSystemVehicleRound(round) && (!config.baseUrl || (config.apiProfile === "imps-v2" && !config.searchUrl))) {
+        push(blockers, { type: "vehicle-search-config", itemId: primaryItem.id, sectionCode: "5.1", scope: scopeKey, label: primaryItem.label, message: "ยังไม่ได้ตั้งค่าการเชื่อมต่อ" });
+        return;
+      }
       const suffix = scopeLabel ? ` (${scopeLabel})` : "";
       if (!scopeState.fetchedAt) {
         push(blockers, { type: "vehicle-search-fetch", itemId: primaryItem.id, sectionCode: "5.1", scope: scopeKey, label: `${primaryItem.label}${suffix}`, message: `ยังไม่ได้ดึงข้อมูลรถช่วง${scopeLabel || "ที่เลือก"}จาก API สถานี` });
         return;
       }
-      if (isVehicleReviewScopeState(vehicleSearch) && !scopeState.rows.length && !scopeState.emptyResultAcknowledgedAt) {
+      if ((isSystemVehicleRound(round) || isVehicleReviewScopeState(vehicleSearch)) && !scopeState.rows.length && !scopeState.emptyResultAcknowledgedAt) {
         push(blockers, { type: "vehicle-search-empty", itemId: primaryItem.id, sectionCode: "5.1", scope: scopeKey, label: `${primaryItem.label}${suffix}`, message: `ไม่พบรถช่วง${scopeLabel} ยังไม่ได้ยืนยันผลการค้นหา` });
         return;
       }
@@ -1902,14 +2038,14 @@ export function getCloseReadiness(round) {
         push(blockers, { type: "vehicle-search-station", itemId: primaryItem.id, sectionCode: "5.1", scope: scopeKey, label: `${primaryItem.label}${suffix}`, message: "ข้อมูล stationID หรือชื่อสถานีใน Vehicle API ยังไม่ครบ" });
         return;
       }
-      const stationMismatch = isVehicleReviewScopeState(vehicleSearch)
+      const stationMismatch = isSystemVehicleRound(round) || isVehicleReviewScopeState(vehicleSearch)
         ? (!scopeState.sourceStation || scopeState.sourceStation.id !== config.stationId || scopeState.sourceStation.name !== config.stationName)
         : (scopeState.sourceStation && (scopeState.sourceStation.id !== config.stationId || scopeState.sourceStation.name !== config.stationName));
       if (stationMismatch) {
         push(blockers, { type: "vehicle-search-station", itemId: primaryItem.id, sectionCode: "5.1", scope: scopeKey, label: `${primaryItem.label}${suffix}`, message: "ผล API มาจากสถานีไม่ตรงกับข้อมูลประจำรอบ" });
         return;
       }
-      vehicleReviewItems.forEach((item) => {
+      [reviewItem].forEach((item) => {
         const context = getVehicleReviewContext(item);
         const reviewState = getVehicleReviewState(scopeState, { reviewVersion: vehicleReviewVersion, context: context?.key });
         if (reviewState.summary.unresolvedChecks > 0) {
@@ -1938,7 +2074,7 @@ export function getCloseReadiness(round) {
           });
         }
       });
-      const outcome = getVehicleReviewOutcome(scopeState, { reviewVersion: vehicleReviewVersion });
+      const outcome = getVehicleReviewOutcome(scopeState, { reviewVersion: vehicleReviewVersion, context: getVehicleReviewContext(reviewItem)?.key });
       outcome.reasons
         .filter((reason) => ["sample-threshold", "no-sample", "missing-weight", "plate-threshold", "classification-threshold"].includes(reason.code))
         .forEach((reason) => push(blockers, {

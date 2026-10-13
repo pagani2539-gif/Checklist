@@ -8,6 +8,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, "");
   const serverApiTarget = String(env.VITE_SERVER_API_TARGET || "http://127.0.0.1:4173").trim();
+  const configuredDistDir = String(env.CHECKLIST_DIST_DIR || "").trim() || "./dist";
   return {
     base: "./",
     plugins: [react()],
@@ -24,6 +25,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      outDir: path.resolve(root, configuredDistDir),
       rollupOptions: {
         input: path.resolve(root, "index.html"),
       },

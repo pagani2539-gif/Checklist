@@ -121,7 +121,8 @@ assert.ok(with3dItems.some((item) => item.id.includes("imps-3d-management") && i
 assert.deepEqual(with3dItems.filter((item) => item.sectionCode === "1.1").map((item) => item.id), [
   "1.1.staff", "1.1.vehicle", "1.1.crane", "1.1.traffic-cone-light", "1.1.tools", "1.1.road-closure",
 ], "new rounds retain station-level readiness checks");
-assert.ok(!with3dItems.some((item) => item.sectionCode === "6.2" || item.sectionCode === "6.3" || item.isEquipmentCleaning));
+assert.ok(!with3dItems.some((item) => item.sectionCode === "6.2" || item.sectionCode === "6.3"), "new cleaning rows belong to their equipment category");
+assert.ok(with3dItems.some((item) => item.isEquipmentCleaning && item.assetId === "imps-3d-lpr"), "installed 3D LPR cameras retain generated cleaning checks");
 const actual3d = getStationChecklistSections(with3d).filter((section) => section.code.startsWith("IMPS-03"));
 assert.ok(actual3d.flatMap((section) => section.items).some((item) => item.assetId === "imps-3d-lpr"));
 assert.ok(!actual3d.flatMap((section) => section.items).some((item) => item.assetId === "imps-3d-lpr-control"));
@@ -152,9 +153,14 @@ scSoftwareProfile.equipment.push(
 );
 const scSoftware = createSnapshot(scSoftwareProfile);
 const scSoftwareSections = getStationChecklistSections(scSoftware);
-assert.ok(scSoftwareSections.find((section) => section.code === "SC-01.02")?.items.some((item) => item.systemRecordId === "sc-high-reporting"));
+assert.ok(!scSoftwareSections.flatMap(section => section.items).some(item => item.systemRecordId === "sc-high-reporting" || item.systemRecordId === "sc-low-reporting"));
+assert.ok(!scSoftwareSections.flatMap(section => section.items).some(item => item.automaticSoftwareTest), "Without an installed WIM system no automatic program suite is created");
+const legacySoftware = { ...scSoftware };
+delete legacySoftware.automaticSoftwareTestsVersion;
+const legacySoftwareSections = getStationChecklistSections(legacySoftware);
+assert.ok(legacySoftwareSections.find(section => section.code === "SC-01.02")?.items.some(item => item.systemRecordId === "sc-high-reporting"));
+assert.ok(legacySoftwareSections.find(section => section.code === "SC-04.02")?.items.some(item => item.systemRecordId === "sc-low-reporting"));
 assert.ok(scSoftwareSections.find((section) => section.code === "SC-01.02")?.items.some((item) => item.systemRecordId === "sc-high-lpr-control"));
-assert.ok(scSoftwareSections.find((section) => section.code === "SC-04.02")?.items.some((item) => item.systemRecordId === "sc-low-reporting"));
 assert.ok(scSoftwareSections.find((section) => section.code === "SC-04.02")?.items.some((item) => item.systemRecordId === "sc-low-lpr-control"));
 assert.ok(scSoftwareSections.find((section) => section.code === "SC-05.02")?.items.some((item) => item.systemRecordId === "sc-low-vms-control"));
 assert.ok(scSoftwareSections.find((section) => section.code === "SC-01.01")?.items.some((item) => item.assetId === "sc-high-lpr-camera"));

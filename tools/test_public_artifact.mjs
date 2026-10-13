@@ -4,13 +4,15 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { assertIsolatedTestDatabaseUrl } from "./database_url_test_support.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const connectionString = process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL || process.env.CHECKLIST_DATABASE_URL;
-if (!connectionString) {
-  console.log("public artifact smoke skipped (set CHECKLIST_POSTGRES_TEST_DATABASE_URL or CHECKLIST_DATABASE_URL for PostgreSQL integration coverage)");
+const configuredConnectionString = process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL;
+if (!configuredConnectionString) {
+  console.log("public artifact smoke skipped (set CHECKLIST_POSTGRES_TEST_DATABASE_URL for isolated PostgreSQL integration coverage)");
   process.exit(0);
 }
+const connectionString = assertIsolatedTestDatabaseUrl(configuredConnectionString);
 const artifactDir = path.resolve(process.env.CHECKLIST_DIST_DIR || path.join(root, "dist"));
 assert.ok(fs.existsSync(path.join(artifactDir, "index.html")), `missing build artifact: ${artifactDir}`);
 

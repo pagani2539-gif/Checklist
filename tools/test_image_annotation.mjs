@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { annotationPath, annotationAttachmentIds, displayedImageAttachment, drawImageAnnotations, normalizeImageAnnotation } from '../src/domain/image-annotation.js';
+import { normalizeAttachment } from '../src/domain/master-checklist.js';
+import { attachmentIdsForState } from '../src/domain/storage.js';
+import { evidenceAttachmentIds } from '../src/domain/evidence-checklist.js';
+
+const mark={id:'m1',type:'rect',x:.8,y:.7,endX:.2,endY:.1,color:'#ff0000',width:3,outline:true};
+const annotation={version:1,originalWidth:2000,originalHeight:1200,marks:[mark],renderedAttachment:{id:'copy',type:'image/png',name:'copy.png',size:100}};
+const attachment={id:'original',type:'image/jpeg',imageAnnotation:annotation};
+assert.deepEqual(annotationAttachmentIds(attachment),['original','copy']);
+assert.equal(displayedImageAttachment(attachment).id,'copy');
+assert.equal(displayedImageAttachment({id:'legacy'}).id,'legacy');
+assert.equal(normalizeAttachment(attachment).imageAnnotation.renderedAttachment.id,'copy');
+assert.equal(normalizeImageAnnotation({...annotation,marks:[{...mark,x:2}]}),null);
+const p=annotationPath(mark,1000,600);
+assert.equal(p.x,200);assert.equal(p.y,60);assert.equal(p.width,600);assert.equal(p.height,360);
+const strokes=[];
+const ctx={beginPath(){},rect(){},moveTo(){},lineTo(){},stroke(){strokes.push([this.strokeStyle,this.lineWidth]);}};
+drawImageAnnotations(ctx,[mark],2000,1200);
+assert.deepEqual(strokes,[['#ffffff',10],['#ff0000',6]]);
+const arrow=annotationPath({...mark,type:'arrow'},1000,600);
+assert.ok(arrow.head.every(Number.isFinite));
+const round={id:'r',inspectionItems:{a:{attachment},b:{evidence:{before:{attachment}}}}};
+assert.deepEqual(new Set(attachmentIdsForState({inspectionRounds:[round]})),new Set(['original','copy']));
+assert.deepEqual(new Set(evidenceAttachmentIds(round)),new Set(['original','copy']));
+const legacy={id:'legacy',type:'image/jpeg'};
+assert.equal(normalizeAttachment(legacy).imageAnnotation,undefined);
+console.log('image annotation geometry, rendering, persistence normalization and shared references: pass');

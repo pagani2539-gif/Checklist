@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { createDefaultStationProfile,  LEGACY_MASTER_TEMPLATE_VERSION, updateMasterChecklistCopy } from "../../src/domain/master-checklist.js";
+import { buildInspectionSections, createDefaultStationProfile, createSnapshot, createStationDraft, createStationProfileFromDraft, makeEquipment, LEGACY_MASTER_TEMPLATE_VERSION, updateMasterChecklistCopy } from "../../src/domain/master-checklist.js";
 import { createLegacyInspectionRound as createInspectionRound } from "../legacy_round_fixture.mjs";
 import { buildReportTemplateModel, getPresentationEvidenceCaption } from "../../src/domain/report-template.js";
+import { getChecklistPageNavigationItems } from "../../src/domain/checklist-queue-state.js";
 import { normalizeStationInspectionReports } from "../../src/domain/station-inspection-reports.js";
 
 const profile = createDefaultStationProfile();
@@ -82,22 +83,36 @@ const model = buildReportTemplateModel(round, { stationInspectionReports: migrat
 const items = model.sections.flatMap((section) => section.items);
 const baselineSummary = model.summary;
 
+const scSnapshot = createSnapshot(profile);
 const scDisplayRound = {
   ...round,
-  snapshot: { ...round.snapshot, stationFormat: "SC", checklistPresentationVersion: "boq-system-groups-v2" },
+  templateVersion: scSnapshot.templateVersion,
+  snapshot: { ...scSnapshot, checklistPresentationVersion: "boq-system-groups-v2" },
 };
 const scDisplayModel = buildReportTemplateModel(scDisplayRound);
 assert.ok(scDisplayModel.sections.some((section) => section.code === "SC-01.01"), "new SC reports should use format-qualified presentation group IDs");
 assert.ok(scDisplayModel.sections.some((section) => section.code === "SC-01.02"), "new SC reports should separate systems and software");
 assert.ok(scDisplayModel.sections.some((section) => section.code === "1.1"), "station-level readiness remains a separate section");
 
+const impsProfile = createStationProfileFromDraft(createStationDraft("IMPS"));
+impsProfile.equipment.push(
+  makeEquipment("LASER_SCANNER", 1, { id: "imps-report-scanner", scope: "3D" }),
+  makeEquipment("DIMENSION_CONTROLLER", 1, { id: "imps-report-controller", scope: "3D" }),
+  makeEquipment("IMAGE_PROCESSOR", 1, { id: "imps-report-processor", scope: "Image Processing" }),
+);
+impsProfile.stationSystems.push(
+  { id: "imps-report-dimension-system", canonicalItemId: "dimension-management", scope: "3D", quantity: 1, active: true },
+  { id: "imps-report-image-system", canonicalItemId: "image-processing-management", scope: "Image Processing", quantity: 1, active: true },
+);
+const impsSnapshot = createSnapshot(impsProfile);
 const impsDisplayRound = {
   ...round,
-  snapshot: { ...round.snapshot, stationFormat: "IMPS", checklistPresentationVersion: "boq-system-groups-v2" },
+  templateVersion: impsSnapshot.templateVersion,
+  snapshot: { ...impsSnapshot, checklistPresentationVersion: "boq-system-groups-v2" },
 };
 const impsDisplayModel = buildReportTemplateModel(impsDisplayRound);
-assert.ok(impsDisplayModel.sections.some((section) => section.code === "IMPS-02.01"), "new IMPS reports should use IMPS-qualified display IDs");
-assert.ok(impsDisplayModel.sections.some((section) => section.code === "IMPS-06.02"), "new IMPS reports should use full IMPS codes for system/software groups");
+assert.ok(impsDisplayModel.sections.some((section) => section.code === "IMPS-01.01"), "new IMPS reports should use IMPS-qualified equipment display IDs");
+assert.ok(impsDisplayModel.sections.some((section) => section.code === "IMPS-01.02"), "new IMPS reports should use full IMPS codes for system/software groups");
 
 const legacyImpsDisplayRound = {
   ...round,
@@ -106,6 +121,44 @@ const legacyImpsDisplayRound = {
 const legacyImpsDisplayModel = buildReportTemplateModel(legacyImpsDisplayRound);
 assert.ok(legacyImpsDisplayModel.sections.some((section) => section.code === "08.01"), "legacy IMPS reports should retain their saved presentation numbering");
 assert.equal(round.snapshot.checklistPresentationVersion, undefined, "report presentation projection must not mutate the stored Snapshot");
+const legacyScDisplayRound = { ...round, snapshot: { ...round.snapshot, stationFormat: "SC" } };
+const legacyScDisplayModel = buildReportTemplateModel(legacyScDisplayRound);
+
+function assertReportUsesChecklistOrder(testRound, reportModel, label) {
+  const snapshotBefore = JSON.stringify(testRound.snapshot);
+  const sourceSections = buildInspectionSections(testRound.snapshot, testRound.templateVersion || testRound.snapshot?.templateVersion)
+    .map((section) => ({ ...section, items: section.items.filter((item) => item.applicable !== false) }))
+    .filter((section) => section.items.length > 0);
+  const checklistIds = getChecklistPageNavigationItems(sourceSections, testRound.snapshot.stationFormat, testRound.snapshot).map((item) => item.id);
+  const reportIds = reportModel.orderedItems.map((item) => item.id);
+  const reportIdSet = new Set(reportIds);
+  const expectedQueueIds = checklistIds.filter((id) => reportIdSet.has(id));
+  const queueIdSet = new Set(checklistIds);
+  const fallbackIds = reportIds.filter((id) => !queueIdSet.has(id));
+  assert.equal(reportIdSet.size, reportIds.length, `${label}: each report item should appear once`);
+  assert.deepEqual(reportIds, [...expectedQueueIds, ...fallbackIds], `${label}: report items should follow Checklist navigation order and leave unmatched items at the end`);
+  assert.equal(JSON.stringify(testRound.snapshot), snapshotBefore, `${label}: report ordering must not mutate Snapshot data`);
+}
+
+assertReportUsesChecklistOrder(scDisplayRound, scDisplayModel, "new SC Snapshot");
+assertReportUsesChecklistOrder(impsDisplayRound, impsDisplayModel, "new IMPS Snapshot");
+assertReportUsesChecklistOrder(legacyScDisplayRound, legacyScDisplayModel, "legacy SC Snapshot");
+assertReportUsesChecklistOrder(legacyImpsDisplayRound, legacyImpsDisplayModel, "legacy IMPS Snapshot");
+assert.equal(scDisplayModel.orderedItems.length, scDisplayModel.sections.flatMap((section) => section.items).length, "orderedItems should include every report item");
+assert.equal(new Set(scDisplayModel.sections.map((section) => section.code)).size, scDisplayModel.sections.length, "overview sections should remain unique when orderedItems interleave categories");
+
+const wimItems = scDisplayModel.orderedItems.filter((item) => item.sectionCode === "2.1" && (item.assetId || item.systemRecordId));
+const wimEquipmentIndexes = wimItems.flatMap((item, index) => item.assetId ? [index] : []);
+const wimSystemIndexes = wimItems.flatMap((item, index) => item.systemRecordId ? [index] : []);
+assert.ok(wimEquipmentIndexes.length > 0 && wimSystemIndexes.length > 0, "SC 2.1 should include WIM equipment and its system instance");
+assert.ok(Math.max(...wimEquipmentIndexes) < Math.min(...wimSystemIndexes), "WIM Sensor/Loop equipment should precede WIM Sorting System per the Checklist queue");
+assert.ok(wimItems.filter((item) => item.assetId).every((item) => item.presentationSection.code === "SC-01.01"), "WIM equipment should retain the Equipment category");
+const wimSystemItems = wimItems.filter((item) => item.systemRecordId);
+const wimSystemItem = wimSystemItems[0];
+assert.equal(wimSystemItem.presentationSection.code, "SC-01.02", "WIM system items should retain their Systems & Software category");
+assert.deepEqual(wimSystemItems.map((item) => item.laneNo), ["1", "2"], "WIM system checklist rows should retain their installed Lane numbers");
+assert.ok(wimSystemItems.every((item) => item.evidenceSlots.length === 2), "each WIM system row should retain both report evidence slots");
+assert.ok(wimSystemItems.every((item) => item.systemLabel && item.scope && item.laneNo), "WIM system report items should include system, scope, and lane details from the Snapshot");
 
 assert.equal(model.templateId, "checklist-report-a4-portrait-v1");
 assert.equal(model.schemaVersion, "checklist-report-model-v2");

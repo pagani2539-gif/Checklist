@@ -5,6 +5,13 @@ const PENDING_KEY = "latest";
 const PENDING_FALLBACK_KEY = "checklist-server-pending-v1";
 const STATE_REQUEST_TIMEOUT_MS = 20000;
 const ATTACHMENT_REQUEST_TIMEOUT_MS = 60000;
+const ATTACHMENT_MAX_CONCURRENT_READS = 8;
+const ATTACHMENT_CACHE_MAX_BYTES = 32 * 1024 * 1024;
+const attachmentReadQueue = [];
+const attachmentReadsInFlight = new Map();
+const attachmentBlobCache = new Map();
+let attachmentBlobCacheBytes = 0;
+let activeAttachmentReads = 0;
 
 export const isServerStorageEnabled = () => storageMode === "server";
 
@@ -19,52 +26,6 @@ function openPendingDb() {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error || new Error("เปิดพื้นที่เก็บ draft ไม่สำเร็จ"));
   });
-}
-
-async function writePendingFallback(value) {
-  try {
-    window.localStorage.setItem(PENDING_FALLBACK_KEY, JSON.stringify(value));
-    return true;
-  } catch { return false; }
-}
-
-async function readPendingFallback() {
-  try { return JSON.parse(window.localStorage.getItem(PENDING_FALLBACK_KEY) || "null"); } catch { return null; }
-}
-
-export async function savePendingServerState(state, expectedVersion, reason = "state-update", status = "offline", metadata = {}) {
-  const value = { state, expectedVersion, reason, status, ...metadata, queuedAt: new Date().toISOString() };
-  if (!canUseIndexedDb()) return writePendingFallback(value);
-  try {
-    const db = await openPendingDb();
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction(PENDING_STORE_NAME, "readwrite");
-      tx.objectStore(PENDING_STORE_NAME).put(value, PENDING_KEY);
-      tx.oncomplete = resolve;
-      tx.onerror = () => reject(tx.error || new Error("บันทึก draft ไม่สำเร็จ"));
-    });
-    db.close();
-    return true;
-  } catch {
-    return writePendingFallback(value);
-  }
-}
-
-export async function loadPendingServerState() {
-  if (!canUseIndexedDb()) return readPendingFallback();
-  try {
-    const db = await openPendingDb();
-    const value = await new Promise((resolve, reject) => {
-      const tx = db.transaction(PENDING_STORE_NAME, "readonly");
-      const request = tx.objectStore(PENDING_STORE_NAME).get(PENDING_KEY);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error || new Error("อ่าน draft ไม่สำเร็จ"));
-    });
-    db.close();
-    return value || readPendingFallback();
-  } catch {
-    return readPendingFallback();
-  }
 }
 
 export async function clearPendingServerState() {
@@ -100,9 +61,29 @@ async function parseResponse(response) {
     const error = new Error(payload.message || `Server request failed (${response.status})`);
     error.status = response.status;
     error.payload = payload;
+    const retryAfterSeconds = Number(response.headers?.get?.("Retry-After"));
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) error.retryAfterMs = retryAfterSeconds * 1000;
     throw error;
   }
   return payload;
+}
+
+function scheduleAttachmentRead(task) {
+  return new Promise((resolve, reject) => {
+    attachmentReadQueue.push({ task, resolve, reject });
+    runAttachmentReads();
+  });
+}
+
+function runAttachmentReads() {
+  while (activeAttachmentReads < ATTACHMENT_MAX_CONCURRENT_READS && attachmentReadQueue.length) {
+    const next = attachmentReadQueue.shift();
+    activeAttachmentReads += 1;
+    Promise.resolve().then(next.task).then(next.resolve, next.reject).finally(() => {
+      activeAttachmentReads -= 1;
+      runAttachmentReads();
+    });
+  }
 }
 
 export async function loadServerState() {
@@ -110,7 +91,7 @@ export async function loadServerState() {
   return parseResponse(response);
 }
 
-export async function saveServerState(state, expectedVersion, reason = "state-update", metadata = {}) {
+export async function saveServerState(state, expectedVersion, reason = "state-update") {
   try {
     const response = await fetchWithTimeout("/api/v1/state", {
       method: "PUT",
@@ -120,25 +101,70 @@ export async function saveServerState(state, expectedVersion, reason = "state-up
     }, STATE_REQUEST_TIMEOUT_MS);
     return await parseResponse(response);
   } catch (error) {
-    if (error?.status == null) {
-      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "offline", metadata);
-      error.offline = true;
-    } else if (error.status === 409) {
-      error.draftPreserved = await savePendingServerState(state, expectedVersion, reason, "conflict", { ...metadata, merge: error.payload?.conflict || null });
-    }
+    if (error?.status == null) error.offline = true;
+    if (error?.status === 429) error.rateLimited = true;
     throw error;
+  }
+}
+
+export async function saveServerOperations(operations, operationId, reason = 'state-update') {
+  const body = JSON.stringify({ operations, operationId, reason });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetchWithTimeout('/api/v1/state', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body }, STATE_REQUEST_TIMEOUT_MS);
+      const result = await parseResponse(response);
+      if (result.operationId !== operationId || !Number.isFinite(Number(result.version))) throw Object.assign(new Error('Invalid save acknowledgement'), { status: 502 });
+      return result;
+    } catch (error) {
+      if (!attempt && (error.status == null || error.status >= 500)) continue;
+      if (error.status == null) error.offline = true;
+      if (error.status === 429) error.rateLimited = true;
+      throw error;
+    }
   }
 }
 
 export async function getServerAttachment(id) {
   if (!id) return null;
-  const response = await fetchWithTimeout(`/api/v1/attachments/${encodeURIComponent(id)}`, { credentials: "include" }, ATTACHMENT_REQUEST_TIMEOUT_MS);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`อ่านไฟล์แนบไม่สำเร็จ (${response.status})`);
-  return response.blob();
+  const key = String(id);
+  if (attachmentBlobCache.has(key)) {
+    const blob = attachmentBlobCache.get(key);
+    attachmentBlobCache.delete(key);
+    attachmentBlobCache.set(key, blob);
+    return blob;
+  }
+  if (attachmentReadsInFlight.has(key)) return attachmentReadsInFlight.get(key);
+  const pending = scheduleAttachmentRead(async () => {
+    const response = await fetchWithTimeout(`/api/v1/attachments/${encodeURIComponent(key)}`, { credentials: "include" }, ATTACHMENT_REQUEST_TIMEOUT_MS);
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      const error = new Error(`อ่านไฟล์แนบไม่สำเร็จ (${response.status})`);
+      error.status = response.status;
+      const retryAfterSeconds = Number(response.headers?.get?.("Retry-After"));
+      if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) error.retryAfterMs = retryAfterSeconds * 1000;
+      throw error;
+    }
+    const blob = await response.blob();
+    if (blob.size <= ATTACHMENT_CACHE_MAX_BYTES) {
+      while (attachmentBlobCache.size && attachmentBlobCacheBytes + blob.size > ATTACHMENT_CACHE_MAX_BYTES) {
+        const oldestKey = attachmentBlobCache.keys().next().value;
+        attachmentBlobCacheBytes -= attachmentBlobCache.get(oldestKey)?.size || 0;
+        attachmentBlobCache.delete(oldestKey);
+      }
+      attachmentBlobCache.set(key, blob);
+      attachmentBlobCacheBytes += blob.size;
+    }
+    return blob;
+  });
+  attachmentReadsInFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (attachmentReadsInFlight.get(key) === pending) attachmentReadsInFlight.delete(key);
+  }
 }
 
-export async function saveServerAttachment(id, file, { stationId = "" } = {}) {
+export async function saveServerAttachment(id, file, { stationId = "", roundId = "", kind = "inspection/originals" } = {}) {
   const response = await fetchWithTimeout(`/api/v1/attachments/${encodeURIComponent(id)}`, {
     method: "PUT",
     credentials: "include",
@@ -147,6 +173,8 @@ export async function saveServerAttachment(id, file, { stationId = "" } = {}) {
       "X-Filename": encodeURIComponent(file?.name || "attachment"),
       "X-Filename-Encoding": "percent-encoded-utf8",
       ...(stationId ? { "X-Station-Id": stationId } : {}),
+      ...(roundId ? { "X-Round-Id": roundId } : {}),
+      'X-Attachment-Kind': kind,
     },
     body: file,
   }, ATTACHMENT_REQUEST_TIMEOUT_MS);

@@ -1,9 +1,20 @@
 import crypto from "node:crypto";
+import { assertRoundVehicleConnectionUpdates } from './round-vehicle-connection.mjs';
 import path from "node:path";
+import { attachmentKey, stationFolderSegment } from './attachment-key.mjs';
+import { prepareStationAttachmentRenames } from './station-attachment-migration.mjs';
 import { assertContractTopology, assertReferenceDataWriteAllowed, assertStateWithinStationScope, assertStationScopeForWrite, getScopedStationIds, scopeStateToStations } from "./state-scope.mjs";
+import { applyWorkspaceOperations } from '../src/domain/workspace-operations.js';
+import { focusedVehicleRoundId } from './vehicle-operation-store.mjs';
 
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const RATE_WINDOW_MS = 60_000;
+const AUTHENTICATED_API_RATE_LIMIT = 120;
+const AUTHENTICATED_ATTACHMENT_RATE_LIMIT = 300;
+const AUTHENTICATED_ATTACHMENT_READ_RATE_LIMIT = 1200;
+const UNAUTHENTICATED_IP_RATE_LIMIT = 120;
+const MAX_CONCURRENT_ATTACHMENT_READS = 16;
 const READ_ROLES = ["admin", "station-manager", "inspector", "viewer"];
 const WRITE_ROLES = ["admin", "station-manager", "inspector"];
 const ALLOWED_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4", "video/webm", "text/plain"]);
@@ -110,29 +121,107 @@ function roundIdFromBody(body) {
   return body?.roundId || body?.id || null;
 }
 
+function changedStationFolderIds(beforeState = {}, afterState = {}) {
+  const before = new Map((beforeState.stationProfiles || []).map(profile => [String(profile?.id || ''), profile]));
+  const after = new Map((afterState.stationProfiles || []).map(profile => [String(profile?.id || ''), profile]));
+  return [...after].filter(([id, profile]) => before.has(id) && stationFolderSegment(before.get(id)?.stationName, id) !== stationFolderSegment(profile?.stationName, id)).map(([id]) => id).sort();
+}
+
 function containsAttachment(value, attachmentId, seen = new Set()) {
   if (!value || typeof value !== "object" || seen.has(value)) return false;
   seen.add(value);
   if (String(value?.attachment?.id || "") === String(attachmentId)) return true;
+  if (String(value?.imageAnnotation?.renderedAttachment?.id || "") === String(attachmentId)) return true;
   if (Array.isArray(value)) return value.some((entry) => containsAttachment(entry, attachmentId, seen));
   return Object.values(value).some((entry) => containsAttachment(entry, attachmentId, seen));
 }
 
 export function createApi({ store, auth, attachmentStore, vehicleReady = null, enforceStationScope = false } = {}) {
   if (!attachmentStore) throw new Error("attachmentStore is required");
-  const rateBuckets = new Map();
+  const userRateBuckets = new Map();
+  const ipRateBuckets = new Map();
   const loginFailures = new Map();
+  let activeAttachmentReads = 0;
+  const attachmentReadWaiters = [];
+  const stationStorageLocks = new Map();
 
-  function rateLimited(request) {
-    const key = String(request.socket?.remoteAddress || "unknown");
-    const current = rateBuckets.get(key) || { startedAt: Date.now(), count: 0 };
-    if (Date.now() - current.startedAt >= 60_000) {
-      current.startedAt = Date.now();
+  async function withStationStorageLock(stationId, handler) {
+    const key = String(stationId || 'unassigned');
+    const previous = stationStorageLocks.get(key) || Promise.resolve();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const tail = previous.then(() => gate);
+    stationStorageLocks.set(key, tail);
+    await previous;
+    try { return await handler(); }
+    finally { release(); if (stationStorageLocks.get(key) === tail) stationStorageLocks.delete(key); }
+  }
+
+  async function withStationStorageLocks(stationIds, handler, index = 0) {
+    const ids = [...new Set((stationIds || []).map(String))].sort();
+    if (index >= ids.length) return handler();
+    return withStationStorageLock(ids[index], () => withStationStorageLocks(ids, handler, index + 1));
+  }
+
+  function consumeRateLimit(buckets, key, limit, now = Date.now()) {
+    const current = buckets.get(key) || { startedAt: now, count: 0 };
+    if (now - current.startedAt >= RATE_WINDOW_MS) {
+      current.startedAt = now;
       current.count = 0;
     }
+    if (current.count >= limit) {
+      buckets.set(key, current);
+      return { limited: true, retryAfterSeconds: Math.max(1, Math.ceil((current.startedAt + RATE_WINDOW_MS - now) / 1000)) };
+    }
     current.count += 1;
-    rateBuckets.set(key, current);
-    return current.count > 120;
+    buckets.set(key, current);
+    if (buckets.size > 2048) {
+      for (const [bucketKey, bucket] of buckets) {
+        if (now - bucket.startedAt >= RATE_WINDOW_MS) buckets.delete(bucketKey);
+      }
+    }
+    return { limited: false, retryAfterSeconds: 0 };
+  }
+
+  function rateLimitUnauthenticated(request) {
+    const address = String(request.socket?.remoteAddress || "unknown");
+    return consumeRateLimit(ipRateBuckets, address, UNAUTHENTICATED_IP_RATE_LIMIT);
+  }
+
+  function rateLimitAuthenticated(request, user) {
+    const pathname = new URL(request.url || "/", "http://localhost").pathname;
+    const attachmentOperation = pathname.startsWith("/api/v1/attachments/");
+    const attachmentRead = attachmentOperation && ["GET", "HEAD"].includes(request.method);
+    const bucketType = attachmentRead ? "attachment-reads" : attachmentOperation ? "attachments" : "api";
+    const limit = attachmentRead ? AUTHENTICATED_ATTACHMENT_READ_RATE_LIMIT : attachmentOperation ? AUTHENTICATED_ATTACHMENT_RATE_LIMIT : AUTHENTICATED_API_RATE_LIMIT;
+    const key = `${String(user?.id || "unknown")}:${bucketType}`;
+    return consumeRateLimit(userRateBuckets, key, limit);
+  }
+
+  function sendRateLimitError(response, id, retryAfterSeconds) {
+    sendJson(response, 429, { message: "Too many requests", requestId: id }, { "Retry-After": String(retryAfterSeconds) });
+  }
+
+  function applyAuthenticatedRateLimit(request, response, user, id) {
+    const result = rateLimitAuthenticated(request, user);
+    if (!result.limited) return false;
+    sendRateLimitError(response, id, result.retryAfterSeconds);
+    return true;
+  }
+
+  async function getAttachmentBody(storageName) {
+    if (activeAttachmentReads >= MAX_CONCURRENT_ATTACHMENT_READS) {
+      await new Promise((resolve) => attachmentReadWaiters.push(resolve));
+    } else {
+      activeAttachmentReads += 1;
+    }
+    try {
+      return await attachmentStore.get(storageName);
+    } finally {
+      const nextWaiter = attachmentReadWaiters.shift();
+      if (nextWaiter) nextWaiter();
+      else activeAttachmentReads -= 1;
+    }
   }
 
   async function withUser(request, response, handler, roles = READ_ROLES) {
@@ -140,6 +229,7 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     let user;
     try {
       user = await auth.authenticate(request);
+      if (applyAuthenticatedRateLimit(request, response, user, id)) return true;
       auth.requireRole(user, roles);
       const pathname = new URL(request.url || "/", "http://localhost").pathname;
       if (user.mustChangePassword && !["/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/auth/password"].includes(pathname)) {
@@ -150,6 +240,13 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
       return true;
     } catch (error) {
       const status = error.statusCode || (error.message === "Forbidden" ? 403 : 500);
+      if (!user && status === 401) {
+        const rateLimit = rateLimitUnauthenticated(request);
+        if (rateLimit.limited) {
+          sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+          return true;
+        }
+      }
       await store.audit(status === 403 ? "authorization.failure" : "authentication.failure", user, "http", request.url, { status }, id);
       if (status >= 500) console.error(JSON.stringify({ event: "api.error", requestId: id, path: request.url, message: error?.message || "unknown" }));
       if (status === 409 && user && error.mergeCandidate && Array.isArray(error.mergeConflicts)) {
@@ -237,9 +334,29 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (!pathname.startsWith("/api/v1/") && pathname !== "/health" && pathname !== "/ready") return false;
     const id = requestId(request);
     response.setHeader("X-Request-Id", id);
-    if (pathname.startsWith("/api/") && rateLimited(request)) {
-      sendJson(response, 429, { message: "Too many requests", requestId: id }, { "Retry-After": "60" });
-      return true;
+    const ipLimitedRoute = ["/api/v1/auth/config", "/api/v1/auth/login", "/api/v1/auth/callback"].includes(pathname);
+    if (pathname.startsWith("/api/") && ipLimitedRoute) {
+      const rateLimit = rateLimitUnauthenticated(request);
+      if (rateLimit.limited) {
+        sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+        return true;
+      }
+    }
+
+    if (pathname.startsWith("/api/v1/attachments/") && !/^\/api\/v1\/attachments\/[A-Za-z0-9._-]+$/.test(pathname)) {
+      const rateLimit = rateLimitUnauthenticated(request);
+      if (rateLimit.limited) {
+        sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+        return true;
+      }
+    }
+
+    if (pathname.startsWith("/api/") && request.method === "OPTIONS") {
+      const rateLimit = rateLimitUnauthenticated(request);
+      if (rateLimit.limited) {
+        sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+        return true;
+      }
     }
 
     if (pathname === "/health") {
@@ -310,11 +427,19 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (pathname === "/api/v1/auth/password" && request.method === "POST") {
       try {
         const user = await auth.authenticate(request);
+        if (applyAuthenticatedRateLimit(request, response, user, id)) return true;
         const body = await readJson(request);
         const result = await auth.changeLocalPassword(user, body.currentPassword, body.newPassword);
         await store.audit("auth.password.change", user, "user", user.id, null, id);
         sendJson(response, 200, { user: result.user, expiresAt: result.session.expiresAt }, { "Set-Cookie": result.session.header });
       } catch (error) {
+        if (error.statusCode === 401) {
+          const rateLimit = rateLimitUnauthenticated(request);
+          if (rateLimit.limited) {
+            sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+            return true;
+          }
+        }
         await store.audit("auth.password.change.failure", null, "user", null, { status: error.statusCode || 500 }, id);
         sendError(response, error.statusCode || 400, error.statusCode >= 500 ? "ไม่สามารถเปลี่ยนรหัสผ่านได้" : error.message, id);
       }
@@ -323,11 +448,19 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (pathname === "/api/v1/auth/exchange" && request.method === "POST") {
       try {
         const user = await auth.authenticate(request);
+        if (applyAuthenticatedRateLimit(request, response, user, id)) return true;
         if (auth.mode !== "oidc" || !request.headers.authorization?.startsWith("Bearer ")) throw Object.assign(new Error("OIDC bearer token is required"), { statusCode: 401 });
         const session = await auth.setSessionCookie(user);
         await store.audit("auth.login.success", user, "session", user.id, null, id);
         sendJson(response, 200, { user, expiresAt: session.expiresAt }, { "Set-Cookie": session.header });
       } catch (error) {
+        if (error.statusCode === 401) {
+          const rateLimit = rateLimitUnauthenticated(request);
+          if (rateLimit.limited) {
+            sendRateLimitError(response, id, rateLimit.retryAfterSeconds);
+            return true;
+          }
+        }
         await store.audit("auth.login.failure", null, "session", null, { message: error.message }, id);
         sendError(response, error.statusCode || 401, "Authentication failed", id);
       }
@@ -373,8 +506,47 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (pathname === "/api/v1/state" && request.method === "GET") {
       return withUser(request, response, async (user) => {
         const current = await store.getState();
-        sendJson(response, 200, { state: await scopeState(user, current.state || {}), version: current.version, updatedAt: current.updatedAt, authMode: auth.mode });
+        sendJson(response, 200, { state: await scopeState(user, current.state || {}), version: current.version, updatedAt: current.updatedAt, authMode: auth.mode, workspaceOperationsVersion: typeof store.saveOperations === 'function' ? 1 : 0 });
       });
+    }
+    if (pathname === "/api/v1/state" && request.method === "PATCH") {
+      return withUser(request, response, async (user, requestIdValue) => {
+        const body = await readJson(request);
+        if (!/^[A-Za-z0-9_-]{8,100}$/.test(body.operationId || '') || !Array.isArray(body.operations) || !body.operations.length) throw Object.assign(new Error('Invalid workspace operation request'), { statusCode: 400 });
+        let changingFolders = [];
+        // A row decision cannot rename station folders. Its locked store
+        // transaction still validates permissions and conditional edits below.
+        // Avoid fetching and cloning every round merely to confirm no rename.
+        if (!focusedVehicleRoundId(body.operations)) {
+          const initial = await store.getState();
+          const initialStationIds = await scopedStationIds(user, initial.state || {});
+          const initialVisible = scopeStateToStations(initial.state || {}, initialStationIds);
+          try {
+            const candidate = applyWorkspaceOperations(initialVisible, body.operations);
+            changingFolders = changedStationFolderIds(initialVisible, candidate);
+          } catch (error) {
+            // Let the store replay an already-committed operation before rejecting its stale checks.
+            if (error?.code !== 'WORKSPACE_OPERATION_CONFLICT') throw error;
+          }
+        }
+        const result = await withStationStorageLocks(changingFolders, () => store.saveOperations(body, {
+          actor: user, reason: body.reason || 'state-update', requestId: requestIdValue,
+          prepareAttachmentRename: (client, previous, next) => prepareStationAttachmentRenames(client, previous, next, attachmentStore),
+          prepareOperation: async (current, operations) => {
+            const stationIds = await scopedStationIds(user, current);
+            assertStationScopeForWrite(stationIds);
+            const visible = scopeStateToStations(current, stationIds);
+            const incoming = applyWorkspaceOperations(visible, operations);
+            assertReferenceDataWriteAllowed(visible, incoming, user);
+            assertStateScope(incoming, stationIds);
+            const next = applyWorkspaceOperations(current, operations);
+            assertRoundVehicleConnectionUpdates(current, next, user);
+            assertContractTopology(next);
+            return next;
+          },
+        }));
+        sendJson(response, 200, result);
+      }, WRITE_ROLES);
     }
     if (pathname === "/api/v1/state" && request.method === "PUT") {
       return withUser(request, response, async (user, requestIdValue) => {
@@ -386,7 +558,9 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
         assertReferenceDataWriteAllowed(current.state || {}, nextState, user);
         assertContractTopology(nextState);
         assertStateScope(nextState, stationIds);
-        const result = await store.saveState(nextState, { expectedVersion: body.expectedVersion, stationIds, actor: user, reason: body.reason || "state-update", requestId: requestIdValue });
+        assertRoundVehicleConnectionUpdates(current.state || {}, nextState, user);
+        const changingFolders = changedStationFolderIds(current.state || {}, nextState);
+        const result = await withStationStorageLocks(changingFolders, () => store.saveState(nextState, { expectedVersion: body.expectedVersion, stationIds, actor: user, reason: body.reason || "state-update", requestId: requestIdValue, prepareAttachmentRename: (client, previous, next) => prepareStationAttachmentRenames(client, previous, next, attachmentStore) }));
         sendJson(response, 200, {
           version: result.version,
           updatedAt: result.updatedAt,
@@ -430,7 +604,7 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
           const suffix = resourceParts[4] || "";
           if (suffix === "snapshot") sendJson(response, 200, { roundId: round.id, snapshot: round.snapshot || null });
           else if (suffix === "evidence") sendJson(response, 200, { roundId: round.id, evidence: round.inspectionItems || {} });
-          else if (suffix === "report") sendJson(response, 200, { roundId: round.id, report: { stationId: round.stationId, status: round.status, meta: round.meta, snapshot: round.snapshot, inspectionItems: round.inspectionItems, vehicleSearch: round.vehicleSearch } });
+          else if (suffix === "report") sendJson(response, 200, { roundId: round.id, report: { stationId: round.stationId, status: round.status, meta: round.meta, snapshot: round.snapshot, inspectionItems: round.inspectionItems, vehicleSearch: round.vehicleSearch, vehicleEvidenceArchive: round.vehicleEvidenceArchive || {} } });
           else sendJson(response, 200, { round });
         });
       }
@@ -456,7 +630,7 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
           if (!metadata) { sendError(response, 404, "Attachment not found", id); return; }
           await assertAttachmentScope(user, metadata);
           let body;
-          try { body = await attachmentStore.get(metadata.storageName); } catch { sendError(response, 404, "Attachment not found", id); return; }
+          try { body = await getAttachmentBody(metadata.storageName); } catch { sendError(response, 404, "Attachment not found", id); return; }
           await store.audit("attachment.download", user, "attachment", attachmentId, null, id);
           response.writeHead(200, { ...securityHeaders(), "Content-Type": metadata.contentType, "Content-Length": body.length, "Content-Disposition": contentDispositionFilename(metadata.originalName), "Cache-Control": "private, no-store" });
           if (request.method === "HEAD") response.end(); else response.end(body);
@@ -468,20 +642,31 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
           const stationId = String(request.headers["x-station-id"] || "").trim();
           if (enforceStationScope && !stationId) throw Object.assign(new Error("X-Station-Id is required for scoped upload"), { statusCode: 400 });
           assertResourceScope(user, stationId);
+          const roundId = String(request.headers['x-round-id'] || '').trim();
+          const kind = String(request.headers['x-attachment-kind'] || 'inspection/originals');
+          if (roundId) {
+            const roundStationId = typeof store.getAttachmentRoundStation === 'function'
+              ? await store.getAttachmentRoundStation(roundId)
+              : (await store.getState()).state?.inspectionRounds?.find(entry => entry.id === roundId)?.stationId;
+            if (!roundStationId || !stationId || roundStationId !== stationId) throw Object.assign(new Error('Attachment round does not belong to station'), { statusCode: 400 });
+          }
           const declaredLength = Number(request.headers["content-length"] || 0);
           if (!ALLOWED_CONTENT_TYPES.has(contentType)) throw Object.assign(new Error("Unsupported file type"), { statusCode: 400 });
           if (declaredLength > MAX_ATTACHMENT_BYTES) throw Object.assign(new Error("File is too large"), { statusCode: 413 });
           const body = await readBody(request, MAX_ATTACHMENT_BYTES);
           if (!body.length || body.length > MAX_ATTACHMENT_BYTES || !matchesMagic(body, contentType)) throw Object.assign(new Error("File content does not match its declared type"), { statusCode: 400 });
-          const storageName = `${crypto.randomUUID()}${filenameExtension(contentType)}`;
-          await attachmentStore.put(storageName, body, { contentType });
-          let metadata;
-          try {
-            metadata = await store.addAttachment({ id: attachmentId, storageName, originalName: originalNameFromRequest(request), contentType, size: body.length, sha256: crypto.createHash("sha256").update(body).digest("hex"), stationId: stationId || null, createdBy: user.id, createdAt: new Date().toISOString() });
-          } catch (error) {
-            await attachmentStore.delete(storageName);
-            throw error;
-          }
+          const metadata = await withStationStorageLock(stationId, async () => {
+            const current = await store.getState();
+            const stationName = current?.state?.stationProfiles?.find(profile => String(profile?.id || '') === stationId)?.stationName || '';
+            const storageName = attachmentKey({ stationId, stationName, roundId, kind, filename: `${crypto.randomUUID()}${filenameExtension(contentType)}` });
+            await attachmentStore.put(storageName, body, { contentType });
+            try {
+              return await store.addAttachment({ id: attachmentId, storageName, originalName: originalNameFromRequest(request), contentType, size: body.length, sha256: crypto.createHash("sha256").update(body).digest("hex"), stationId: stationId || null, createdBy: user.id, createdAt: new Date().toISOString() });
+            } catch (error) {
+              await attachmentStore.delete(storageName);
+              throw error;
+            }
+          });
           await store.audit("attachment.upload", user, "attachment", attachmentId, { size: body.length, contentType }, requestIdValue);
           sendJson(response, 201, { attachment: metadata });
         }, WRITE_ROLES);

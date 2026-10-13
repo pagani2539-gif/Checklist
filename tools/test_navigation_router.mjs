@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { canNavigateBackInApp, initializeRouteHistory, navigate, navigateBack, normalizeHash } from "../src/app/navigation.js";
+import { canNavigateBackInApp, canNavigateForwardInApp, initializeRouteHistory, navigate, navigateBack, navigateForward, normalizeHash } from "../src/app/navigation.js";
 import { getBackFallbackTarget, parseHash, primaryRouteFor, PRIMARY_ROUTES, ROUTE_META } from "../src/app/router.js";
 
 assert.equal(PRIMARY_ROUTES.length, 4);
@@ -103,4 +103,53 @@ try {
   else globalThis.window = previousWindow;
 }
 
-console.log(`navigation/router checks passed (${cases.length} deep routes)`);
+// A browser-like stack exercises traversal, branch replacement and reload.
+const storage = new Map();
+const stack = [{ hash: '#/inspections/round-direct', state: null }];
+let cursor = 0;
+const location = { href: 'http://localhost/#/inspections/round-direct', hash: '#/inspections/round-direct' };
+const syncLocation = () => {
+  location.hash = stack[cursor].hash;
+  location.href = `http://localhost/${location.hash}`;
+};
+globalThis.window = {
+  location,
+  sessionStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+  dispatchEvent() {},
+  history: {
+    get state() { return stack[cursor].state; },
+    replaceState(state, _title, url) { stack[cursor] = { state, hash: String(url).slice(String(url).indexOf('#')) }; syncLocation(); },
+    pushState(state, _title, hash) { stack.splice(cursor + 1); stack.push({ state, hash }); cursor++; syncLocation(); },
+    back() { if (cursor > 0) cursor--; syncLocation(); },
+    forward() { if (cursor < stack.length - 1) cursor++; syncLocation(); },
+  },
+};
+try {
+  initializeRouteHistory();
+  assert.equal(canNavigateBackInApp(), false, 'Direct entry cannot leave the app');
+  assert.equal(canNavigateForwardInApp(), false);
+  assert.equal(navigateBack(), false);
+  assert.equal(navigateForward(), false);
+  navigate('#/inspections');
+  navigate('#/stations');
+  navigateBack();
+  assert.equal(location.hash, '#/inspections');
+  assert.equal(canNavigateForwardInApp(), true);
+  const reloaded = await import('../src/app/navigation.js?reload-test');
+  reloaded.initializeRouteHistory();
+  assert.equal(reloaded.canNavigateForwardInApp(), true, 'Reload preserves the forward trail');
+  navigateForward();
+  assert.equal(location.hash, '#/stations');
+  assert.equal(canNavigateForwardInApp(), false);
+  navigateBack();
+  navigate('#/history');
+  assert.equal(canNavigateForwardInApp(), false, 'New navigation discards the forward branch');
+  navigateBack();
+  navigateForward();
+  assert.equal(location.hash, '#/history');
+} finally {
+  if (previousWindow === undefined) delete globalThis.window;
+  else globalThis.window = previousWindow;
+}
+
+console.log(`navigation/router checks passed (${cases.length} deep routes, forward/back/reload/branch)`);

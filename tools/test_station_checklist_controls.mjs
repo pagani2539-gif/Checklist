@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION, PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION, LEGACY_CHECKLIST_POLICY_VERSION, CLEANING_TARGET_TYPES, createDefaultStationProfile, createInspectionRound, createSnapshot,
+  CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION, PREVIOUS_CHECKLIST_POLICY_VERSION_V10, PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION, LEGACY_CHECKLIST_POLICY_VERSION, CLEANING_TARGET_TYPES, createDefaultStationProfile, createInspectionRound, createSnapshot,
   getActivePhysicalEquipment, getItemsForSnapshot, getNewRoundChecklistItems, getStationChecklistItems, getRoundSummary,
   getCloseReadiness, makeEquipment, normalizeStationProfile, setStationChecklistItemEnabled,
 } from "../src/domain/master-checklist.js";
@@ -10,10 +10,32 @@ import { migrateChecklistState } from "../src/domain/storage.js";
 import { buildReportTemplateModel } from "../src/domain/report-template.js";
 
 const profile = normalizeStationProfile(createDefaultStationProfile());
-assert.equal(CHECKLIST_POLICY_VERSION, "station-item-controls-v9", "new rounds use the installed-scope LPR and cleaning policy");
-profile.stationSystems = profile.stationSystems.map((system) => system.id === "present-lpr-control"
-  ? { ...system, scope: "High Speed" }
-  : system);
+assert.equal(CHECKLIST_POLICY_VERSION, "station-item-controls-v11", "new rounds use the installed-scope LPR, cleaning, LAN-removal and NVR HDD-merge policy");
+profile.stationSystems = [...profile.stationSystems, ...[1, 2].map((laneNo) => ({
+  id: `lpr-system-lane-${laneNo}`,
+  canonicalItemId: "lpr-control",
+  systemId: "lpr-control",
+  componentId: "control",
+  displayLabel: "ระบบควบคุมการอ่านป้ายทะเบียน",
+  nameEn: "License Plate Recognition Control System",
+  sourceLabel: "ระบบควบคุมการอ่านป้ายทะเบียน",
+  sourceRefs: ["3.1"],
+  checklistMapping: ["3.1"],
+  quantity: 1,
+  unit: "ระบบ",
+  referenceUnit: "ระบบ",
+  scope: "High Speed",
+  laneId: `lane-${laneNo}`,
+  active: true,
+  recordKind: "system",
+}))];
+const seededLprCameras = profile.equipment.filter((asset) => asset.type === "LPR_CAMERA").slice(0, 2);
+profile.equipment = profile.equipment.filter((asset) => asset.type !== "LPR_CAMERA").concat(seededLprCameras.map((asset, index) => ({
+  ...asset,
+  parentSystemId: index === 0 ? "lpr-system-lane-1" : "lpr-system-lane-2",
+  laneId: index === 0 ? "lane-1" : "lane-2",
+  scope: "High Speed",
+})));
 profile.equipment.push(makeEquipment("LANE", 1, { id: "legacy-lane" }),
   makeEquipment("NVR", 2, { id: "nvr-extra" }),
   makeEquipment("PTZ_CAMERA", 2, { id: "ptz-inactive", active: false }));
@@ -32,7 +54,7 @@ assert.ok(getStationChecklistItems(profile).some((item) => item.id === first.id)
 assert.ok(!getStationChecklistItems(profile).some((item) => item.id === second.id));
 profile.equipment.reverse();
 profile.equipment = profile.equipment.filter((asset) => asset.id !== cameras[0].id);
-profile.equipment.push(makeEquipment("LPR_CAMERA", 9, { id: "camera-added" }));
+profile.equipment.push(makeEquipment("LPR_CAMERA", 9, { id: "camera-added", parentSystemId: "lpr-system-lane-1", laneId: "lane-1", scope: "High Speed" }));
 assert.ok(!getStationChecklistItems(profile).some((item) => item.id === second.id), "off control survives deletion, reordering and insertion");
 assert.ok(getStationChecklistItems(profile).some((item) => item.assetId === "camera-added"));
 
@@ -55,8 +77,8 @@ const newSoftwareItems = before.filter((item) => item.sectionCode === "3.1");
 const newHardwareItems = before.filter((item) => item.sectionCode === "3.2");
 assert.equal(newSoftwareItems.filter((item) => Number.isInteger(item.laneNo)).length, 4,
   "LPR lane checks use only the two High Speed lanes covered by the installed LPR System");
-assert.ok(newSoftwareItems.some((item) => item.systemRecordId === "present-lpr-control"
-  && item.label.startsWith("License Plate Recognition Control System · ตรวจการทำงานของซอฟต์แวร์")));
+assert.ok(newSoftwareItems.some((item) => item.systemRecordId === "lpr-system-lane-1"), "current LPR results must use the saved per-Lane System identity");
+assert.ok(newSoftwareItems.some((item) => item.systemRecordId === "lpr-system-lane-2"), "each installed LPR Lane must retain its own System identity");
 assert.ok(newHardwareItems.length > 0);
 assert.ok(newHardwareItems.every((item) => !item.id.includes("3.2.lane-") && !item.label.includes("ร่วมกับ WIM")),
   "new 3.2 hardware rows must not repeat lane-level LPR/WIM tests");
@@ -111,7 +133,29 @@ assert.ok(areaCleaningItems.some((item) => item.id === "2.2.control-room-area-cl
 assert.ok(areaCleaningItems.filter((item) => item.cleaningAssetType === "CONTROL_CABINET").every((item) => item.sectionCode === "2.3"));
 assert.equal(items.filter((item) => item.isNvrOperational).length,
   profile.equipment.filter((asset) => asset.active !== false && asset.type === "NVR").length * 2,
-  "current rounds include HDD-failure and retention checks per active NVR");
+  "current rounds include one disk-health and one retention check per active NVR");
+const activeNvrIds = profile.equipment.filter((asset) => asset.active !== false && asset.type === "NVR").map((asset) => asset.id);
+const currentNvrItems = items.filter((item) => activeNvrIds.includes(item.assetId));
+assert.equal(currentNvrItems.filter((item) => item.id.startsWith("4.2.hdd::asset::")).length, 0,
+  "new rounds replace the standalone HDD photo row with the operational disk-health row");
+assert.equal(currentNvrItems.filter((item) => item.id.includes("failed-hdd-count")).length, activeNvrIds.length);
+assert.equal(currentNvrItems.filter((item) => item.id.includes("retention-days")).length, activeNvrIds.length);
+assert.equal(currentNvrItems.filter((item) => item.id.startsWith("4.2.playback::asset::")).length, activeNvrIds.length,
+  "new rounds keep playback verification separate from the retention-day measure");
+assert.ok(currentNvrItems.filter((item) => item.id.includes("failed-hdd-count"))
+  .every((item) => item.label.startsWith("ตรวจสถานะ HDD และจำนวนลูกที่ชำรุด")),
+"the merged HDD row clearly names both the health check and fault count");
+assert.ok(currentNvrItems.filter((item) => item.id.includes("failed-hdd-count"))
+  .every((item) => item.inputType === "number" && item.unit === "ลูก" && item.evidenceSlots.length === 1),
+"the merged HDD row retains its faulty-drive count and photo evidence");
+const previousV10Snapshot = { ...round.snapshot, checklistPolicyVersion: PREVIOUS_CHECKLIST_POLICY_VERSION_V10 };
+previousV10Snapshot.evidenceCatalog = getEvidenceCatalogForSnapshot(previousV10Snapshot);
+const previousV10NvrItems = getItemsForSnapshot(previousV10Snapshot).filter((item) => activeNvrIds.includes(item.assetId));
+assert.equal(previousV10NvrItems.filter((item) => item.id.startsWith("4.2.hdd::asset::")).length, activeNvrIds.length,
+  "an existing v10 Snapshot keeps its standalone HDD row");
+assert.ok(previousV10NvrItems.filter((item) => item.id.includes("failed-hdd-count"))
+  .every((item) => item.label.startsWith("ตรวจสถานะ HDD และจำนวนลูกที่ชำรุด")),
+"an existing v10 Snapshot retains its existing operational HDD row label");
 assert.deepEqual(Object.keys(round.inspectionItems), items.map((item) => item.id));
 assert.deepEqual(buildReportTemplateModel(round).sections.flatMap((section) => section.items).map((item) => item.id).sort(),
   items.filter((item) => !isVehicleApiReviewItem(item, round.snapshot)).map((item) => item.id).sort());
@@ -121,7 +165,7 @@ const noDatabaseProfile = createDefaultStationProfile();
 noDatabaseProfile.equipment = noDatabaseProfile.equipment.filter((asset) => asset.type !== "DATABASE_SERVER");
 const noDatabaseRound = createInspectionRound(noDatabaseProfile);
 const apiItemsWithoutDatabaseAsset = getItemsForSnapshot(noDatabaseRound.snapshot).filter((item) => isVehicleApiReviewItem(item, noDatabaseRound.snapshot));
-assert.deepEqual(apiItemsWithoutDatabaseAsset.map((item) => item.id), ["5.1.plate-document", "5.1.vehicle-document"],
+assert.deepEqual(apiItemsWithoutDatabaseAsset.map((item) => item.id), ["5.1.plate-document::review-system::sc-hs", "5.1.vehicle-document::review-system::sc-hs"],
   "API review checks stay available as Data/Control checks without a physical database asset");
 assert.ok(apiItemsWithoutDatabaseAsset.every((item) => !item.assetId && item.assetDependent === false),
   "API review checks are station/system-level, not database Asset rows");
@@ -156,7 +200,10 @@ assert.equal(v8Items.filter((item) => item.isNvrOperational).length, items.filte
 const disabled = getStationChecklistItems(profile, { includeDisabled: true }).map((item) => item.id);
 profile.checklistConfig = { ...profile.checklistConfig, disabledItemIds: disabled, legacyResolved: true };
 assert.equal(getStationChecklistItems(profile).length, 0);
-assert.throws(() => createInspectionRound(profile), /ไม่มีรายการตรวจที่เปิดใช้งาน/);
+assert.equal(getItemsForSnapshot(createInspectionRound(profile).snapshot).length, 9,
+  "installed WIM creates the seven software checks and two vehicle checks despite old station switches");
+const noWimDisabledProfile = { ...profile, stationSystems: profile.stationSystems.map(system => ({ ...system, active: false })) };
+assert.throws(() => createInspectionRound(noWimDisabledProfile), /ไม่มีรายการตรวจที่เปิดใช้งาน/);
 const state = { stationProfiles: [profile], inspectionRounds: [oldRound, { ...round, status: "closed", closedAt: "2026-09-05T00:00:00Z" }] };
 const saved = migrateChecklistState(JSON.parse(JSON.stringify(state)));
 assert.equal(getStationChecklistItems(saved.stationProfiles[0]).length, 0);

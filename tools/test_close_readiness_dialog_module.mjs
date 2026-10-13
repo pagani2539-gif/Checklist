@@ -25,7 +25,7 @@ assert.match(dialog, /ยืนยันปิดรอบการตรวจ/
 assert.match(dialog, /ops-close-readiness-groups[\s\S]*ops-dialog-actions/, "dialog actions should remain outside the long warning list");
 assert.match(foundation, /\.ops-close-readiness-groups\s*\{[^}]*max-height:[^}]*overflow:\s*auto/s, "long warning lists should scroll independently from the confirm action");
 assert.match(checklistPage, /onClose=\{\(\) => setCloseReadinessDialog\(false\)\}/, "canceling the warning dialog should leave the round untouched");
-assert.match(checklistPage, /entry\.id === round\.id \? \{ \.\.\.entry, status: "closed", closedAt: new Date\(\)\.toISOString\(\), updatedAt: new Date\(\)\.toISOString\(\) \}/, "closing should preserve the entered inspection and evidence state");
+assert.match(checklistPage, /entry\.id === round\.id \? \{ \.\.\.entry, vehicleEvidenceArchive, status: "closed", progressPolicyVersion: CHECKLIST_PROGRESS_POLICY_VERSION, closedAt: new Date\(\)\.toISOString\(\), updatedAt: new Date\(\)\.toISOString\(\) \}/, "closing should preserve inspection and evidence state and stamp the active progress policy");
 assert.match(checklistPage, /navigate\(`#\/history\/\$\{encodeURIComponent\(round\.id\)\}`\)/, "confirming closure should open the read-only history route");
 assert.match(dialog, /event\.key === "Escape"[\s\S]*onClose\(\)/, "Escape should continue dismissing the review dialog");
 assert.match(dialog, /previousFocus instanceof HTMLElement[\s\S]*previousFocus\.focus\(\)/, "dialog close should restore the prior focus target");

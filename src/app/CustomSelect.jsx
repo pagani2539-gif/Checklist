@@ -45,7 +45,7 @@ function getNextEnabledOptionIndex(options, startIndex, direction) {
   return -1;
 }
 
-export default function CustomSelect({ id, value, onChange, disabled = false, children, label = "", className = "", menuClassName = "", "aria-label": ariaLabel, ...rest }) {
+export default function CustomSelect({ id, value, onChange, disabled = false, children, label = "", className = "", menuClassName = "", renderOption, "aria-label": ariaLabel, ...rest }) {
   const generatedId = useId().replace(/:/g, "");
   const triggerId = id || `custom-select-${generatedId}`;
   const listboxId = `${triggerId}-listbox`;
@@ -156,6 +156,7 @@ export default function CustomSelect({ id, value, onChange, disabled = false, ch
     }
     if (event.key === "Escape" && open) {
       event.preventDefault();
+      event.stopPropagation();
       closeMenu(true);
     }
   };
@@ -175,13 +176,14 @@ export default function CustomSelect({ id, value, onChange, disabled = false, ch
             ref={(node) => { optionRefs.current[index] = node; }}
             className={`ops-custom-select-option${isHighlighted ? " is-highlighted" : ""}`}
             role="option"
+            aria-label={renderOption ? option.text : undefined}
             aria-selected={isSelected}
             aria-disabled={option.disabled || undefined}
             onMouseEnter={() => !option.disabled && setHighlightedIndex(index)}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => chooseOption(index)}
           >
-            <span className="ops-custom-select-option-copy">{option.content}</span>
+            <span className="ops-custom-select-option-copy">{renderOption ? renderOption(option, { placement: "menu" }) : option.content}</span>
             {isSelected && <Icon name="check" size="small" />}
           </div>
         </div>;
@@ -207,7 +209,7 @@ export default function CustomSelect({ id, value, onChange, disabled = false, ch
       onClick={() => (open ? closeMenu() : openMenu())}
       onKeyDown={handleKeyDown}
     >
-      <span className={`ops-custom-select-value${selectedOption ? "" : " is-placeholder"}`}>{selectedOption?.content || `เลือก${label || "รายการ"}`}</span>
+      <span className={`ops-custom-select-value${selectedOption ? "" : " is-placeholder"}`}>{selectedOption ? (renderOption ? renderOption(selectedOption, { placement: "trigger" }) : selectedOption.content) : `เลือก${label || "รายการ"}`}</span>
       <Icon name="chevron-down" size="small" />
     </button>
     {menu}

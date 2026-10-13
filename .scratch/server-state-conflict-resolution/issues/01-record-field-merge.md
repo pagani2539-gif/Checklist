@@ -33,3 +33,11 @@ When a browser saves a workspace based on an older state version, the server att
 - `npm run build` passed (Vite reported the existing large-chunk advisory).
 - PM2 `checklist` restarted and reported `online`.
 - Automated tests and a browser conflict-recovery smoke test were not run. Confirm with two sessions that disjoint edits merge, then create one same-field conflict and verify both choices save correctly.
+
+## Comments
+
+### 2026-10-12
+
+- Offline domain checks passed for non-overlapping record edits, same-field conflict detection, dataset replacement, and closed-round guards: `node tools/test_workspace_operations.mjs`.
+- Hook and transport checks passed: `node tools/test_server_conflict_recovery_contract.mjs`, `node tools/test_server_storage_conflict.mjs`, `node tools/test_workspace_operation_transport.mjs`, and `node tools/test_workspace_operation_hook.mjs`. The hook test harness was updated to inject the current error-description dependency and assert the 409 message.
+- A two-browser-page test against a dedicated database remains open. It is deferred while the user is entering actual data on 5220; the browser test must verify both disjoint edits and a same-field conflict without connecting to the live database.

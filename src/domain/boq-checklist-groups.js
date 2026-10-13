@@ -1,5 +1,7 @@
+import { getVehicleSystemLabel } from './vehicle-review-systems.js';
 import { getCentralEquipmentName } from "./equipment-names.js";
 import { getCanonicalItem } from "./canonical-station-catalog.js";
+import { getVehicleReviewWorkpoint } from "./station-workpoint-layout.js";
 
 // Presentation-only numbering. Source section codes and item IDs remain the
 // evidence/Snapshot identity and must never be replaced by these numbers.
@@ -376,6 +378,12 @@ function groupCodeForItem(item, snapshot, legacy = false) {
   return "06";
 }
 
+export function getChecklistBoqGroupId(item, snapshot) {
+  const format = String(snapshot?.stationFormat || "SC").toUpperCase() === "IMPS" ? "IMPS" : "SC";
+  const groupCode = groupCodeForItem(item, snapshot);
+  return groupCode ? `${format}-${groupCode}` : "";
+}
+
 const STATION_LEVEL_PRESENTATION_SECTIONS = new Set(["1.1"]);
 
 function preserveStationLevelPresentationSection(sourceSection) {
@@ -400,7 +408,11 @@ export function getBoqChecklistDisplaySections(snapshot, sourceSections) {
   if (![LEGACY_BOQ_CHECKLIST_PRESENTATION_VERSION, BOQ_CHECKLIST_PRESENTATION_VERSION].includes(presentationVersion)) return sourceSections;
   const format = String(snapshot?.stationFormat || "SC").toUpperCase() === "IMPS" ? "IMPS" : "SC";
   const legacy = presentationVersion === LEGACY_BOQ_CHECKLIST_PRESENTATION_VERSION;
-  const groups = (legacy ? LEGACY_BOQ_CHECKLIST_GROUPS : BOQ_CHECKLIST_GROUPS)[format];
+  const reviewGroups = format === "SC" ? [...new Set((sourceSections || []).flatMap(section => (section.items || []).map(item => item.vehicleReviewSystemKey)))].flatMap(key => {
+    const point = getVehicleReviewWorkpoint(key);
+    return point ? [makeGroup("SC", key === "sc-hs" ? "06-HS" : "06-LS", point.titleEn, ["5"], 6)] : [];
+  }) : [];
+  const groups = [...(legacy ? LEGACY_BOQ_CHECKLIST_GROUPS : BOQ_CHECKLIST_GROUPS)[format], ...reviewGroups];
   const byCode = new Map(groups.map((group) => [group.code, group]));
   if (format === "SC") byCode.set("VMS?", makeGroup("SC", "VMS?", "VMS - Assign High or Low Speed", ["5"], Number.MAX_SAFE_INTEGER));
   const buckets = new Map();
@@ -411,7 +423,8 @@ export function getBoqChecklistDisplaySections(snapshot, sourceSections) {
       continue;
     }
     for (const item of sourceSection.items || []) {
-      const groupCode = groupCodeForItem(item, snapshot, legacy);
+      const groupCode = format === "SC" && getVehicleReviewWorkpoint(item.vehicleReviewSystemKey)
+        ? (item.vehicleReviewSystemKey === "sc-hs" ? "06-HS" : "06-LS") : groupCodeForItem(item, snapshot, legacy);
       const kind = item.assetId ? "Equipment" : "Systems & Software";
       const key = `${groupCode}.${kind === "Equipment" ? "01" : "02"}`;
       if (!buckets.has(key)) buckets.set(key, []);
@@ -425,7 +438,7 @@ export function getBoqChecklistDisplaySections(snapshot, sourceSections) {
       const bucketKey = `${group.code}.${minor}`;
       const bucketItems = buckets.get(bucketKey) || [];
       if (!bucketItems.length) continue;
-      result.push({ code, displayCode: `${group.code}.${minor}`, title: `${group.title} - ${kind}`, boqGroupCode: legacy ? group.code : group.groupId,
+      result.push({ code, displayCode: `${group.code}.${minor}`, title: bucketItems.some(item => item.automaticSoftwareTest) ? `ทดสอบโปรแกรมและงานตรวจรถ · ${getVehicleSystemLabel(bucketItems[0].vehicleReviewSystemKey)}` : `${group.title} - ${kind}`, boqGroupCode: legacy ? group.code : group.groupId,
         boqGroupNumber: group.code, boqSourceRefs: group.sourceRefs,
         items: bucketItems.map((item, index) => ({ ...item, checklistNumber: `${code}.${String(index + 1).padStart(2, "0")}` })) });
     }

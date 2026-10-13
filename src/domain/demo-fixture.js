@@ -1,3 +1,4 @@
+import { VEHICLE_REVIEW_SYSTEMS_VERSION, VEHICLE_REVIEW_SYSTEMS, normalizeSystemVehicleSearch } from "./vehicle-review-systems.js";
 import {
   createDefaultStationProfile,
   createInspectionRound,
@@ -6,10 +7,12 @@ import {
   getItemsForSnapshot,
 } from "./master-checklist.js";
 import { createVehicleReviewState, VEHICLE_API_REVIEW_VERSION, VEHICLE_REVIEW_SCOPE_VERSION } from "./vehicle-search.js";
+import { CHECKLIST_POLICY_VERSION } from "./evidence-checklist.js";
+import { UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID } from "./demo-ids.js";
 
-export const UI_DEMO_ROUND_ID = "round-mtmeabs2-x7ng1";
+export { UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID } from "./demo-ids.js";
+
 export const UI_DEMO_FIXTURE_VERSION = "ui-queue-v1";
-export const UI_VEHICLE_DEMO_ROUND_ID = "round-mtmevehicle-x7ng1";
 export const UI_VEHICLE_DEMO_FIXTURE_VERSION = "ui-vehicle-decision-dock-v1";
 
 const UI_DEMO_CREATED_AT = "2026-09-04T03:55:00.000Z";
@@ -56,7 +59,7 @@ export function createUiDemoRound() {
     inspector: "ผู้ตรวจสอบตัวอย่าง",
   }, {
     // This dated demo is a frozen pre-item-controls round, not a new station preview.
-    snapshot: { ...createSnapshot(profile), vehicleReviewVersion: null, vehicleReviewScopeVersion: null, templateVersion: MASTER_TEMPLATE_VERSION, checklistPolicyVersion: null, checklistConfig: profile.checklistConfig },
+    snapshot: { ...createSnapshot(profile), automaticSoftwareTestsVersion: null, vehicleReviewSystemsVersion: null, vehicleReviewSystems: undefined, vehicleReviewVersion: null, vehicleReviewScopeVersion: null, templateVersion: MASTER_TEMPLATE_VERSION, checklistPolicyVersion: null, checklistConfig: profile.checklistConfig },
     id: UI_DEMO_ROUND_ID,
     createdAt: UI_DEMO_CREATED_AT,
     updatedAt: UI_DEMO_CREATED_AT,
@@ -152,4 +155,17 @@ export function createUiVehicleDemoRound() {
       },
     },
   };
+}
+
+// Isolated visual fixture: never persisted and never searches a real endpoint.
+export function createUiVehicleSystemsDemoRound(format = "SC") {
+  const legacy = createUiVehicleDemoRound();
+  const systems = VEHICLE_REVIEW_SYSTEMS.filter(system => system.format === format).map(system => ({ ...system,
+    config: { baseUrl: `http://${system.key}.example.invalid:3005`, apiProfile: system.apiProfile, connectionMode: system.key === "imps" ? "proxy" : "direct", stationId: "Sc-323", stationName: legacy.snapshot.stationName } }));
+  const snapshot = { ...legacy.snapshot, stationFormat: format, checklistPolicyVersion: CHECKLIST_POLICY_VERSION, automaticSoftwareTestsVersion: 'automatic-software-tests-v1', vehicleReviewSystemsVersion: VEHICLE_REVIEW_SYSTEMS_VERSION, vehicleReviewSystems: systems };
+  const value = { systems: Object.fromEntries(systems.map(system => [system.key, Object.fromEntries(["plate", "classification"].map(context => [context,
+    { ...structuredClone(legacy.vehicleSearch), independentContext: context, scopes: Object.fromEntries(Object.entries(legacy.vehicleSearch.scopes).map(([period, state]) => [period,
+      { ...state, rows: state.rows.map(row => ({ ...row, plateNumber: `${system.label} ${row.plateNumber}`, reviewStatus: "pending", classificationReviewStatus: "pending" })) }])) }]))])) };
+  const round = { ...legacy, snapshot, isSystemDemo: true, vehicleSearch: normalizeSystemVehicleSearch(value, snapshot) };
+  return { ...round, inspectionItems: Object.fromEntries(getItemsForSnapshot(snapshot).map(item => [item.id, { status: "pending", evidence: {} }])) };
 }

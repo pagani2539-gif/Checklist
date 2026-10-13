@@ -1,3 +1,4 @@
+import { expandVehicleReviewItems, expandSoftwareTestItems, AUTOMATIC_SOFTWARE_TESTS_VERSION } from "./vehicle-review-systems.js";
 // The BOQ evidence template mirrors the visible evidence cells in the
 // supplied one-page PDFs. Source statuses are audit metadata only; every new
 // inspection round starts with a pending status.
@@ -6,11 +7,11 @@
 // policy versions are separate so a new round can change Station/Asset scope
 // without rewriting the catalog stored by an older Snapshot. Policy v4 is the
 // current System + related Asset runtime; v1-v3 remain readable for history.
-import { isEvidenceBypassItemStatus } from "./inspection-status.js";
+import { isEvidenceBypassItemStatus, usesLegacyChecklistProgressPolicy } from "./inspection-status.js";
 import { EQUIPMENT_ORDER_VERSION, sortEquipmentForDisplay } from "./ordering.js";
 import { isVehicleApiReviewItem } from "./vehicle-search.js";
 import { isWimElectronicsOutputAsset, isWimElectronicsSubEquipmentType, normalizeWimElectronicsOutputVoltages } from "./wim-electronics.js";
-import { getCentralChecklistSectionName, getCentralEquipmentName, getCentralSystemNameForRecord, formatCentralNameEnglishFirst } from "./equipment-names.js";
+import { getCentralChecklistSectionName, getCentralEquipmentName, getCentralSystemNameForRecord, formatCentralNameEnglishFirst, getCentralChecklistItemLabel, getLprScopeDisplayText, useCentralEnglishNames } from "./equipment-names.js";
 import { BOQ_CHECKLIST_PRESENTATION_VERSION, LEGACY_BOQ_CHECKLIST_PRESENTATION_VERSION, getBoqChecklistDisplaySections } from "./boq-checklist-groups.js";
 import { getCanonicalItem } from "./canonical-station-catalog.js";
 import { getRelationshipPathForRecord, normalizeRelationshipScope } from "./station-relationship-tree.js";
@@ -21,6 +22,7 @@ export const PREVIOUS_EVIDENCE_TEMPLATE_VERSION = "checklist-master-v4-asset-map
 export const EVIDENCE_TEMPLATE_VERSION = "checklist-master-v5-system-mapped";
 export const LANE_ASSET_EVIDENCE_TEMPLATE_VERSION = "checklist-master-v6-lane-asset-mapped";
 export const CHECKLIST_COPY_REVISION = "checklist-copy-v1";
+export const CHECKLIST_WORDING_VERSION = "checklist-context-wording-v1";
 export const LEGACY_CHECKLIST_COPY_REVISION = "checklist-copy-legacy-frozen";
 export const VIDEO_EVIDENCE_PURGE_VERSION = 1;
 
@@ -57,7 +59,7 @@ export const WIM_SORTING_EVIDENCE_VERSION = "wim-sorting-evidence-v1";
 export const LEGACY_CHECKLIST_POLICY_VERSION = "station-item-controls-v1";
 export const PREVIOUS_CHECKLIST_POLICY_VERSION = "station-item-controls-v2";
 export const HISTORICAL_CHECKLIST_POLICY_VERSION = "station-item-controls-v3";
-// v4-v8 are kept as frozen compatibility shapes. v6 was the short-lived
+// v4-v10 are kept as frozen compatibility shapes. v6 was the short-lived
 // layout that omitted the WIM Control/Electronics System rows. v7 restores
 // those System rows; v8 scopes LPR Lane checks to installed LPR Systems.
 export const PRIOR_CHECKLIST_POLICY_VERSION = "station-item-controls-v4";
@@ -65,8 +67,19 @@ export const PREVIOUS_CURRENT_CHECKLIST_POLICY_VERSION = "station-item-controls-
 export const PREVIOUS_NO_WIM_CHECKLIST_POLICY_VERSION = "station-item-controls-v6";
 export const PREVIOUS_LPR_SCOPE_CHECKLIST_POLICY_VERSION = "station-item-controls-v7";
 export const PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION = "station-item-controls-v8";
-export const CHECKLIST_POLICY_VERSION = "station-item-controls-v9";
+export const PREVIOUS_CHECKLIST_POLICY_VERSION_V9 = "station-item-controls-v9";
+export const PREVIOUS_CHECKLIST_POLICY_VERSION_V10 = "station-item-controls-v10";
+export const CHECKLIST_POLICY_VERSION = "station-item-controls-v11";
 export const DEDICATED_ASSET_CHECKLIST_RECIPE_VERSION = "asset-dedicated-checks-v1";
+
+const LAN_LABEL_CHECKLIST_TEMPLATE_IDS = new Set(["2.2.lan", "4.2.lan", "5.1.lan"]);
+
+function isCurrentChecklistPolicyShape(version) {
+  return !version
+    || version === PREVIOUS_CHECKLIST_POLICY_VERSION_V9
+    || version === PREVIOUS_CHECKLIST_POLICY_VERSION_V10
+    || version === CHECKLIST_POLICY_VERSION;
+}
 
 // Retired types remain decodable for existing Snapshots, but are omitted from
 // current Station Profile views and every newly generated Checklist Snapshot.
@@ -247,9 +260,11 @@ export function getNewRoundChecklistItems(snapshot) {
   const runtimeSnapshot = snapshot?.checklistPresentationVersion
     ? snapshot
     : { ...snapshot, checklistPresentationVersion: BOQ_CHECKLIST_PRESENTATION_VERSION };
-  return getStationChecklistItems(runtimeSnapshot);
+  return getStationChecklistItems({ ...runtimeSnapshot, ...(!snapshot?.stationId && !snapshot?.checklistPolicyVersion ? { wimElectronicsInspectionVersion: "device-points-v1", acDcSplitVersion: "separate-ac-dc-v1" } : {}), checklistWordingVersion: CHECKLIST_WORDING_VERSION });
 }
 export const CLEANING_TARGET_TYPES = Object.freeze([
+  "LASER_SCANNER",
+  "DIMENSION_CONTROLLER",
   "CONTROL_COMPUTER",
   "CONTROL_CABINET",
   "LPR_CAMERA",
@@ -626,6 +641,7 @@ function buildDynamicWimElectronicsItem(asset, id, label, sourceOrder, {
 }
 
 function buildDynamicWimElectronicsItems(snapshot, equipment) {
+  const devicePoints = snapshot?.wimElectronicsInspectionVersion === "device-points-v1";
   const active = equipment.filter((entry) => entry?.active !== false);
   const cabinets = active.filter((entry) => entry.type === "CONTROL_CABINET");
   const children = active.filter((entry) => isWimElectronicsSubEquipmentType(entry.type));
@@ -650,7 +666,10 @@ function buildDynamicWimElectronicsItems(snapshot, equipment) {
         { id: "inside", label: `WIM Electronics Cabinet · ภาพภายในตู้ควบคุมอิเล็กทรอนิกส์ WIM${identity}` },
       ],
     });
-    add(cabinet, `electrical-control${suffix}`, `WIM Electronics Cabinet · อุปกรณ์ควบคุมไฟฟ้าภายในตู้${identity}`);
+    add(cabinet, `electrical-control${suffix}`, devicePoints
+      ? `WIM Electronics Cabinet · สายไฟ จุดต่อส่วนกลาง และสายดินของตู้${identity}`
+      : `WIM Electronics Cabinet · อุปกรณ์ควบคุมไฟฟ้าภายในตู้${identity}`, devicePoints
+        ? { helper: "ตรวจสายไฟ จุดต่อส่วนกลางและสายดินของตู้ · อุปกรณ์ภายในตรวจที่รายการเฉพาะตัว ไม่ตรวจซ้ำในรายการนี้" } : {});
     add(cabinet, `incoming-main${suffix}`, `WIM Electronics Cabinet · ไฟฟ้าหลักขาเข้า${identity}`, { unit: "V", inputType: "number" });
     add(cabinet, `main-current${suffix}`, `WIM Electronics Cabinet · กระแสไฟฟ้าหลัก${identity}`, { unit: "A", inputType: "number" });
   });
@@ -659,6 +678,23 @@ function buildDynamicWimElectronicsItems(snapshot, equipment) {
     const identity = asset.assetNo ? ` · ${asset.assetNo}` : "";
     const parent = parentLabelFor(asset);
     const context = parent ? ` (${parent})` : "";
+    const separatePowerSupply = snapshot?.acDcSplitVersion === "separate-ac-dc-v1" && ["WIM_TRANSFORMER_24VAC", "WIM_SWITCHING_DC"].includes(asset.type);
+    if (devicePoints || separatePowerSupply) {
+      const name = `${checklistEquipmentName(asset.type, asset.catalogItemLabel || asset.sourceLabel || "อุปกรณ์ WIM Electronics")}${identity}${context}`;
+      if (asset.type !== "WIM_CONTROLLER") add(asset, `device-${asset.id}-condition`, `${name} · สภาพและจุดต่อ`, { helper: "ตรวจสภาพตัวอุปกรณ์ สายและขั้วต่อของอุปกรณ์นี้ ไม่รวมงานของตู้หรืออุปกรณ์ตัวอื่น" });
+      add(asset, `device-${asset.id}-input`, `${name} · ไฟขาเข้า${separatePowerSupply ? (asset.powerInputType ? ` ${asset.powerInputType}` : " (ระบุชนิดไฟตามป้ายเครื่อง)") : ""}`, {
+        inputType: "number", unit: "V", helper: "บันทึกแรงดัน ณ จุดรับไฟที่กำหนดของอุปกรณ์นี้ ระบุ AC/DC และจุดวัดในหมายเหตุ เทียบคู่มือและป้ายรุ่นจริง ไม่ใช้ค่าไฟเข้าตู้แทน",
+      });
+      if (asset.type === "WIM_AC_DC_POWER_SUPPLY") {
+        add(asset, `device-${asset.id}-output`, `${name} · ไฟขาออก DC`, { inputType: "number", unit: "VDC", helper: "วัดขาออกที่กำหนดตามป้ายรุ่นจริง ระบุชื่อขั้วและแรงดันพิกัดในหมายเหตุ" });
+      }
+      if (["WIM_AC_DC_POWER_SUPPLY", "WIM_NETWORK_EQUIPMENT", "WIM_PHASE_PROTECTION"].includes(asset.type)) {
+        add(asset, `device-${asset.id}-function`, `${name} · การทำงาน`, { helper: asset.type === "WIM_PHASE_PROTECTION"
+          ? "ตรวจไฟแสดงสถานะและสถานะรีเลย์ตามคู่มือรุ่นจริง · หน้าสัมผัสรีเลย์ไม่ใช่ไฟจ่ายขาออก ไม่สั่งทดสอบตัดไฟในรายการนี้"
+          : asset.type === "WIM_NETWORK_EQUIPMENT" ? "ตรวจไฟแสดงสถานะช่องเชื่อมต่อและการรับส่งข้อมูลตามการเชื่อมต่อจริง" : "ตรวจสถานะการจ่ายไฟตามคู่มือรุ่นจริง" });
+        return;
+      }
+    }
     if (asset.type === "WIM_CONTROLLER") {
       add(asset, `controller-${asset.id}-identity`, `WIM Controller · ตัวควบคุม WIM${identity}${context}`, {
         slots: [
@@ -671,6 +707,9 @@ function buildDynamicWimElectronicsItems(snapshot, equipment) {
       });
       return;
     }
+    const addPowerFunction = () => {
+      if (separatePowerSupply) add(asset, `device-${asset.id}-function`, `${checklistEquipmentName(asset.type)}${identity}${context} · การทำงาน`, { helper: "ตรวจไฟสถานะและการจ่ายไฟของอุปกรณ์นี้ตามคู่มือรุ่นจริง" });
+    };
     if (isWimElectronicsOutputAsset(asset)) {
       const voltages = normalizeWimElectronicsOutputVoltages(asset.outputVoltages);
       (voltages.length ? voltages : [null]).forEach((voltage) => {
@@ -683,6 +722,7 @@ function buildDynamicWimElectronicsItems(snapshot, equipment) {
           slots: [{ id: voltageKey, label: `Switching DC Power Supply · ค่าที่วัดได้จากชุดจ่ายไฟ DC แบบสวิตชิ่ง${voltageLabel}${identity}` }],
         });
       });
+      addPowerFunction();
       return;
     }
     if (asset.type === "WIM_TRANSFORMER_24VAC") {
@@ -691,6 +731,7 @@ function buildDynamicWimElectronicsItems(snapshot, equipment) {
         inputType: "number",
         slots: [{ id: "output", label: `Transformer AC 24VAC · ค่าที่วัดได้จากหม้อแปลงไฟ AC 24VAC${identity}` }],
       });
+      addPowerFunction();
       return;
     }
     if (asset.type === "WIM_PHASE_PROTECTION") {
@@ -1160,6 +1201,8 @@ const LEGACY_EVIDENCE_CHECKLIST_SECTIONS = sections.map((section) => ({
 }));
 
 const CLEANING_SECTION_BY_TYPE = Object.freeze({
+  LASER_SCANNER: "1.1.5",
+  DIMENSION_CONTROLLER: "1.1.5",
   CONTROL_COMPUTER: "2.2",
   CONTROL_CABINET: "2.3",
   LPR_CAMERA: "3.2",
@@ -1418,6 +1461,8 @@ export function isCleaningEvidenceComplete(slot, evidence) {
 }
 
 export function isEvidenceSlotComplete(slot, evidence) {
+  if (slot?.documentRequired) return evidence?.status === "complete" && Boolean(evidence?.attachment?.id);
+  if (slot?.valueRequired) return evidence?.status === "complete" && Boolean(String(evidence?.value ?? "").trim());
   return slot?.cleaningStage || slot?.photoRequired
     ? evidence?.status === "complete" && Boolean(evidence?.attachment?.id)
     : evidence?.status === "complete";
@@ -1504,6 +1549,19 @@ export function createChecklistCopySnapshot() {
   return copySnapshotFromSections(EVIDENCE_CHECKLIST_SECTIONS, [], CHECKLIST_COPY_REVISION);
 }
 
+export function createContextualChecklistCopy(copy) {
+  return { ...copy, revision: CHECKLIST_WORDING_VERSION,
+    sections: copy.sections.map((section) => ({ ...section,
+      items: section.items.map((item) => ({ ...item,
+        label: contextualTask(contextualTopic(item.label, item), { ...item, sectionCode: section.code }),
+        evidenceSlots: item.evidenceSlots.map((slot) => ({ ...slot,
+          displayLabel: contextualEvidence(slot.displayLabel, item, slot),
+        })),
+      })),
+    })),
+  };
+}
+
 // Migrate only labels that still equal the old default. A user-edited label
 // or evidence-slot label is intentionally left untouched.
 export function migrateChecklistCopyForCurrentTemplate(copy) {
@@ -1585,9 +1643,7 @@ export function updateChecklistCopy(copy, { sectionCode, itemId = null, field, v
         items: section.items.map((item) => {
           if (item.id !== itemId) return item;
           const nextItem = { ...item, [field]: nextValue };
-          if (field === "label") {
-            nextItem.evidenceSlots = item.evidenceSlots.map((slot) => ({ ...slot, displayLabel: nextValue }));
-          }
+          // The inspection task and its evidence are independently worded.
           return nextItem;
         }),
       };
@@ -1619,12 +1675,17 @@ export function getChecklistCopyForSnapshot(snapshot) {
     : stored;
   if (templateVersion === LEGACY_EVIDENCE_TEMPLATE_VERSION) return getLegacyChecklistCopySnapshot(snapshot);
   if (templateVersion === PREVIOUS_EVIDENCE_TEMPLATE_VERSION) return getAssetMappedChecklistCopySnapshot(snapshot);
-  return createChecklistCopySnapshot();
+  return snapshot?.checklistWordingVersion === CHECKLIST_WORDING_VERSION
+    ? createContextualChecklistCopy(createChecklistCopySnapshot())
+    : copySnapshotFromSections(EVIDENCE_CHECKLIST_SECTIONS, [], CHECKLIST_COPY_REVISION);
 }
 
 export function buildCleaningEvidenceItems(snapshot) {
   const equipment = Array.isArray(snapshot?.equipment) ? snapshot.equipment : [];
-  const activeTargets = equipment.filter((entry) => entry?.active !== false && CLEANING_TARGET_TYPES.includes(entry?.type));
+  const includesThreeDCleaning = snapshot?.threeDCleaningVersion === '3d-cleaning-v1'
+    || (!snapshot?.stationId && !snapshot?.checklistPolicyVersion);
+  const activeTargets = equipment.filter((entry) => entry?.active !== false && CLEANING_TARGET_TYPES.includes(entry?.type)
+    && (includesThreeDCleaning || !['LASER_SCANNER', 'DIMENSION_CONTROLLER'].includes(entry.type)));
   const sectionIndexes = new Map();
   return activeTargets.map((asset) => {
     const sectionCode = CLEANING_SECTION_BY_TYPE[asset.type];
@@ -1845,14 +1906,14 @@ function expandLaneTemplateItems(section, lanes, {
 } = {}) {
   if (section.code !== "3.1") return section.items;
   const prototypes = section.items.filter((item) => /^3\.1\.lane-1-(?:day|search)$/.test(item.id));
-  const installedLprScopes = new Set((Array.isArray(systems) ? systems : [])
+  const installedLprLaneIds = new Set((Array.isArray(systems) ? systems : [])
     .filter((system) => system?.active !== false
       && Number(system?.quantity ?? 1) > 0
-      && canonicalSystemIdForRecord(system) === "lpr-control")
-    .map((system) => normalizeRelationshipScope(system?.scope))
-    .filter(Boolean));
+      && canonicalSystemIdForRecord(system) === "lpr-control"
+      && String(system?.laneId || "").trim())
+    .map((system) => String(system.laneId).trim()));
   const applicableLanes = requireLprSystemForLane
-    ? lanes.filter((lane) => installedLprScopes.has(normalizeRelationshipScope(lane?.scope)))
+    ? lanes.filter((lane) => installedLprLaneIds.has(String(lane?.id || "").trim()))
     : lanes;
   const laneCounts = new Map();
   applicableLanes.forEach((lane) => laneCounts.set(lane.laneNo, (laneCounts.get(lane.laneNo) || 0) + 1));
@@ -1960,7 +2021,9 @@ export function getEvidenceItemsForSnapshot(snapshot, {
   if (snapshot?.checklistPolicyVersion === PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION) {
     return getStationChecklistItems(snapshot, { includeCleaningControls: false });
   }
-  if (snapshot?.checklistPolicyVersion === CHECKLIST_POLICY_VERSION) return getStationChecklistItems(snapshot);
+  if (snapshot?.checklistPolicyVersion === PREVIOUS_CHECKLIST_POLICY_VERSION_V9
+    || snapshot?.checklistPolicyVersion === PREVIOUS_CHECKLIST_POLICY_VERSION_V10
+    || snapshot?.checklistPolicyVersion === CHECKLIST_POLICY_VERSION) return getStationChecklistItems(snapshot);
   if (snapshot?.checklistPolicyVersion === PREVIOUS_NO_WIM_CHECKLIST_POLICY_VERSION) {
     // v6 was the only current policy without WIM Control/Electronics System
     // rows. Preserve that snapshot shape while v7 restores them for new work.
@@ -2174,6 +2237,124 @@ function disambiguateStationChecklistLabels(items) {
   });
 }
 
+// Presentation only. The unversioned path above remains frozen for rounds
+// already in progress. Source wording, item/slot IDs and inspection rules are
+// never changed by this copy policy.
+function contextualTopic(text, item = {}) {
+  const parts = String(text || "").split(" · ");
+  const topicStart = parts.findIndex((part) => /[ก-๙]/.test(part)
+    && !/^ช่องจราจรที่อุปกรณ์ใช้งาน$/.test(part));
+  let topic = parts.slice(Math.max(0, topicStart)).join(" · ")
+    .replace(/\s*·\s*ลำดับที่\s*\d+\s*จาก\s*\d+/g, "")
+    .replace(/\s*#\d+/g, "")
+    .replace(/\s*ลำดับที่\s*\d+/g, "").trim();
+  if (item.assetNo) topic = topic.replace(` · ${item.assetNo}`, "");
+  for (const [, reference] of CHECKLIST_ITEM_NAME_REPLACEMENTS) {
+    const name = getChecklistName(reference);
+    if (name?.nameEn && name?.nameTh) topic = topic.replaceAll(`${name.nameEn} · ${name.nameTh}`, name.nameTh);
+  }
+  // An English name embedded by the old name formatter is followed by its
+  // Thai name. Keep the task and the Thai name together.
+  topic = topic.replace(/^ภาพ [A-Za-z][^·]* · /, "ภาพ");
+  if (item.assetId) topic = topic.replace(/\s*[—·]\s*ช่องจราจร(?:ที่อุปกรณ์ใช้งาน|\s*\d+).*$/, "").trim();
+  return topic.replace(/^(ตรวจ|ทดสอบ|วัดค่าของ|วัดแรงดันไฟฟ้าของ)\s+/, "$1")
+    .replace(/ของ\s+(?=[ก-๙])/g, "ของ");
+}
+
+function contextualTask(topic, item) {
+  const id = String(item.id || "");
+  if (item.isEquipmentCleaning) return `ทำความสะอาด${getCentralEquipmentName(item.cleaningAssetType)?.nameTh || "อุปกรณ์"}`;
+  if (item.isAreaCleaning) return item.cleaningAssetType === "CONTROL_CABINET"
+    ? "ทำความสะอาดพื้นที่โดยรอบตู้ควบคุม" : topic.replace(/^การทำความสะอาด/, "ทำความสะอาด");
+  if (id.includes("cal-factor")) return "ตรวจค่าปรับเทียบ (Cal Factor) ของตัวควบคุม WIM";
+  if (id.includes("failed-hdd-count")) return "ตรวจสถานะ HDD และจำนวนลูกที่ชำรุด";
+  if (id.includes("retention-days")) return "ตรวจระยะเวลาที่เรียกดูภาพย้อนหลังได้";
+  if (item.systemRecordId && id.startsWith("2.1.system-check")) return "ตรวจการติดตั้งเซนเซอร์และผลประมวลค่าน้ำหนัก";
+  if (item.assetId && id.startsWith("4.1.overview")) return `ตรวจตำแหน่งติดตั้ง${getCentralEquipmentName(item.assetType)?.nameTh || "กล้องวงจรปิด"}`;
+  if (id.startsWith("3.2.overview")) return "ตรวจตำแหน่งติดตั้งและทิศทางกล้องอ่านป้ายทะเบียน";
+  if (item.systemName && topic === "ตรวจการทำงานของซอฟต์แวร์") return `ตรวจการทำงานของ${item.systemName}`;
+  if (item.inputType === "number" && !/^วัด/.test(topic)) {
+    if (item.unit === "V") return /^ไฟฟ้า/.test(topic) ? `วัดแรงดัน${topic}` : `วัดแรงดันไฟฟ้าของ${topic.replace(/^(?:ตรวจ|ค่าที่วัดได้จาก|ค่า)/, "").trim()}`;
+    if (item.unit === "A") return /^กระแสไฟฟ้า/.test(topic) ? `วัด${topic}` : `วัดกระแสไฟฟ้าของ${topic.replace(/^(?:ตรวจ|ค่า)/, "").trim()}`;
+  }
+  const tasks = {
+    "รับ ประมวลผล และแสดงผลข้อมูล": "ทดสอบการรับ ประมวลผล และแสดงผลข้อมูล",
+    "ควบคุม Pan / Tilt / Zoom": "ทดสอบการควบคุมทิศทางและการซูมกล้อง",
+    "ปุ่มและคำสั่งตอบสนอง": "ทดสอบการตอบสนองของปุ่มและคำสั่ง",
+    "รับผล Scanner และคำนวณมิติ": "ทดสอบการรับผลสแกนและคำนวณมิติ",
+    "ส่งข้อมูลและแจ้งเตือน": "ทดสอบการส่งข้อมูลและแจ้งเตือน",
+    "รับสัญญาณภาพและ Trigger": "ตรวจการรับภาพและสัญญาณสั่งถ่ายภาพ",
+    "ไฟเข้าและ Grounding": "ตรวจไฟฟ้าขาเข้าและการต่อสายดิน",
+  };
+  if (tasks[topic]) return tasks[topic];
+  if (/^(?:ตรวจ|วัด|ทดสอบ|ทำความสะอาด|บันทึก|คัดแยก)/.test(topic)) return topic;
+  if (/^ค่าที่วัดได้จาก/.test(topic)) return topic.replace(/^ค่าที่วัดได้จาก/, item.unit === "V" ? "วัดแรงดันไฟฟ้าของ" : "วัดค่าของ");
+  if (/^ภาพผลทดสอบ/.test(topic)) return topic.replace(/^ภาพผลทดสอบ/, "ทดสอบ");
+  if (/^ผลทดสอบ/.test(topic)) return topic.replace(/^ผลทดสอบ/, "ทดสอบ");
+  if (/^ภาพผลตรวจ/.test(topic)) return topic.replace(/^ภาพผลตรวจ/, "ตรวจ");
+  if (/^ภาพผลการค้นหา/.test(topic)) return topic.replace(/^ภาพผลการค้นหา/, "ทดสอบการค้นหา");
+  if (/^ภาพทำความสะอาด/.test(topic)) return topic.replace(/^ภาพ/, "");
+  if (/^ภาพวัด/.test(topic)) return topic.replace(/^ภาพ/, "");
+  if (/^ภาพตรวจ/.test(topic)) return topic.replace(/^ภาพ/, "");
+  if (/^ภาพ(?:การตรวจสอบ|การตรวจ)/.test(topic)) return topic.replace(/^ภาพ(?:การตรวจสอบ|การตรวจ)/, "ตรวจ");
+  if (/^ภาพรวม/.test(topic)) return topic.replace(/^ภาพรวม/, "ตรวจตำแหน่ง");
+  if (/^ภาพ/.test(topic)) return topic.replace(/^ภาพ/, item.sectionCode === "1.1" ? "ตรวจความพร้อมของ" : "ตรวจ");
+  return `ตรวจ${topic}`;
+}
+
+function contextualEvidence(text, item, slot) {
+  if (slot.cleaningStage) return `ภาพ${slot.displayLabel.replace(/^ภาพ/, "")}`;
+  let topic = contextualTopic(text, item);
+  if (item.assetId && String(item.id).startsWith("4.1.overview")) return `ภาพตำแหน่งติดตั้ง${getCentralEquipmentName(item.assetType)?.nameTh || "กล้องวงจรปิด"}`;
+  if (String(item.id).startsWith("3.2.overview")) return "ภาพตำแหน่งติดตั้งและทิศทางกล้องอ่านป้ายทะเบียน";
+  if (slot.fieldType === "document") {
+    if (topic.includes("SAVE FIELD CONFIG")) return "ไฟล์การตั้งค่าภาคสนาม (SAVE FIELD CONFIG)";
+    return /^(?:ไฟล์|เอกสาร)/.test(topic) ? topic : `เอกสาร${topic}`;
+  }
+  if (/^(?:ภาพ|ไฟล์)/.test(topic)) return topic;
+  if (/^ค่าที่วัดได้/.test(topic)) return `ภาพ${topic}`;
+  if (/^(?:ผล|สถานะ)/.test(topic)) return `ภาพ${topic}`;
+  if (/^(?:วัด|ตรวจ|ทดสอบ)/.test(topic)) return `ภาพผล${topic}`;
+  return `ภาพ${topic}`;
+}
+
+function contextualizeChecklistItems(items, snapshot = {}) {
+  const assets = new Map((snapshot.equipment || []).map((asset) => [asset.id, asset]));
+  const systems = new Map((snapshot.stationSystems || []).map((system) => [system.id, system]));
+  const lanes = new Map((snapshot.lanes || []).map((lane) => [lane.id, lane]));
+  const catalog = new Map((snapshot.evidenceCatalog || []).map((entry) => [entry.slotId, entry]));
+  return items.map((item) => {
+    const asset = assets.get(item.assetId);
+    const system = systems.get(item.systemRecordId || asset?.parentSystemId);
+    const lane = lanes.get(item.laneId || system?.laneId || asset?.laneId);
+    const systemPrefix = String(item.label || "").split(" · ")[0];
+    const systemReference = CHECKLIST_ITEM_NAME_REPLACEMENTS.find(([, reference]) => reference.kind === "system"
+      && getChecklistName(reference)?.nameEn === systemPrefix)?.[1];
+    const contextItem = { ...item, assetType: asset?.type,
+      systemName: (systemReference ? getChecklistName(systemReference) : getCentralSystemNameForRecord(system))?.nameTh };
+    const topic = contextualTopic(item.displayLabel || item.label, contextItem);
+    const task = contextualTask(topic, contextItem);
+    const recordedIdentity = item.assetNo || asset?.assetNo;
+    const identity = item.assetId
+      ? (recordedIdentity || "ยังไม่ระบุเลขอุปกรณ์")
+      : "";
+    const scope = system?.scope || asset?.scope || item.scope;
+    const scopeLabel = { "High Speed": "ความเร็วสูง", "Low Speed": "ความเร็วต่ำ", "Station-wide": "ทั้งสถานี", Central: "ส่วนกลาง", "Image Processing": "ประมวลผลภาพ" }[scope] || scope;
+    const context = [identity, scopeLabel,
+      lane ? `ช่องจราจร ${lane.laneNo}` : "",
+      !recordedIdentity && !lane ? item.location || asset?.location || system?.location : ""].filter(Boolean);
+    // System checks describe the whole system, not a physical installation point.
+    if (item.assetId && !recordedIdentity && !lane
+      && scope !== "Station-wide" && !(item.location || asset?.location || system?.location)) context.push("ยังไม่ระบุตำแหน่ง");
+    const label = [task, ...new Set(context)].join(" · ");
+    const evidenceSlots = item.evidenceSlots.map((slot) => ({ ...slot,
+      displayLabel: catalog.get(slot.id)?.slotLabel || contextualEvidence(slot.displayLabel || item.label, contextItem, slot),
+    }));
+    const storedLabel = item.evidenceSlots.map((slot) => catalog.get(slot.id)?.itemLabel).find(Boolean);
+    return { ...item, label: storedLabel || label, displayLabel: storedLabel || label, evidenceSlots };
+  });
+}
+
 function buildStationChecklistItems(snapshot, {
   includeDisabled = false,
   excludeLprFunctionalDuplicates = false,
@@ -2182,7 +2363,7 @@ function buildStationChecklistItems(snapshot, {
   includeRetiredWimSystems = false,
   includeCurrentSystemRows = false,
   includeCleaningControls = !snapshot?.checklistPolicyVersion
-    || snapshot.checklistPolicyVersion === CHECKLIST_POLICY_VERSION,
+    || isCurrentChecklistPolicyShape(snapshot.checklistPolicyVersion),
 } = {}) {
   const activeEquipment = getActivePhysicalEquipment(snapshot?.equipment, { includeLegacy: preservePreviousPolicyShape });
   const scopeState = getChecklistScopeState(snapshot, {
@@ -2206,9 +2387,8 @@ function buildStationChecklistItems(snapshot, {
     preservePreviousPolicyShape,
     includeCurrentStationControls: !preservePreviousPolicyShape,
     requireLprSystemForLane: !preservePreviousPolicyShape
-      && (!snapshot?.checklistPolicyVersion
-        || snapshot.checklistPolicyVersion === CHECKLIST_POLICY_VERSION
-        || snapshot.checklistPolicyVersion === PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION),
+      && (isCurrentChecklistPolicyShape(snapshot?.checklistPolicyVersion)
+        || snapshot?.checklistPolicyVersion === PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION),
   };
   const original = getEvidenceItemsForSnapshot(legacySnapshot, evidenceOptions);
   const oldControls = config.legacyResolved ? [] : getEvidenceItemsForSnapshot({ ...legacySnapshot,
@@ -2293,8 +2473,7 @@ function buildStationChecklistItems(snapshot, {
     ];
     candidates.push(...cleaningItems.map((item) => ({ ...item, legacyControlIds: [] })));
   }
-  const currentPolicy = !snapshot?.checklistPolicyVersion
-    || snapshot?.checklistPolicyVersion === CHECKLIST_POLICY_VERSION
+  const currentPolicy = isCurrentChecklistPolicyShape(snapshot?.checklistPolicyVersion)
     || snapshot?.checklistPolicyVersion === PREVIOUS_CLEANING_CHECKLIST_POLICY_VERSION;
   const includePreviousCurrentSystemRows = includeRetiredWimSystems
     || snapshot?.checklistPolicyVersion === PREVIOUS_CURRENT_CHECKLIST_POLICY_VERSION;
@@ -2374,7 +2553,8 @@ function buildStationChecklistItems(snapshot, {
     return Number.isFinite(major) && Number.isFinite(minor) ? major * 100 + minor : Number.MAX_SAFE_INTEGER;
   };
   candidates.sort((a, b) => sectionOrder(a.sectionCode) - sectionOrder(b.sectionCode));
-  const labeledCandidates = disambiguateStationChecklistLabels(candidates);
+  const labeledCandidates = snapshot?.checklistWordingVersion === CHECKLIST_WORDING_VERSION
+    ? candidates : disambiguateStationChecklistLabels(candidates);
   return labeledCandidates.map((item) => {
     const disabled = itemDisabled.has(item.id) || (!config.legacyResolved
       && item.legacyControlIds.some((id) => legacyDisabled.has(id)));
@@ -2396,10 +2576,16 @@ function getLegacyStationChecklistItems(snapshot, options = {}) {
 }
 
 export function getStationChecklistItems(snapshot, options = {}) {
+  // A Station Profile is a preview of the next round. Saved Snapshots have a
+  // stationId/policy and must opt into the wording version explicitly.
+  if (!snapshot?.stationId && !snapshot?.checklistPolicyVersion) {
+    snapshot = { ...snapshot, checklistWordingVersion: CHECKLIST_WORDING_VERSION };
+  }
   const includeMappedCleaning = options.includeCleaningControls
-    ?? (!snapshot?.checklistPolicyVersion || snapshot.checklistPolicyVersion === CHECKLIST_POLICY_VERSION);
+    ?? isCurrentChecklistPolicyShape(snapshot?.checklistPolicyVersion);
   const items = buildStationChecklistItems(snapshot, {
     ...options,
+    includeDisabled: snapshot?.automaticSoftwareTestsVersion === AUTOMATIC_SOFTWARE_TESTS_VERSION || options.includeDisabled,
     includeCleaningControls: includeMappedCleaning,
     includeCurrentSystemRows: options.includeCurrentSystemRows
       || snapshot?.checklistPolicyVersion === PREVIOUS_LPR_SCOPE_CHECKLIST_POLICY_VERSION,
@@ -2411,7 +2597,7 @@ export function getStationChecklistItems(snapshot, options = {}) {
   // still part of every new field checklist. BOQ presentation keeps it as a
   // separate station-level section instead of dropping it or folding it into
   // an equipment/software group.
-  return items.filter((item) => !excludesLegacyBoqWorkRows || !(
+  const visibleItems = items.filter((item) => !excludesLegacyBoqWorkRows || !(
     item.sectionCode === "6.2"
     || item.sectionCode === "6.3"
     || (!includeMappedCleaning && item.isEquipmentCleaning)
@@ -2426,6 +2612,30 @@ export function getStationChecklistItems(snapshot, options = {}) {
       evidenceSlots: [],
     }
     : item);
+  const policyVersion = snapshot?.checklistPolicyVersion;
+  const currentPolicyItems = !policyVersion
+    || policyVersion === PREVIOUS_CHECKLIST_POLICY_VERSION_V10
+    || policyVersion === CHECKLIST_POLICY_VERSION
+    ? visibleItems.filter((item) => {
+      const templateItemId = String(item.id).split("::asset::")[0];
+      const isRetiredNvrHddPhotoRow = (!policyVersion || policyVersion === CHECKLIST_POLICY_VERSION)
+        && templateItemId === "4.2.hdd";
+      return !LAN_LABEL_CHECKLIST_TEMPLATE_IDS.has(templateItemId) && !isRetiredNvrHddPhotoRow;
+    })
+    : visibleItems;
+  const expanded = expandSoftwareTestItems(expandVehicleReviewItems(snapshot?.checklistWordingVersion === CHECKLIST_WORDING_VERSION
+    ? contextualizeChecklistItems(currentPolicyItems, snapshot) : currentPolicyItems, snapshot), snapshot);
+  return expanded.filter(item => options.includeDisabled || item.applicable !== false).map(item => {
+    if (!['3.1', '3.2'].includes(item.sectionCode)) return item;
+    const asset = snapshot.equipment?.find(asset => asset.id === item.assetId);
+    const system = snapshot.stationSystems?.find(system => system.id === (item.systemRecordId || asset?.parentSystemId));
+    const lane = snapshot.lanes?.find(lane => lane.id === (item.laneId || system?.laneId || asset?.laneId));
+    const scope = system?.scope || asset?.scope || lane?.scope || item.scope || item.laneScopeLabel;
+    const label = getCentralChecklistItemLabel({ ...item, label: getLprScopeDisplayText(item.label, scope) });
+    return { ...item, label, displayLabel: label, evidenceSlots: item.evidenceSlots.map(slot => ({ ...slot,
+      displayLabel: useCentralEnglishNames(getLprScopeDisplayText(slot.displayLabel, scope)),
+    })) };
+  });
 }
 
 // Resolve old position-based controls once, before changing the register/order.
@@ -2546,7 +2756,9 @@ export function getEvidenceSummary(round) {
   ));
   const inspectionPending = items.filter((item) => values[item.id]?.status === "pending").length;
   const inspectionIssues = items.filter((item) => ["damaged", "waiting"].includes(values[item.id]?.status)).length;
-  const slots = items.flatMap((item) => item.evidenceSlots.map((slot) => ({ item, slot, value: values[item.id]?.evidence?.[slot.id] })));
+  const slots = items.flatMap((item) => item.evidenceSlots
+    .filter((slot) => shouldIncludeEvidenceSlotInSummary(slot, round))
+    .map((slot) => ({ item, slot, value: values[item.id]?.evidence?.[slot.id] })));
   const counts = Object.fromEntries(EVIDENCE_STATUS_OPTIONS.map((option) => [option.value, 0]));
   slots.forEach(({ value }) => { const status = value?.status || "pending"; counts[status] = (counts[status] || 0) + 1; });
   const complete = slots.filter(({ slot, value }) => isEvidenceSlotComplete(slot, value)).length;
@@ -2563,9 +2775,13 @@ export function getEvidenceSummary(round) {
   };
 }
 
+export function shouldIncludeEvidenceSlotInSummary(slot, round) {
+  return usesLegacyChecklistProgressPolicy(round) || slot?.required !== false;
+}
+
 export function evidenceAttachmentIds(record) {
   return Object.values(record?.inspectionItems || record?.items || {}).flatMap((item) => [
-    item?.attachment?.id,
-    ...Object.values(item?.evidence || {}).map((slot) => slot?.attachment?.id),
+    item?.attachment?.id, item?.attachment?.imageAnnotation?.renderedAttachment?.id,
+    ...Object.values(item?.evidence || {}).flatMap((slot) => [slot?.attachment?.id, slot?.attachment?.imageAnnotation?.renderedAttachment?.id]),
   ]).filter(Boolean);
 }

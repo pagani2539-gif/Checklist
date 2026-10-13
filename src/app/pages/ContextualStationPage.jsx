@@ -1,12 +1,22 @@
+import PowerSupplyFields from "../PowerSupplyFields.jsx";
+import "../../styles/station-profile-route.css";
+import { sortEquipmentForDisplay } from "../../domain/ordering.js";
+import { electronicsTypeOrder, sortElectronicsByCabinet } from "../../domain/wim-electronics-order.js";
+import CustomSelect from "../CustomSelect.jsx";
 import { BOQ_CHECKLIST_GROUPS, resolveEquipmentPlacement as getBoqAddCategory, sortCanonicalSystemDefinitions } from "../../domain/boq-checklist-groups.js";
 import { buildStationRelationshipTree, getRelationshipCategoryForAsset, getRelationshipCategoryForSystem, getRelationshipPath } from "../../domain/station-relationship-tree.js";
+import { findStationWorkpoint } from "../../domain/station-workpoint-layout.js";
 import { getStationWorkSpecGroupNote, getStationWorkSpecPurpose } from "../../domain/station-work-spec.js";
 import { addStationAssetWithOwner } from "../../domain/station-asset-add.js";
-import { getNextLaneNumberForScope, setLaneScope } from "../../domain/station-lane-scope.js";
+import { getEffectiveEquipmentScope, getEquipmentParentChoices } from "../../domain/station-equipment-parent.js";
+import { getLaneScope, getNextLaneNumberForScope, setLaneScope } from "../../domain/station-lane-scope.js";
 import { WIM_ELECTRONICS_OUTPUT_VOLTAGES, isWimElectronicsSubEquipmentType } from "../../domain/wim-electronics.js";
+import { groupEquipmentBySubcategory } from "../../domain/equipment-subcategories.js";
 import { getWorkSpecEquipmentOwnerVariants } from "../../domain/work-spec-equipment.js";
 import { getEquipmentIconName, getScIconName } from "../icon-system.jsx";
 import StationRelationshipInlineEditor from "../StationRelationshipInlineEditor.jsx";
+import EquipmentParentDialog from "../EquipmentParentDialog.jsx";
+import { getVehicleReviewContext } from "../../domain/vehicle-search.js";
 
 const STEP_LABELS = ["ข้อมูลสถานี", "ระบบและอุปกรณ์", "ตรวจสอบและบันทึก"];
 const WIM_ID = "wim-sorting";
@@ -34,6 +44,14 @@ const READINESS_BLOCKER_COPY = Object.freeze({
   DUPLICATE_ASSET_NO: "รหัสอุปกรณ์ (Asset No.) ซ้ำ",
   WIM_SYSTEM_LANE_REQUIRED: "Lane ของ WIM Sorting System",
   WIM_SYSTEM_LANE_DUPLICATE: "WIM Sorting System ซ้ำใน Lane เดียวกัน",
+  LPR_SYSTEM_LANE_REQUIRED: "Lane ของ LPR System",
+  LPR_SYSTEM_LANE_SCOPE_MISMATCH: "Scope ของ Lane กับ LPR System",
+  LPR_SYSTEM_LANE_DUPLICATE: "LPR System ซ้ำใน Lane เดียวกัน",
+  LPR_SYSTEM_QUANTITY_INVALID: "จำนวน LPR System ต้องเป็น 1 ระบบ",
+  LPR_CAMERA_REQUIRED: "กล้องจริงใต้ LPR System",
+  LPR_CAMERA_DUPLICATE: "กล้อง LPR ซ้ำใต้ System เดียวกัน",
+  LPR_CAMERA_PARENT_REQUIRED: "ระบบแม่ของกล้อง LPR",
+  LPR_CAMERA_SCOPE_MISMATCH: "Scope ของกล้อง LPR",
   WIM_PARENT_SYSTEM_REQUIRED: "ระบบแม่ของ WIM Sensor/Loop",
   WIM_PARENT_SYSTEM_INVALID: "Lane ของระบบแม่ WIM",
   WIM_PARENT_LANE_MISMATCH: "Lane ของอุปกรณ์ WIM ไม่ตรงระบบแม่",
@@ -127,7 +145,7 @@ export function createContextualStationPage(runtime) {
     const [expandedBoqCategories, setExpandedBoqCategories] = useState([]);
     const [expandedReferenceRows, setExpandedReferenceRows] = useState([]);
     const [activeReferenceGroupCode, setActiveReferenceGroupCode] = useState("SC-01.01");
-    const [activeRelationshipGroupId, setActiveRelationshipGroupId] = useState(`${DEFAULT_STATION_FORMAT === "IMPS" ? "IMPS" : "SC"}-01`);
+    const [activeRelationshipGroupId, setActiveRelationshipGroupId] = useState("sc-wim-hs");
     const [selectedRelationshipId, setSelectedRelationshipId] = useState(null);
     const [selectedRelationshipKind, setSelectedRelationshipKind] = useState("asset");
     const [relationshipEdit, setRelationshipEdit] = useState(null);
@@ -136,6 +154,7 @@ export function createContextualStationPage(runtime) {
     const [activeRelationshipCategoryKey, setActiveRelationshipCategoryKey] = useState("wim-sorting");
     const [systemSearch, setSystemSearch] = useState("");
     const [message, setMessage] = useState("");
+    const [pendingEquipmentAdd, setPendingEquipmentAdd] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const setProvince = (event) => {
       const provinceId = event.target.value;
@@ -200,6 +219,7 @@ export function createContextualStationPage(runtime) {
     })).length;
     const wimSelected = selectedSystemIds.has(WIM_ID);
     const wimInstances = draft.stationSystems.filter((item) => item.canonicalItemId === WIM_ID && item.active !== false);
+    const lprInstances = draft.stationSystems.filter((item) => item.canonicalItemId === "lpr-control" && item.active !== false);
     const wimScopeOptions = (wimDefinition?.allowedScopes || []).filter((scope) => draft.stationFormat === "IMPS" ? !["High Speed", "Low Speed"].includes(scope) : scope !== "ImPS");
     const selectedScopesForCatalogItem = (item) => {
       const canonicalItem = canonical.find((entry) => entry.kind === "asset" && entry.equipmentType === item?.type);
@@ -210,9 +230,7 @@ export function createContextualStationPage(runtime) {
         .map((system) => String(system.scope || "").trim())
         .filter(Boolean))];
     };
-    const effectiveAssetScope = (asset) => WIM_TYPES.has(asset?.type)
-      ? wimInstances.find((system) => system.id === asset.parentSystemId)?.scope || ""
-      : asset?.scope || "";
+    const effectiveAssetScope = (asset) => getEffectiveEquipmentScope(asset, draft.equipment, draft.stationSystems);
     const scopedCatalog = eligibleCatalog(catalog, canonical, selectedCategories, selectedSystemIds);
     const expandCatalogItemVariants = (item, { respectSelectedScopes = true } = {}) => {
       const scopedVariants = item.type === "LPR_CAMERA"
@@ -274,11 +292,17 @@ export function createContextualStationPage(runtime) {
         scope: draft.stationSystems.find((system) => system.canonicalItemId === item.id)?.scope || preferredScopeForFormat(item, draft.stationFormat),
       }).groupId === group.groupId),
     }));
-    const activeAssets = draft.equipment.filter((item) => item.active !== false);
+    const activeAssets = sortEquipmentForDisplay(draft.equipment.filter((item) => item.active !== false), draft.lanes);
     const validation = useMemo(() => validateStationDraft(draft, state.stationProfiles), [draft, state.stationProfiles]);
+    const generatedStationCode = String(draft.id || "").startsWith("station-")
+      ? `ST-${draft.id.slice("station-".length).toUpperCase()}`
+      : "";
+    const stationCodeIsCustom = Boolean(String(draft.stationCode || "").trim())
+      && String(draft.stationCode).trim() !== generatedStationCode;
     const readiness = useMemo(() => getStationReadiness(draft), [draft]);
     const preview = useMemo(() => ({ ...draft, id: "station-draft-preview" }), [draft]);
-    const checklistItems = useMemo(() => getStationChecklistItems(preview, { includeDisabled: true }), [preview]);
+    const checklistItems = useMemo(() => getStationChecklistItems(preview, { includeDisabled: true })
+      .filter(item => item.assetId || (item.sectionCode !== "6.1" && !getVehicleReviewContext(item))), [preview]);
     const validationIssues = [
       ...Object.entries(STATION_VALIDATION_COPY)
         .filter(([field]) => validation.errors[field])
@@ -372,7 +396,7 @@ export function createContextualStationPage(runtime) {
         selected: cards.some(isReferenceSystemCardSelected),
       };
     });
-    const activeReferenceGroupCodeResolved = `${activeRelationshipGroupId}.01`;
+    const activeReferenceGroupCodeResolved = activeReferenceGroupCode;
     const activeReferenceGroupCard = referenceGroupCards.find((group) => group.code === activeReferenceGroupCodeResolved) || referenceGroupCards[0] || null;
     const selectedReferenceGroupCount = referenceGroupCards.filter((group) => group.selected).length;
     const categoryCodesForReferenceGroup = (groupCode) => {
@@ -399,11 +423,11 @@ export function createContextualStationPage(runtime) {
         });
         if (!confirmed) return;
       }
-      setDraft((current) => ({ ...createStationDraft(format), stationCode: current.stationCode, stationName: current.stationName, province: current.province, provinceId: current.provinceId, direction: current.direction, vehicleSearchConfig: current.vehicleSearchConfig }));
+      setDraft((current) => ({ ...createStationDraft(format), id: current.id, stationCode: current.stationCode, stationName: current.stationName, province: current.province, provinceId: current.provinceId, direction: current.direction, vehicleSearchConfig: current.vehicleSearchConfig }));
       setOpenCategory("");
       setOpenBoqCategory("");
       setExpandedEquipmentGroups([format === "IMPS" ? "IMPS-01.01" : "SC-01.01"]);
-      setActiveRelationshipGroupId(`${format === "IMPS" ? "IMPS" : "SC"}-01`);
+      setActiveRelationshipGroupId(format === "IMPS" ? "imps-image-processing" : "sc-wim-hs");
       setSystemSearch("");
       setSelectedRelationshipId(null);
       setEditingLaneId(null);
@@ -549,6 +573,11 @@ export function createContextualStationPage(runtime) {
           return { ...current, stationSystems: [...current.stationSystems, systemRecord(item, createId, { scope })] };
         }
 
+        if (item.id === "lpr-control" && current.equipment.some((asset) => asset.type === "LPR_CAMERA" && asset.active !== false && matchingSystems.some((system) => system.id === asset.parentSystemId))) {
+          setMessage("ยังนำ LPR System ออกไม่ได้ เพราะมีกล้องจริงผูกอยู่ ให้ย้ายหรือนำกล้องออกก่อน");
+          return current;
+        }
+
         const removedIds = new Set(matchingSystems.map((system) => system.id));
         const stationSystems = current.stationSystems.filter((system) => !removedIds.has(system.id));
         const activeSystems = stationSystems.filter((system) => system.active !== false);
@@ -556,6 +585,7 @@ export function createContextualStationPage(runtime) {
           .filter((definition) => definition.kind === "asset" && definition.equipmentType && definition.systemIds?.includes(item.id))
           .map((definition) => definition.equipmentType));
         const equipment = current.equipment.filter((asset) => {
+          if (item.id === "lpr-control" && asset.type === "LPR_CAMERA") return true;
           if (!ownedTypes.has(asset.type) || WIM_TYPES.has(asset.type)) return true;
           const definition = canonical.find((entry) => entry.kind === "asset" && entry.equipmentType === asset.type);
           const assetScope = String(asset.scope || "").trim();
@@ -571,10 +601,12 @@ export function createContextualStationPage(runtime) {
     };
     const addSystemInstanceForScope = (item, scopeOverride = "") => {
       const scope = String(scopeOverride || preferredScopeForFormat(item, draft.stationFormat) || "").trim();
+      const system = systemRecord(item, createId, { scope });
       setDraft((current) => ({
         ...current,
-        stationSystems: [...current.stationSystems, systemRecord(item, createId, { scope })],
+        stationSystems: [...current.stationSystems, system],
       }));
+      return system;
     };
     const updateWimScope = (systemId, scope) => setDraft((current) => {
       const parent = current.stationSystems.find((system) => system.id === systemId);
@@ -598,8 +630,8 @@ export function createContextualStationPage(runtime) {
         return {
           ...current,
           lanes: current.lanes.filter((lane) => lane.id !== laneId),
-          stationSystems: current.stationSystems.filter((system) => !parents.has(system.id)),
-          equipment: current.equipment.filter((asset) => asset.laneId !== laneId && !parents.has(asset.parentSystemId)),
+          stationSystems: current.stationSystems.filter((system) => !parents.has(system.id)).map((system) => system.laneId === laneId ? { ...system, laneId: null } : system),
+          equipment: current.equipment.filter((asset) => !WIM_TYPES.has(asset.type) || (asset.laneId !== laneId && !parents.has(asset.parentSystemId))).map((asset) => asset.laneId === laneId ? { ...asset, laneId: null } : asset),
         };
       });
     };
@@ -805,8 +837,8 @@ export function createContextualStationPage(runtime) {
       }
       setDraft((current) => ({ ...current, equipment: current.equipment.filter((entry) => entry.id !== asset.id) }));
     };
-    const assetError = (asset) => showErrors ? validation.errors.assetNoById[asset.id] || validation.errors.serialById[asset.id] || validation.errors.wimParentById[asset.id] || validation.errors.laneById[asset.id] : "";
-    const showAsset = (asset) => { const name = centralEquipmentDisplay({ id: asset.catalogItemId, type: asset.type, label: asset.catalogItemLabel, nameEn: asset.catalogItemLabelEn }); const parent = wimInstances.find((item) => item.id === asset.parentSystemId); const scope = effectiveAssetScope(asset); const scopeLabel = scope ? ` · ${scope}` : ""; return <div className="ops-equipment-row" key={asset.id} id={`draft-asset-${asset.id}`}><div className="ops-equipment-title"><strong>{name.primary}</strong><small>{name.secondary}{scopeLabel} · {asset.parentSystemId ? `${centralSystemDisplay(parent).english} #${parent?.instanceNo || "?"}` : `${getBoqAddCategory({ stationFormat: draft.stationFormat, type: asset.type, categoryCode: asset.categoryCode, scope }).code || "Assign system group"} · BOQ/TOR ${asset.categoryCode || "—"}`}</small></div><div className="ops-equipment-fields"><label className="ops-field"><span>Asset No. <em>(จำเป็น)</em></span><input value={asset.assetNo || ""} onChange={(event) => updateAsset(asset.id, "assetNo", event.target.value)} aria-invalid={Boolean(assetError(asset))} />{assetError(asset) && <small className="ops-field-error" role="alert">{assetError(asset)}</small>}</label><label className="ops-field"><span>ตำแหน่งติดตั้ง (ภายหลังได้)</span><input value={asset.location || ""} onChange={(event) => updateAsset(asset.id, "location", event.target.value)} /></label><label className="ops-field"><span>Serial Number (ภายหลังได้)</span><input value={asset.serialNo || ""} onChange={(event) => { updateAsset(asset.id, "serialNo", event.target.value); }} onBlur={() => { if (asset.serialNo) updateAsset(asset.id, "serialStatus", "present"); }} /></label>{asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-serial-fieldset"><legend>Output ของ Switching DC</legend>{OUTPUTS.map((voltage) => <label key={voltage}><input type="checkbox" checked={(asset.outputVoltages || []).includes(voltage)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(voltage) ? asset.outputVoltages.filter((value) => value !== voltage) : [...(asset.outputVoltages || []), voltage])} />{voltage}VDC</label>)}</fieldset>}</div></div>; };
+    const assetError = (asset) => showErrors ? validation.errors.assetNoById[asset.id] || validation.errors.serialById[asset.id] || validation.errors.wimParentById[asset.id] || validation.errors.laneById[asset.id] || validation.errors.lprCameraParentById[asset.id] : "";
+    const showAsset = (asset) => { const name = centralEquipmentDisplay({ id: asset.catalogItemId, type: asset.type, label: asset.catalogItemLabel, nameEn: asset.catalogItemLabelEn }); const parent = wimInstances.find((item) => item.id === asset.parentSystemId); const scope = effectiveAssetScope(asset); const scopeLabel = scope ? ` · ${scope}` : ""; return <div className="ops-equipment-row" key={asset.id} id={`draft-asset-${asset.id}`}><div className="ops-equipment-title"><strong>{name.primary}</strong><small>{name.secondary}{scopeLabel} · {asset.parentSystemId ? `${centralSystemDisplay(parent).english} #${parent?.instanceNo || "?"}` : `${getBoqAddCategory({ stationFormat: draft.stationFormat, type: asset.type, categoryCode: asset.categoryCode, scope }).code || "Assign system group"} · BOQ/TOR ${asset.categoryCode || "—"}`}</small></div><div className="ops-equipment-fields"><label className="ops-field"><span>Asset No. <em>(จำเป็น)</em></span><input value={asset.assetNo || ""} onChange={(event) => updateAsset(asset.id, "assetNo", event.target.value)} aria-invalid={Boolean(assetError(asset))} />{assetError(asset) && <small className="ops-field-error" role="alert">{assetError(asset)}</small>}</label><label className="ops-field"><span>ตำแหน่งติดตั้ง (ภายหลังได้)</span><input value={asset.location || ""} onChange={(event) => updateAsset(asset.id, "location", event.target.value)} /></label><label className="ops-field"><span>Serial Number (ภายหลังได้)</span><input value={asset.serialNo || ""} onChange={(event) => { updateAsset(asset.id, "serialNo", event.target.value); }} onBlur={() => { if (asset.serialNo) updateAsset(asset.id, "serialStatus", "present"); }} /></label><PowerSupplyFields asset={asset} onChange={(field, value) => updateAsset(asset.id, field, value)} />{asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-serial-fieldset"><legend>Output ของ Switching DC</legend>{OUTPUTS.map((voltage) => <label key={voltage}><input type="checkbox" checked={(asset.outputVoltages || []).includes(voltage)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(voltage) ? asset.outputVoltages.filter((value) => value !== voltage) : [...(asset.outputVoltages || []), voltage])} />{voltage}VDC</label>)}</fieldset>}</div></div>; };
     const renderEquipmentItem = (item) => {
       if (item.parentId) {
         const parent = wimInstances.find((entry) => entry.id === item.parentId)
@@ -843,7 +875,8 @@ export function createContextualStationPage(runtime) {
         <div className="ops-boq-category-items">{category.items.map(renderEquipmentItem)}</div>
       </details>;
     };
-    const referenceItemAssets = (item) => activeAssets.filter((asset) => asset.catalogItemId === item.id
+    const referenceItemAssets = (item) => activeAssets.filter((asset) => (asset.catalogItemId === item.id
+      || (item.type && String(asset.type || "").toUpperCase() === String(item.type).toUpperCase()))
       && (!item.variantScope || effectiveAssetScope(asset) === item.variantScope)
       && (!item.parentId || asset.parentSystemId === item.parentId)
       && (!item.parentAssetId || asset.parentAssetId === item.parentAssetId)
@@ -875,9 +908,9 @@ export function createContextualStationPage(runtime) {
                 <label className="ops-field"><span>Asset No. <em>(จำเป็น)</em></span><input value={asset.assetNo || ""} aria-invalid={Boolean(error)} onChange={(event) => updateAsset(asset.id, "assetNo", event.target.value)} />{error && <small className="ops-field-error" role="alert">{error}</small>}</label>
                 <label className="ops-field"><span>Serial Number</span><input value={asset.serialNo || ""} onChange={(event) => updateAsset(asset.id, "serialNo", event.target.value)} onBlur={() => { if (asset.serialNo) updateAsset(asset.id, "serialStatus", "present"); }} /></label>
                 <label className="ops-field"><span>ตำแหน่งติดตั้ง</span><input value={asset.location || ""} onChange={(event) => updateAsset(asset.id, "location", event.target.value)} /></label>
-                <label className="ops-field"><span>สถานะ Serial</span><select value={asset.serialStatus || "unknown"} onChange={(event) => updateAsset(asset.id, "serialStatus", event.target.value)}><option value="unknown">ยังไม่ระบุ</option><option value="present">มี Serial</option><option value="not-available">ไม่มี / อ่านไม่ได้</option></select></label>
+                <label className="ops-field"><span>สถานะ Serial</span><CustomSelect value={asset.serialStatus || "unknown"} onChange={(event) => updateAsset(asset.id, "serialStatus", event.target.value)}><option value="unknown">ยังไม่ระบุ</option><option value="present">มี Serial</option><option value="not-available">ไม่มี / อ่านไม่ได้</option></CustomSelect></label>
               </div>
-              {asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-reference-output-fieldset"><legend>Output ของ Switching DC</legend><div className="ops-serial-options"><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(12)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(12) ? asset.outputVoltages.filter((value) => value !== 12) : [...(asset.outputVoltages || []), 12].sort((left, right) => left - right))} />12VDC</label><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(24)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(24) ? asset.outputVoltages.filter((value) => value !== 24) : [...(asset.outputVoltages || []), 24].sort((left, right) => left - right))} />24VDC</label><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(48)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(48) ? asset.outputVoltages.filter((value) => value !== 48) : [...(asset.outputVoltages || []), 48].sort((left, right) => left - right))} />48VDC</label></div></fieldset>}
+              <PowerSupplyFields asset={asset} onChange={(field, value) => updateAsset(asset.id, field, value)} />{asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-reference-output-fieldset"><legend>Output ของ Switching DC</legend><div className="ops-serial-options"><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(12)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(12) ? asset.outputVoltages.filter((value) => value !== 12) : [...(asset.outputVoltages || []), 12].sort((left, right) => left - right))} />12VDC</label><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(24)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(24) ? asset.outputVoltages.filter((value) => value !== 24) : [...(asset.outputVoltages || []), 24].sort((left, right) => left - right))} />24VDC</label><label><input type="checkbox" checked={(asset.outputVoltages || []).includes(48)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(48) ? asset.outputVoltages.filter((value) => value !== 48) : [...(asset.outputVoltages || []), 48].sort((left, right) => left - right))} />48VDC</label></div></fieldset>}
             </article>;
           }) : <div className="ops-reference-empty">เพิ่ม Asset เพื่อกรอกรายละเอียด</div>}
         </div>}
@@ -929,7 +962,12 @@ export function createContextualStationPage(runtime) {
     const toStep = (target) => { setStep(target); setMessage(""); window.scrollTo?.({ top: 0, behavior: "smooth" }); };
     const goNext = () => {
       setShowErrors(true);
-      if (step === 1 && (validation.errors.stationCode || validation.errors.stationName || validation.errors.province)) return;
+      if (step === 1 && validation.errors.stationCode) {
+        const stationCodeDetails = document.getElementById("draft-station-code-details");
+        if (stationCodeDetails) stationCodeDetails.open = true;
+        return;
+      }
+      if (step === 1 && (validation.errors.stationName || validation.errors.province)) return;
       if (step === 2 && !hasSystems) { setMessage("เลือกจุดติดตั้งหรือชุดระบบที่มีจริงอย่างน้อยหนึ่งรายการ"); return; }
       if (step === 2 && wimSelected && !wimInstances.length) { setMessage("เพิ่ม Lane ที่มี WIM อย่างน้อยหนึ่งช่องก่อนเพิ่ม Sensor หรือ Loop"); return; }
       toStep(Math.min(3, step + 1));
@@ -939,10 +977,9 @@ export function createContextualStationPage(runtime) {
       const assetId = blocker.assetId || blocker.assetIds?.[0];
       if (assetId) {
         const asset = activeAssets.find((entry) => entry.id === assetId);
-        const placement = getBoqAddCategory({ stationFormat: draft.stationFormat, type: asset?.type, categoryCode: asset?.categoryCode, scope: effectiveAssetScope(asset) });
         const group = relationshipTree.find((entry) => entry.categories.some((category) => category.assets.some((item) => item.id === assetId)));
         const category = group?.categories.find((entry) => entry.assets.some((item) => item.id === assetId));
-        setActiveRelationshipGroupId(placement.groupId || group?.groupId || activeRelationshipGroupId);
+        setActiveRelationshipGroupId(group?.groupId || activeRelationshipGroupId);
         setActiveRelationshipCategoryKey(category?.id || "");
         setSelectedRelationshipId(assetId);
         setSelectedRelationshipKind("asset");
@@ -956,10 +993,9 @@ export function createContextualStationPage(runtime) {
       }
       if (blocker.systemId) {
         const system = draft.stationSystems.find((entry) => entry.id === blocker.systemId);
-        const placement = getBoqAddCategory({ stationFormat: draft.stationFormat, kind: "system", canonicalItemId: system?.canonicalItemId, categoryCode: system?.checklistMapping?.[0], scope: system?.scope });
         const group = relationshipTree.find((entry) => entry.categories.some((category) => category.systems.some((item) => item.id === blocker.systemId)));
         const category = group?.categories.find((entry) => entry.systems.some((item) => item.id === blocker.systemId));
-        setActiveRelationshipGroupId(placement.groupId || group?.groupId || activeRelationshipGroupId);
+        setActiveRelationshipGroupId(group?.groupId || activeRelationshipGroupId);
         setActiveRelationshipCategoryKey(category?.id || "");
         setSelectedRelationshipId(blocker.systemId);
         setSelectedRelationshipKind("system");
@@ -1096,12 +1132,8 @@ export function createContextualStationPage(runtime) {
       <section className="ops-wim-unbound-panel" aria-labelledby="ops-wim-unbound-title"><header><div><span className="ops-wim-unbound-icon"><Icon name="link" /></span><div><h3 id="ops-wim-unbound-title">อุปกรณ์ที่ยังไม่ผูก ({unboundWimAssets.length + unboundWimParents.length})</h3><p>รายการที่ยังไม่สัมพันธ์กับ WIM Parent หรือ Lane จะไม่ถูกซ่อนไว้</p></div></div></header>{unboundWimParents.length || unboundWimAssets.length ? <div className="ops-wim-unbound-list">{unboundWimParents.map((parent) => <div className="ops-wim-unbound-row" key={parent.id}><span className="ops-wim-parent-icon"><Icon name="system" /></span><div><strong>WIM Sorting System #{parent.instanceNo || "?"}</strong><small>ยังไม่ผูกกับ Lane</small></div><div className="ops-wim-unbound-lane-actions">{draft.lanes.map((lane) => <button type="button" key={lane.id} disabled={wimInstances.some((entry) => entry.id !== parent.id && entry.laneId === lane.id)} onClick={() => moveWimParent(parent.id, lane.id)}>ผูก Lane {lane.laneNo}</button>)}</div></div>)}{unboundWimAssets.map((asset) => { const name = centralEquipmentDisplay({ id: asset.catalogItemId, type: asset.type, label: asset.catalogItemLabel, nameEn: asset.catalogItemLabelEn }); return <div className="ops-wim-unbound-row" key={asset.id}><span className={`ops-wim-asset-icon is-${asset.type === "WIM_LOOP" ? "loop" : "sensor"}`}><Icon name={getEquipmentIconName(asset.type)} /></span><div><strong>{name.primary}</strong><small>{asset.assetNo || "ยังไม่มี Asset No."} · ต้องเลือก WIM Parent</small></div><CustomSelect label={`เลือก WIM Sorting System แม่สำหรับ ${name.primary}`} value={asset.parentSystemId || ""} onChange={(event) => assignWimParent(asset.id, event.target.value)}><option value="">ยังไม่ผูกระบบแม่</option>{wimInstances.filter((parent) => draft.lanes.some((lane) => lane.id === parent.laneId)).map((parent) => <option key={parent.id} value={parent.id}>WIM Sorting System #{parent.instanceNo || "?"} · Lane {laneForParent(parent)?.laneNo || "?"}</option>)}</CustomSelect></div>; })}</div> : <div className="ops-wim-unbound-empty"><Icon name="check" /><strong>ไม่มีอุปกรณ์ค้างผูก</strong><span>Sensor และ Loop ทุกตัวจะรับ Lane จาก WIM Sorting System แม่</span></div>}</section>
     </>;
 
-    // The draft wizard and the saved Station Profile intentionally share the
-    // same relationship tree.  BOQ/TOR remains secondary metadata; the
-    // installed view is built only from the draft's real records.
-    // Legacy BOQ decoding remains available for old drafts: renderReferenceSystemRow
-    // and cards: activeReferenceGroupCard?.cards || [] are intentionally retained
-    // as compatibility helpers, while the visible register below uses the tree.
+    // The draft wizard and saved Station Profile use the same main-category,
+    // Scope, System and Equipment tree. BOQ/TOR values remain references only.
     const relationshipSystemDefinitionsById = new Map(systemDefinitions.map((item) => [item.id, item]));
     const relationshipTree = buildStationRelationshipTree({
       stationFormat: draft.stationFormat,
@@ -1112,7 +1144,7 @@ export function createContextualStationPage(runtime) {
       includeInactive: false,
     });
     const activeRelationshipGroup = relationshipTree.find((group) => group.groupId === activeRelationshipGroupId) || relationshipTree[0] || null;
-    const activeWorkSpecNote = getStationWorkSpecGroupNote(draft.stationFormat, activeRelationshipGroup?.groupId);
+    const activeWorkSpecNote = getStationWorkSpecGroupNote(draft.stationFormat, activeRelationshipGroup?.workSpecNoteId || activeRelationshipGroup?.groupId);
     const workSpecSystemCountForGroup = (group) => (group?.categories || [])
       .reduce((total, category) => total + (category.systems || []).length, 0);
     const relationshipGroupCountLabel = (group, includeAddHint = false) => {
@@ -1123,41 +1155,48 @@ export function createContextualStationPage(runtime) {
       .filter((system) => system.active !== false
         && system.canonicalItemId === canonicalItemId
         && String(system.scope || "").trim() === String(scope || "").trim()).length;
-    const hiddenWorkSpecSystemIds = new Set(["wim-control", "wim-electronics-system"]);
     const activeWorkSpecSections = (() => {
-      const sections = (activeRelationshipGroup?.categories || []).map((category) => ({
-        id: category.id,
-        category,
-        title: category.label,
-        titleTh: category.description,
-        equipment: [],
-        systems: [],
-      }));
-      const sectionsByCategoryId = new Map(sections.map((section) => [section.id, section]));
-      const equipmentKeys = new Set();
-      (activeReferenceEquipmentGroup?.items || []).forEach((item) => {
-        const categoryId = getRelationshipCategoryForAsset({
-          type: item.type,
-          categoryCode: item.categoryCode,
-          scope: item.variantScope,
-        });
-        const section = sectionsByCategoryId.get(categoryId);
-        const key = `${item.id}::${item.variantScope || "default"}`;
-        if (!section || equipmentKeys.has(key)) return;
-        equipmentKeys.add(key);
-        section.equipment.push(item);
-      });
-      (activeReferenceGroupCard?.cards || []).forEach((card) => {
-        const definition = systemDefinitions.find((item) => card.systemIds.includes(item.id));
-        if (!definition || hiddenWorkSpecSystemIds.has(definition.id)) return;
-        const categoryId = getRelationshipCategoryForSystem(definition);
-        const section = sectionsByCategoryId.get(categoryId);
-        if (!section) return;
-        section.systems.push({ card, definition });
-      });
-      // The relationship tree owns category ordering. BOQ/TOR source codes
-      // are shown on each row as references, never used as parent headings.
-      return sections.filter((section) => section.equipment.length || section.systems.length);
+      const category = activeRelationshipGroup?.categories?.[0];
+      if (!category) return [];
+      return category.scopes.map((scopeNode) => {
+        const equipment = scopeNode.equipmentOptions.map((option) => ({
+          id: option.canonicalItemId,
+          canonicalItemId: option.canonicalItemId,
+          type: option.equipmentType,
+          categoryCode: option.sourceRefs?.[0] || "",
+          sourceRefs: option.sourceRefs,
+          variantScope: option.scope,
+          systemIds: option.systemIds,
+          nameEn: option.nameEn,
+          nameTh: option.nameTh,
+          label: option.nameTh,
+          defaultUnit: option.defaultUnit,
+        }));
+        const systems = scopeNode.systemOptions.map((option) => {
+          const definition = systemDefinitions.find((item) => item.id === option.canonicalItemId);
+          return definition ? {
+            definition,
+            option,
+            card: {
+              id: option.id,
+              code: option.sourceRefs?.[0] || "",
+              scope: option.scope,
+              systemIds: [option.canonicalItemId],
+              virtualOwner: option.virtualOwner,
+            },
+          } : null;
+        }).filter(Boolean);
+        return {
+          id: `${category.id}::${scopeNode.id}`,
+          category,
+          scope: scopeNode.scope,
+          scopeNode,
+          title: scopeNode.scope,
+          titleTh: "Scope",
+          equipment,
+          systems,
+        };
+      }).filter((section) => section.equipment.length || section.systems.length || section.scopeNode.hasData);
     })();
     const setRelationshipGroup = (group) => {
       if (!group) return;
@@ -1167,6 +1206,8 @@ export function createContextualStationPage(runtime) {
     const relationshipParentForAsset = (asset) => draft.stationSystems.find((system) => system.id === asset?.parentSystemId) || null;
     const relationshipIsWimEquipment = (asset) => WIM_TYPES.has(asset?.type);
     const relationshipIsWimSystem = (system) => system?.canonicalItemId === WIM_ID;
+    const relationshipIsLprCamera = (asset) => String(asset?.type || "").toUpperCase() === "LPR_CAMERA";
+    const relationshipIsLprSystem = (system) => String(system?.canonicalItemId || system?.systemId || "") === "lpr-control";
     const relationshipAssetStatus = (asset) => {
       if (asset?.active === false) return "inactive";
       if (showErrors && assetError(asset)) return "blocker";
@@ -1175,14 +1216,20 @@ export function createContextualStationPage(runtime) {
     };
     const relationshipSystemStatus = (system) => {
       if (system?.active === false) return "inactive";
-      if (relationshipIsWimSystem(system) && !draft.lanes.some((lane) => lane.id === system.laneId)) return "blocker";
+      if (relationshipIsWimSystem(system) && !draft.lanes.some((lane) => lane.active !== false && lane.id === system.laneId)) return "blocker";
+      if (relationshipIsLprSystem(system)) {
+        const lane = draft.lanes.find((entry) => entry.active !== false && entry.id === system.laneId);
+        const laneScope = lane && getLaneScope(lane, draft.stationSystems);
+        const cameraCount = activeAssets.filter((asset) => relationshipIsLprCamera(asset) && asset.parentSystemId === system.id).length;
+        if (!lane || String(laneScope || "").trim() !== String(system.scope || "").trim() || Number(system.quantity ?? 1) !== 1 || cameraCount !== 1) return "blocker";
+      }
       return "ready";
     };
     const relationshipSystemLabel = (system) => centralSystemDisplay(system).primary;
     const relationshipSystemSecondaryLabel = (system) => centralSystemDisplay(system).secondary;
     const relationshipAssetLabel = (asset) => centralEquipmentDisplay({ id: asset?.catalogItemId, type: asset?.type, label: asset?.catalogItemLabel, nameEn: asset?.catalogItemLabelEn }).primary;
     const relationshipAssetSecondaryLabel = (asset) => centralEquipmentDisplay({ id: asset?.catalogItemId, type: asset?.type, label: asset?.catalogItemLabel, nameEn: asset?.catalogItemLabelEn }).secondary;
-    const relationshipGroupSecondaryLabel = (group) => RELATIONSHIP_GROUP_NAME_TH[group?.groupId] || "";
+    const relationshipGroupSecondaryLabel = (group) => group?.description || RELATIONSHIP_GROUP_NAME_TH[group?.groupId] || "";
     const relationshipGroupSearchText = (group) => [
       group.groupId,
       group.title,
@@ -1195,6 +1242,7 @@ export function createContextualStationPage(runtime) {
         ...category.systemOptions.flatMap((item) => [item.nameEn, item.nameTh, item.scope, ...(item.sourceRefs || [])]),
         ...category.assets.flatMap((asset) => [relationshipAssetLabel(asset), relationshipAssetSecondaryLabel(asset), asset.assetNo, asset.scope]),
         ...category.systems.flatMap((system) => [relationshipSystemLabel(system), relationshipSystemSecondaryLabel(system), system.scope]),
+        ...category.scopes.flatMap((scope) => [scope.scope, ...scope.systems.map((node) => relationshipSystemLabel(node.record)), ...scope.unlinkedAssets.map((entry) => relationshipAssetLabel(entry.record))]),
       ]),
     ].filter(Boolean).join(" ").toLocaleLowerCase();
     const groupSearchQuery = systemSearch.trim().toLocaleLowerCase();
@@ -1231,7 +1279,7 @@ export function createContextualStationPage(runtime) {
         .filter((value, index, values) => value && value !== "—" && values.indexOf(value) === index);
       return refs.length ? `BOQ/TOR ${refs.join(", ")}` : "";
     };
-    const renderWorkSpecSystem = ({ card, definition }) => {
+    const renderWorkSpecSystem = ({ card, definition }, children = null) => {
       const scope = String(card.scope || preferredScopeForFormat(definition, draft.stationFormat) || "").trim();
       const purpose = getStationWorkSpecPurpose(definition.id);
       const installed = draft.stationSystems.filter((system) => system.active !== false
@@ -1244,40 +1292,61 @@ export function createContextualStationPage(runtime) {
         {installed.length > 0 && <div className="ops-work-spec-installed-list">{installed.map((system) => {
           const unit = system.unit || system.referenceUnit || definition.defaultUnit || "ระบบ";
           const isWimInstance = definition.id === WIM_ID;
+          const isLprInstance = definition.id === "lpr-control";
           const systemRowNo = installed.findIndex((entry) => entry.id === system.id) + 1;
+          const linkedLane = draft.lanes.find((lane) => lane.active !== false && lane.id === system.laneId);
           return <div className="ops-work-spec-installed-row" key={system.id}>
-            <span>{isWimInstance ? `Lane ${draft.lanes.find((lane) => lane.id === system.laneId)?.laneNo || system.instanceNo || "—"} · 1 ${unit}` : `System #${systemRowNo} · 1 ${unit}`}</span>
+            <span>{isWimInstance ? `Lane ${linkedLane?.laneNo || system.instanceNo || "—"} · 1 ${unit}` : isLprInstance ? `System #${systemRowNo} · ${linkedLane ? `Lane ${linkedLane.laneNo} · ${getLaneScope(linkedLane, draft.stationSystems)}` : "ยังไม่ผูก Lane"} · 1 ${unit}` : `System #${systemRowNo} · 1 ${unit}`}</span>
             <div className="ops-work-spec-actions">
               <button type="button" onClick={() => selectRelationshipRecord(system, "system", getRelationshipCategoryForSystem(system))}>แก้ไข</button><button type="button" className="is-danger" onClick={() => deleteRelationshipRecord(system, "system")}>ลบ</button>
             </div>
             {selectedRelationshipId === system.id && selectedRelationshipKind === "system" && renderInlineRelationshipEditor(system, "system", scope)}
           </div>;
         })}</div>}
-        <button type="button" className="ops-work-spec-add" onClick={() => addWorkSpecSystem({ card, definition })} aria-label={definition.id === WIM_ID ? `เพิ่ม WIM Lane และ ${name.primary}` : `เพิ่ม System รายการใหม่ ${name.primary} ใน Scope ${scope}`}><Icon name="plus" size="small" />{definition.id === WIM_ID ? "เพิ่ม WIM Lane" : "เพิ่ม System รายการใหม่"}</button>
+        {card.virtualOwner
+          ? <small className="ops-work-spec-requirement">System แม่จะแสดงเมื่อมีข้อมูลจริง และสร้างพร้อม Equipment เมื่อต้องเพิ่มอุปกรณ์</small>
+          : <button type="button" className="ops-work-spec-add" onClick={() => addWorkSpecSystem({ card, definition })} aria-label={definition.id === WIM_ID ? `เพิ่ม WIM Lane และ ${name.primary}` : `เพิ่ม System รายการใหม่ ${name.primary} ใน Scope ${scope}`}><Icon name="plus" size="small" />{definition.id === WIM_ID ? "เพิ่ม WIM Lane" : "เพิ่ม System รายการใหม่"}</button>}
+        {children}
       </article>;
     };
-    const renderWorkSpecEquipment = (item, category) => {
-      const assets = referenceItemAssets(item);
+    const renderWorkSpecEquipment = (item, category, parentSystem = null, virtualOwner = false) => {
       const name = centralEquipmentDisplay(item);
       const scope = item.variantScope || "";
       const sourceReference = workSpecSourceReference(item.categoryCode || item.sourceRefs);
-      const hasWimParent = !WIM_TYPES.has(item.type) || wimInstances.some((parent) => parent.active !== false
+      const hasWimParent = !WIM_TYPES.has(item.type) || (parentSystem ? parentSystem.active !== false && draft.lanes.some((lane) => lane.id === parentSystem.laneId) : wimInstances.some((parent) => parent.active !== false
         && String(parent.scope || "") === String(scope)
-        && draft.lanes.some((lane) => lane.id === parent.laneId));
-      return <article className="ops-work-spec-equipment" key={`${category.id}-${item.id}-${scope || "default"}`}>
+        && draft.lanes.some((lane) => lane.id === parent.laneId)));
+      const hasOwner = !item.systemIds?.length || Boolean(parentSystem) || virtualOwner || item.systemIds.some((ownerId) => draft.stationSystems.some((system) => system.active !== false
+        && (system.canonicalItemId || system.systemId) === ownerId
+        && String(system.scope || "").trim() === String(scope)));
+      const isLprCamera = relationshipIsLprCamera(item);
+      const lprLane = parentSystem && relationshipIsLprSystem(parentSystem)
+        ? draft.lanes.find((lane) => lane.active !== false && lane.id === parentSystem.laneId)
+        : null;
+      const lprLaneReady = Boolean(lprLane && String(getLaneScope(lprLane, draft.stationSystems) || "").trim() === String(parentSystem?.scope || scope).trim());
+      const hasCabinet = !isWimElectronicsSubEquipmentType(item.type) || draft.equipment.some((asset) => asset.active !== false && asset.type === "CONTROL_CABINET" && (!parentSystem || asset.parentSystemId === parentSystem.id));
+      const addable = hasWimParent && hasOwner && hasCabinet && (!isLprCamera || (relationshipIsLprSystem(parentSystem) && lprLaneReady && referenceItemAssets({ ...item, parentId: parentSystem.id }).length === 0));
+      const scopedItem = parentSystem ? { ...item, parentId: parentSystem.id } : item;
+      const assets = referenceItemAssets(scopedItem).filter(asset => !item.displayAssetId || asset.id === item.displayAssetId);
+      return <article className="ops-work-spec-equipment" key={`${category.id}-${item.id}-${scope || "default"}-${parentSystem?.id || "unbound"}`}>
         <div className="ops-work-spec-equipment-heading">
           <span className="ops-reference-item-icon"><Icon name={getEquipmentIconName(item.type)} size="small" /></span>
           <span className="ops-work-spec-copy"><span><strong>{name.primary}</strong><small>{name.secondary}{scope ? ` · ${scope}` : ""}</small>{sourceReference && <small className="ops-work-spec-source-ref">{sourceReference}</small>}</span></span>
-          <span className="ops-work-spec-count">{assets.length} Asset</span>
-          <button type="button" className="ops-work-spec-add" onClick={() => addWorkSpecEquipment(item)} disabled={!hasWimParent} aria-label={`เพิ่ม ${name.primary}${scope ? ` ${scope}` : ""}`}><Icon name="plus" size="small" />เพิ่ม</button>
+          <span className="ops-work-spec-count">{isLprCamera ? `${assets.length}/1 กล้อง` : `${assets.length} Asset`}</span>
+          <button type="button" className="ops-work-spec-add" onClick={() => addWorkSpecEquipment(scopedItem)} disabled={!addable} aria-label={`เพิ่ม ${name.primary}${scope ? ` ${scope}` : ""}`}><Icon name="plus" size="small" />{isLprCamera ? "เพิ่มกล้อง" : "เพิ่ม"}</button>
         </div>
         {!hasWimParent && <p className="ops-work-spec-requirement">เพิ่ม WIM Sorting System และ Lane ใน Scope {scope} ก่อน จึงจะเพิ่ม Sensor/Loop ได้</p>}
+        {isLprCamera && !relationshipIsLprSystem(parentSystem) && <p className="ops-work-spec-requirement">กล้อง LPR ต้องเพิ่มใต้ LPR System ที่ระบุ Lane แล้ว</p>}
+        {isLprCamera && relationshipIsLprSystem(parentSystem) && !lprLaneReady && <p className="ops-work-spec-requirement">ผูก LPR System กับ Lane ใน Scope {scope} ก่อนเพิ่มกล้อง</p>}
+        {isLprCamera && assets.length > 0 && <p className="ops-work-spec-requirement">ระบบนี้มีกล้องแล้ว 1 ตัว หากต้องการเปลี่ยน ให้แก้หรือย้ายกล้องเดิมก่อน</p>}
+        {!hasOwner && <p className="ops-work-spec-requirement">เพิ่ม System แม่ใน Scope {scope} ก่อน จึงจะเพิ่ม Equipment ได้</p>}
+        {!hasCabinet && <p className="ops-work-spec-requirement">เพิ่ม Cabinet ใต้ System นี้ก่อน</p>}
         {assets.map((asset, assetIndex) => {
           const parent = relationshipParentForAsset(asset);
           const error = assetError(asset);
           return <div className="ops-work-spec-asset-instance" id={`sc-asset-row-${asset.id}`} key={asset.id}>
             <span className="ops-work-spec-instance-label">Asset {assetIndex + 1}</span>
-            <span className="ops-work-spec-instance-copy"><strong>{asset.assetNo || "ยังไม่ระบุ Asset No."}</strong><small>{asset.serialNo || "ยังไม่ระบุ Serial Number"}{asset.location ? ` · ${asset.location}` : ""}{WIM_TYPES.has(asset.type) ? ` · ${parent ? `${relationshipSystemLabel(parent)} · Lane ${draft.lanes.find((lane) => lane.id === parent.laneId)?.laneNo || "—"}` : "ยังไม่ผูกระบบแม่"}` : ""}</small>{error && <small className="ops-field-error" role="alert">{error}</small>}</span>
+            <span className="ops-work-spec-instance-copy"><strong>{asset.assetNo || "ยังไม่ระบุ Asset No."}</strong><small>{asset.serialNo || "ยังไม่ระบุ Serial Number"}{asset.location ? ` · ${asset.location}` : ""}{(WIM_TYPES.has(asset.type) || relationshipIsLprCamera(asset)) ? ` · ${parent ? `${relationshipSystemLabel(parent)} · Lane ${draft.lanes.find((lane) => lane.id === parent.laneId)?.laneNo || "ยังไม่ผูก Lane"}` : "ยังไม่ผูกระบบแม่"}` : ""}</small>{error && <small className="ops-field-error" role="alert">{error}</small>}</span>
             <div className="ops-work-spec-actions"><button type="button" onClick={() => selectRelationshipRecord(asset, "asset", getRelationshipCategoryForAsset(asset, parent))}>แก้ไข</button><button type="button" className="is-danger" onClick={() => deleteRelationshipRecord(asset, "asset")}>ลบ</button></div>
             {selectedRelationshipId === asset.id && selectedRelationshipKind === "asset" && renderInlineRelationshipEditor(asset, "asset", scope)}
           </div>;
@@ -1318,19 +1387,19 @@ export function createContextualStationPage(runtime) {
       return <article className="ops-wim-work-spec-lane" key={lane.id} aria-label={"Lane " + laneNo + " · " + scope}>
         <header className="ops-wim-work-spec-lane-heading">
           <div><span className="ops-wim-work-spec-lane-title">Lane {laneNo}</span><small>{lane.label || "ช่องจราจร"}{lane.direction ? " · " + lane.direction : ""}</small></div>
-          <div className="ops-wim-work-spec-lane-summary"><span className="ops-wim-work-spec-scope">{scope}</span><span>{sensorCount} Sensor · {loopCount} Loop</span><button type="button" className="ops-wim-work-spec-lane-remove" aria-label={`ลบ Lane ${laneNo}`} title={`ลบ Lane ${laneNo}`} onClick={() => deleteLaneFromRegister(lane.id)}><Icon name="delete" size="small" /><span>ลบ Lane</span></button></div>
+          <div className="ops-wim-work-spec-lane-summary"><span className="ops-wim-work-spec-scope-badge">{scope}</span><span>{sensorCount} Sensor · {loopCount} Loop</span><button type="button" className="ops-wim-work-spec-lane-remove" aria-label={`ลบ Lane ${laneNo}`} title={`ลบ Lane ${laneNo}`} onClick={() => deleteLaneFromRegister(lane.id)}><Icon name="delete" size="small" /><span>ลบ Lane</span></button></div>
         </header>
         <div className="ops-wim-work-spec-lane-body">
           <section className="ops-wim-work-spec-parent">
             {parent
               ? <div className="ops-wim-work-spec-parent-copy">
-                  <small>.02 Systems &amp; Software · System</small>
+                  <small>System แม่</small>
                   <strong>{systemName.primary}</strong>
                   <span>{systemName.secondary} · {scope} · WIM #{parent.instanceNo || laneNo}</span>
                   {sourceReference && <small className="ops-work-spec-source-ref">{sourceReference}</small>}
                 </div>
               : <div className="ops-wim-work-spec-parent-empty" role="status">
-                  <small>.02 Systems &amp; Software · System</small>
+                  <small>System แม่</small>
                   <strong>ยังไม่มี WIM Sorting System ใน Lane นี้</strong>
                   <span>Lane ยังคงอยู่ เพิ่มระบบแม่ได้อีกครั้งเมื่อต้องการ</span>
                 </div>}
@@ -1343,8 +1412,10 @@ export function createContextualStationPage(runtime) {
             {parent && selectedRelationshipId === parent.id && selectedRelationshipKind === "system" && <div className="ops-wim-work-spec-editor">{renderInlineRelationshipEditor(parent, "system", scope)}</div>}
           </section>
           <section className="ops-wim-work-spec-equipment">
-            <h4>.01 Equipment <small>อุปกรณ์ใน Lane นี้</small></h4>
-            {items.map((item) => {
+            <h4>Equipment <small>อุปกรณ์ใน Lane นี้</small></h4>
+            {groupEquipmentBySubcategory(WIM_ID, items, (item) => item.type).map(({ subcategory, items: groupedItems }) => <div className="ops-equipment-subcategory" key={subcategory.id} role="group" aria-label={`${subcategory.titleEn} · ${subcategory.titleTh}`}>
+              <header className="ops-equipment-subcategory-heading"><strong>{subcategory.titleEn}</strong><small>{subcategory.titleTh}</small></header>
+              <div className="ops-equipment-subcategory-items">{groupedItems.map((item) => {
               const entry = itemCounts.find((candidate) => candidate.item.id === item.id && String(candidate.item.variantScope || "") === String(item.variantScope || ""));
               const assets = entry?.assets || [];
               const laneItem = { ...item, ...(parent ? { parentId: parent.id, variantScope: scope } : {}) };
@@ -1359,7 +1430,8 @@ export function createContextualStationPage(runtime) {
                 </div>
                 {assets.length ? assets.map((asset, index) => renderWorkSpecWimAsset(asset, scope, index)) : <p className="ops-wim-work-spec-empty">{parent ? "ยังไม่มี " + name.primary + " ใน Lane นี้" : "เพิ่ม WIM Sorting System ก่อน จึงเพิ่มอุปกรณ์ได้"}</p>}
               </div>;
-            })}
+              })}</div>
+            </div>)}
           </section>
         </div>
       </article>;
@@ -1403,19 +1475,62 @@ export function createContextualStationPage(runtime) {
       const wimItems = section.equipment.filter((item) => WIM_TYPES.has(item.type));
       const wimSystems = section.systems.filter(({ definition }) => definition.id === WIM_ID);
       const isWimSection = wimItems.length > 0 || wimSystems.length > 0;
-      const scopes = [...new Set([
-        ...wimItems.map((item) => String(item.variantScope || "").trim()),
-        ...wimSystems.map(({ card }) => String(card.scope || "").trim()),
-      ].filter(Boolean))];
-      const defaultWimScope = preferredScopeForFormat(relationshipSystemDefinitionsById.get(WIM_ID), draft.stationFormat);
-      const wimScopes = isWimSection ? (scopes.length ? scopes : [defaultWimScope].filter(Boolean)) : [];
       const otherEquipment = isWimSection ? section.equipment.filter((item) => !WIM_TYPES.has(item.type)) : section.equipment;
       const otherSystems = isWimSection ? section.systems.filter(({ definition }) => definition.id !== WIM_ID) : section.systems;
+      const renderGroupedEquipment = (systemId, items, parentSystem = null, virtualOwner = false) => {
+        const orderedItems = systemId === "wim-electronics-system" ? [...items].sort((a, b) => electronicsTypeOrder(a.type) - electronicsTypeOrder(b.type)) : items;
+        const cabinetOption = orderedItems.find(item => item.type === "CONTROL_CABINET");
+        const cabinets = cabinetOption ? sortElectronicsByCabinet(referenceItemAssets(parentSystem ? { ...cabinetOption, parentId: parentSystem.id } : cabinetOption)) : [];
+        if (systemId === "wim-electronics-system" && cabinets.length) {
+          const cabinetIds = new Set(cabinets.map(cabinet => cabinet.id));
+          const unassigned = activeAssets.filter(asset => isWimElectronicsSubEquipmentType(asset.type) && !cabinetIds.has(asset.parentAssetId)
+            && (!parentSystem || asset.parentSystemId === parentSystem.id)
+            && (!cabinetOption.variantScope || effectiveAssetScope(asset) === cabinetOption.variantScope));
+          return <>
+            {cabinets.map(cabinet => <section className="ops-electronics-cabinet" key={cabinet.id} aria-label={`ตู้ ${cabinet.assetNo || cabinet.id}`}>
+              <h4>ตู้ {cabinet.assetNo || cabinet.id}</h4>
+              {renderWorkSpecEquipment({ ...cabinetOption, displayAssetId: cabinet.id }, section.category, parentSystem, virtualOwner)}
+              {orderedItems.filter(item => item.type !== "CONTROL_CABINET" && (!item.parentAssetId || item.parentAssetId === cabinet.id)).map(item => renderWorkSpecEquipment({ ...item, parentAssetId: cabinet.id }, section.category, parentSystem, virtualOwner))}
+            </section>)}
+            {unassigned.length > 0 && <section aria-label="ยังไม่ระบุตู้"><h4>ยังไม่ระบุตู้</h4>{sortElectronicsByCabinet(unassigned).map(asset => {
+              const option = orderedItems.find(item => item.type === asset.type);
+              return option ? renderWorkSpecEquipment({ ...option, parentAssetId: null, displayAssetId: asset.id }, section.category, parentSystem, virtualOwner) : null;
+            })}</section>}
+          </>;
+        }
+        return groupEquipmentBySubcategory(
+        systemId,
+        orderedItems,
+        (item) => item.type,
+      ).map(({ subcategory, items: groupedItems }) => <div className="ops-equipment-subcategory" key={subcategory.id} role="group" aria-label={`${subcategory.titleEn} · ${subcategory.titleTh}`}>
+        <header className="ops-equipment-subcategory-heading"><strong>{subcategory.titleEn}</strong><small>{subcategory.titleTh}</small></header>
+        <div className="ops-equipment-subcategory-items">{groupedItems.map((item) => renderWorkSpecEquipment(item, section.category, parentSystem, virtualOwner))}</div>
+      </div>);
+      };
+      const renderSystemWithEquipment = ({ card, definition, option }) => {
+        const scope = String(card.scope || section.scope || "").trim();
+        const installed = draft.stationSystems.filter((system) => system.active !== false
+          && (system.canonicalItemId || system.systemId) === definition.id
+          && String(system.scope || "").trim() === scope);
+        const children = otherEquipment.filter((item) => item.systemIds?.includes(definition.id));
+        const ownerPanels = installed.length
+          ? installed.map((parentSystem, parentIndex) => {
+            const lane = draft.lanes.find((entry) => entry.active !== false && entry.id === parentSystem.laneId);
+            const parentTitle = definition.id === "lpr-control"
+              ? `LPR System #${parentIndex + 1}${lane ? ` · Lane ${lane.laneNo}` : " · ยังไม่ผูก Lane"}`
+              : relationshipSystemLabel(parentSystem);
+            return <section className="ops-work-spec-system-equipment" key={parentSystem.id} aria-label={`Equipment ใต้ ${parentTitle}`}><header><strong>Equipment ใต้ {parentTitle}</strong><small>{scope}{lane ? ` · ${getLaneScope(lane, draft.stationSystems)}` : ""}{definition.id === "lpr-control" ? " · 1 ช่องกล้องจริง" : ""}</small></header>{children.length ? renderGroupedEquipment(definition.id, children, parentSystem) : <p className="ops-reference-empty">System นี้ยังไม่มีรายการ Equipment ให้เพิ่ม</p>}</section>;
+          })
+          : children.length ? <section className="ops-work-spec-system-equipment" aria-label={`Equipment สำหรับ ${centralSystemDisplay(definition).primary}`}><header><strong>Equipment ของ System นี้</strong><small>{scope}</small></header>{renderGroupedEquipment(definition.id, children, null, Boolean(card.virtualOwner))}</section> : null;
+        return renderWorkSpecSystem({ card: { ...card, scope, virtualOwner: card.virtualOwner ?? option?.virtualOwner }, definition }, ownerPanels);
+      };
+      const usedEquipment = new Set(otherSystems.flatMap(({ definition }) => otherEquipment.filter((item) => item.systemIds?.includes(definition.id)).map((item) => item.id)));
+      const unlinkedEquipment = otherEquipment.filter((item) => !usedEquipment.has(item.id));
       return <section className="ops-work-spec-card" key={section.id}>
-        <header className="ops-work-spec-heading"><span className="ops-reference-item-icon"><Icon name={getScIconName(section.category.icon)} size="small" /></span><div><strong>{section.title}</strong>{section.titleTh && <small>{section.titleTh}</small>}</div><span className="ops-work-spec-count">{section.equipment.reduce((count, item) => count + referenceItemAssets(item).length, 0)} Asset · {section.systems.reduce((total, { card, definition }) => total + workSpecSystemCountFor(definition.id, card.scope), 0)} System</span></header>
-        {isWimSection && wimScopes.map((scope) => renderWorkSpecWimScope(section, scope, wimItems.filter((item) => !item.variantScope || String(item.variantScope).trim() === scope)))}
-        {otherEquipment.length > 0 && <div className="ops-work-spec-section"><h4>.01 Equipment <small>อุปกรณ์</small></h4>{otherEquipment.map((item) => renderWorkSpecEquipment(item, section))}</div>}
-        {otherSystems.length > 0 && <div className="ops-work-spec-section"><h4>.02 Systems &amp; Software <small>ระบบและซอฟต์แวร์</small></h4><div className="ops-work-spec-systems">{otherSystems.map(renderWorkSpecSystem)}</div></div>}
+        <header className="ops-work-spec-heading"><span className="ops-reference-item-icon"><Icon name={getScIconName(section.category.icon)} size="small" /></span><div><strong>{section.category.label} · {section.scope}</strong><small>Scope</small></div><span className="ops-work-spec-count">{section.scopeNode.assetCount} Equipment · {section.scopeNode.systemCount} System</span></header>
+        {isWimSection && renderWorkSpecWimScope(section, section.scope, wimItems)}
+        {otherSystems.length > 0 && <div className="ops-work-spec-systems">{otherSystems.map(renderSystemWithEquipment)}</div>}
+        {unlinkedEquipment.length > 0 && <section className="ops-work-spec-system-equipment is-unlinked"><header><strong>ยังไม่ผูก System</strong><small>เพิ่ม System ที่รองรับก่อน จึงจะเพิ่ม Equipment ได้</small></header>{unlinkedEquipment.map((item) => renderWorkSpecEquipment(item, section.category))}</section>}
         {!isWimSection && !section.equipment.length && !section.systems.length && <div className="ops-reference-empty">ไม่มีรายการใน Work Spec นี้</div>}
       </section>;
     };
@@ -1444,14 +1559,27 @@ export function createContextualStationPage(runtime) {
           else addWimLane(scope);
           return;
         }
-        addSystemInstanceForScope(definition, scope);
+        const addedSystem = addSystemInstanceForScope(definition, scope);
+        if (definition.id === "lpr-control") {
+          setSelectedRelationshipId(addedSystem.id);
+          setSelectedRelationshipKind("system");
+        }
         setMessage("เพิ่ม System รายการใหม่ " + (definition.nameEn || definition.nameTh) + " ใน Scope " + (scope || "สถานี") + " แล้ว");
         return;
       }
       const item = canonical.find((entry) => entry.id === option.canonicalItemId && entry.kind === "asset");
       if (!item?.equipmentType) return setMessage("ยังไม่พบอุปกรณ์ชนิดนี้ในรายการมาตรฐาน");
+      const parentChoices = getEquipmentParentChoices(draft, { type: item.equipmentType, systemIds: item.systemIds || [], scope, parentId: option.parentId, parentAssetId: option.parentAssetId });
+      if (parentChoices.length > 1 || (!option.parentId && parentChoices.length > 0 && !option.confirmedParent)) {
+        setPendingEquipmentAdd({ categoryId, option, choices: parentChoices });
+        return;
+      }
+      if (isWimElectronicsSubEquipmentType(item.equipmentType) && !parentChoices.length) return setMessage("เพิ่ม Cabinet ที่ผูกกับ WIM Electronics System ใน Scope นี้ก่อน แล้วเลือก Cabinet แม่ของอุปกรณ์");
+      if (option.parentId && !parentChoices.length) return setMessage("ไม่พบระบบแม่ที่ใช้งานและตรงกับ Scope นี้ กรุณาเลือกความสัมพันธ์ใหม่");
+      const parentChoice = parentChoices[0];
+      option = { ...option, ...(parentChoice ? { parentId: parentChoice.system.id, parentAssetId: parentChoice.cabinet?.id || null } : {}) };
       if (WIM_TYPES.has(item.equipmentType)) {
-        const parent = wimInstances.find((system) => system.active !== false && String(system.scope || "") === scope && draft.lanes.some((lane) => lane.id === system.laneId));
+        const parent = parentChoice?.system;
         if (!parent) return setMessage("เพิ่ม WIM Sorting System และ Lane ใน Scope นี้ก่อน จึงจะเพิ่ม WIM Sensor หรือ WIM Loop ได้");
         addWimAssetForParent(item.equipmentType, parent);
         return;
@@ -1492,6 +1620,18 @@ export function createContextualStationPage(runtime) {
     const saveRelationshipRecord = (record, kind, edited, contextScope = "") => {
       if (kind === "asset") {
         const nextEdited = { ...edited };
+        if (relationshipIsLprCamera(record)) {
+          const parent = draft.stationSystems.find((system) => system.id === edited.parentSystemId
+            && relationshipIsLprSystem(system) && system.active !== false && Number(system.quantity ?? 1) > 0);
+          const lane = parent && draft.lanes.find((entry) => entry.id === parent.laneId && entry.active !== false);
+          if (!parent || !lane) return setMessage("กรุณาเลือก LPR System ที่ผูกกับ Lane ใช้งานอยู่");
+          if (contextScope && String(parent.scope || "") !== String(contextScope)) return setMessage(`กล้องนี้อยู่ใน Scope ${contextScope} กรุณาเลือกระบบแม่ใน Scope เดียวกัน`);
+          const occupied = draft.equipment.some((asset) => asset.id !== record.id && relationshipIsLprCamera(asset) && asset.active !== false && asset.parentSystemId === parent.id);
+          if (occupied) return setMessage("LPR System นี้มีกล้องจริงอยู่แล้ว 1 ตัว กรุณาเลือก System ว่างหรือเอากล้องเดิมออกก่อน");
+          nextEdited.parentSystemId = parent.id;
+          nextEdited.scope = parent.scope;
+          nextEdited.laneId = parent.laneId;
+        }
         if (relationshipIsWimEquipment(record)) {
           const parent = draft.stationSystems.find((system) => system.id === edited.parentSystemId
             && relationshipIsWimSystem(system) && system.active !== false);
@@ -1534,11 +1674,22 @@ export function createContextualStationPage(runtime) {
         }
         setDraft((current) => {
           const equipment = current.equipment.map((asset) => asset.id === record.id ? { ...asset, ...nextEdited } : asset);
-          return { ...current, equipment: synchronizeGeneratedAssetNos(equipment, current.stationSystems) };
+          return { ...current, equipment: relationshipIsLprCamera(record) ? equipment : synchronizeGeneratedAssetNos(equipment, current.stationSystems) };
         });
-        const placement = getBoqAddCategory({ stationFormat: draft.stationFormat, type: record.type, categoryCode: record.categoryCode, scope: effectiveAssetScope({ ...record, ...nextEdited }) });
-        if (placement.groupId) setActiveRelationshipGroupId(placement.groupId);
+      const categoryId = getRelationshipCategoryForAsset({ ...record, ...nextEdited }, relationshipParentForAsset({ ...record, ...nextEdited }));
+      const workpoint = findStationWorkpoint(draft.stationFormat, categoryId, relationshipParentForAsset({ ...record, ...nextEdited })?.scope || nextEdited.scope || record.scope);
+      setActiveRelationshipGroupId(workpoint?.id || activeRelationshipGroupId);
       } else {
+        if (relationshipIsLprSystem(record)) {
+          const laneId = String(edited.laneId || "").trim();
+          const lane = draft.lanes.find((entry) => entry.active !== false && entry.id === laneId);
+          if (!lane) return setMessage("กรุณาผูก LPR System กับ Lane ที่ติดตั้งจริงก่อนบันทึก");
+          const laneScope = getLaneScope(lane, draft.stationSystems);
+          if (String(laneScope || "").trim() !== String(contextScope || edited.scope || record.scope || "").trim()) return setMessage("Lane และ LPR System ต้องอยู่ใน Scope เดียวกัน");
+          const occupied = draft.stationSystems.some((system) => system.id !== record.id && relationshipIsLprSystem(system) && system.active !== false && system.laneId === laneId);
+          if (occupied) return setMessage("Lane นี้มี LPR System อยู่แล้ว เลือก Lane ว่างก่อนบันทึก");
+          edited = { ...edited, laneId, scope: laneScope };
+        }
         if (relationshipIsWimSystem(record) && edited.laneId !== record.laneId) {
           const occupied = draft.stationSystems.some((system) => system.id !== record.id && relationshipIsWimSystem(system) && system.active !== false && system.laneId === edited.laneId);
           if (occupied) return setMessage("Lane นี้มี WIM Sorting System อยู่แล้ว เลือก Lane ว่างก่อนบันทึก");
@@ -1564,8 +1715,9 @@ export function createContextualStationPage(runtime) {
             lanes,
           };
         });
-        const placement = getBoqAddCategory({ stationFormat: draft.stationFormat, kind: "system", canonicalItemId: record.canonicalItemId, categoryCode: record.checklistMapping?.[0], scope: edited.scope });
-        if (placement.groupId) setActiveRelationshipGroupId(placement.groupId);
+        const categoryId = getRelationshipCategoryForSystem({ ...record, ...edited });
+        const workpoint = findStationWorkpoint(draft.stationFormat, categoryId, edited.scope || record.scope);
+        setActiveRelationshipGroupId(workpoint?.id || activeRelationshipGroupId);
       }
       setMessage("บันทึกการแก้ไขในร่างสถานีแล้ว");
       setSelectedRelationshipId(null);
@@ -1602,6 +1754,10 @@ export function createContextualStationPage(runtime) {
           const laneNo = draft.lanes.find((lane) => lane.id === record.laneId)?.laneNo || "—";
           setMessage(`ลบ WIM Sorting System #${record.instanceNo || "—"} ออกจาก Lane ${laneNo} แล้ว · Lane ยังคงอยู่`);
         }
+        return;
+      }
+      if (relationshipIsLprSystem(record) && activeAssets.some((asset) => relationshipIsLprCamera(asset) && asset.parentSystemId === record.id)) {
+        setMessage("ยังลบ LPR System นี้ไม่ได้ เพราะมีกล้องจริงผูกอยู่ ให้ย้ายกล้องไป System อื่นหรือนำกล้องออกก่อน");
         return;
       }
       const ownerTypes = new Set(canonical.filter((item) => item.kind === "asset" && item.equipmentType && item.systemIds?.includes(record.canonicalItemId)).map((item) => item.equipmentType));
@@ -1660,17 +1816,18 @@ export function createContextualStationPage(runtime) {
     const deleteLaneFromRegister = async (laneId) => {
       const lane = draft.lanes.find((entry) => entry.id === laneId);
       if (!lane) return;
-      const parents = draft.stationSystems.filter((system) => system.canonicalItemId === WIM_ID && system.laneId === laneId);
+      const parents = draft.stationSystems.filter((system) => (system.canonicalItemId === WIM_ID || relationshipIsLprSystem(system)) && system.laneId === laneId);
       const parentIds = new Set(parents.map((system) => system.id));
       const children = draft.equipment.filter((asset) => asset.laneId === laneId || parentIds.has(asset.parentSystemId));
       if ((parents.length || children.length) && requestConfirm) {
-        const confirmed = await requestConfirm({ title: "ลบ Lane " + lane.laneNo + " หรือไม่", description: "Lane นี้มี WIM Sorting System " + parents.length + " ระบบ และอุปกรณ์ที่ผูกอยู่ " + children.length + " รายการ ข้อมูลเหล่านี้จะถูกนำออกจากร่างสถานีด้วย", confirmLabel: "ลบ Lane และรายการที่เกี่ยวข้อง", confirmVariant: "danger-ghost", confirmIcon: "delete" });
+        const lprCount = parents.filter(relationshipIsLprSystem).length;
+        const confirmed = await requestConfirm({ title: "ลบ Lane " + lane.laneNo + " หรือไม่", description: `Lane นี้มี System ผูกอยู่ ${parents.length} ระบบ (LPR ${lprCount}) และอุปกรณ์ ${children.length} รายการ ระบบจะยกเลิกความสัมพันธ์กับ Lane และคงกล้องจริงไว้ให้แก้ไขต่อ`, confirmLabel: "ลบ Lane และยกเลิกการผูก", confirmVariant: "danger-ghost", confirmIcon: "delete" });
         if (!confirmed) return;
       }
       removeWimLane(laneId);
       setEditingLaneId(null);
       setLaneEditDraft(null);
-      setMessage(`ลบ Lane ${lane.laneNo} พร้อมรายการ WIM ที่ผูกไว้จากร่างแล้ว`);
+      setMessage(`ลบ Lane ${lane.laneNo} แล้ว · ระบบและกล้อง LPR ยังคงอยู่ในร่างเพื่อให้ผูก Lane ใหม่`);
     };
     const renderInlineRelationshipEditor = (record, kind, contextScope = "") => {
       if (selectedRelationshipId !== record.id || selectedRelationshipKind !== kind) return null;
@@ -1683,7 +1840,11 @@ export function createContextualStationPage(runtime) {
       const ownerSystemOptions = kind === "asset" && ownerSystemIds.length && !relationshipIsWimEquipment(record) && !isWimElectronicsSubEquipmentType(record.type)
         ? draft.stationSystems.filter((system) => system.active !== false
           && ownerSystemIds.includes(system.canonicalItemId || system.systemId)
-          && (!contextScope || String(system.scope || "") === String(contextScope)))
+          && (!contextScope || String(system.scope || "") === String(contextScope))
+          && (!relationshipIsLprCamera(record) || system.id === record.parentSystemId || (relationshipIsLprSystem(system)
+            && draft.lanes.some((lane) => lane.active !== false && lane.id === system.laneId)
+            && !activeAssets.some((asset) => relationshipIsLprCamera(asset) && asset.id !== record.id && asset.parentSystemId === system.id))))
+          .map((system) => relationshipIsLprCamera(record) ? { ...system, laneLabel: `Lane ${draft.lanes.find((lane) => lane.id === system.laneId)?.laneNo || "—"}` } : system)
         : [];
       const wimParentOptions = kind === "asset" && relationshipIsWimEquipment(record)
         ? wimInstances.filter((system) => system.active !== false
@@ -1710,18 +1871,25 @@ export function createContextualStationPage(runtime) {
         const otherParent = wimInstances.find((system) => system.id !== record.id && system.laneId === lane.id);
         const scope = lane.scope || wimInstances.find((system) => system.laneId === lane.id)?.scope || record.scope;
         return !otherParent && String(scope || "") === String(contextScope || record.scope || "");
+      }) : kind === "system" && relationshipIsLprSystem(record) ? draft.lanes.filter((lane) => {
+        const occupied = lprInstances.some((system) => system.id !== record.id && system.laneId === lane.id);
+        return !occupied && String(getLaneScope(lane, draft.stationSystems) || "").trim() === String(contextScope || record.scope || "").trim();
       }) : [];
       if (kind === "system" && relationshipIsWimSystem(record) && !laneOptions.some((lane) => lane.id === record.laneId)) {
         const currentLane = draft.lanes.find((lane) => lane.id === record.laneId);
         if (currentLane) laneOptions.unshift(currentLane);
       }
-      const relationshipText = kind === "asset" && relationshipIsWimEquipment(record) ? (parent ? relationshipSystemLabel(parent) + " · Lane " + (draft.lanes.find((lane) => lane.id === parent.laneId)?.laneNo || "?") : "ยังไม่ผูกระบบแม่") : "";
-      return <StationRelationshipInlineEditor record={record} kind={kind} label={kind === "asset" ? relationshipAssetLabel(record) : relationshipSystemLabel(record)} scopeChoices={scopeChoices} laneOptions={laneOptions} wimParentOptions={wimParentOptions} ownerSystemOptions={ownerSystemOptions} ownerSystemRequired={Boolean(ownerSystemIds.length && !relationshipIsWimEquipment(record) && !isWimElectronicsSubEquipmentType(record.type))} cabinetOptions={cabinetOptions} electronicsSystemOptions={electronicsSystemOptions} contextScope={contextScope} relationshipText={relationshipText} error={kind === "asset" ? assetError(record) : ""} showSerialReason={kind === "asset"} showSystemDetails={kind === "system"} saveHint="บันทึกการแก้ไขนี้ไว้ในร่างสถานี" onSave={(edited) => saveRelationshipRecord(record, kind, edited, contextScope)} onCancel={() => setSelectedRelationshipId(null)} />;
+      if (kind === "system" && relationshipIsLprSystem(record) && !laneOptions.some((lane) => lane.id === record.laneId)) {
+        const currentLane = draft.lanes.find((lane) => lane.id === record.laneId);
+        if (currentLane) laneOptions.unshift(currentLane);
+      }
+      const relationshipText = kind === "asset" && (relationshipIsWimEquipment(record) || relationshipIsLprCamera(record)) ? (parent ? relationshipSystemLabel(parent) + " · Lane " + (draft.lanes.find((lane) => lane.id === parent.laneId)?.laneNo || "?") : "ยังไม่ผูกระบบแม่") : "";
+      return <StationRelationshipInlineEditor record={record} kind={kind} label={kind === "asset" ? relationshipAssetLabel(record) : relationshipSystemLabel(record)} scopeChoices={scopeChoices} laneOptions={laneOptions} lprSystemRequiresLane={kind === "system" && relationshipIsLprSystem(record)} onAddLane={(scope) => addLane(scope)} wimParentOptions={wimParentOptions} ownerSystemOptions={ownerSystemOptions} ownerSystemRequired={Boolean(ownerSystemIds.length && !relationshipIsWimEquipment(record) && !isWimElectronicsSubEquipmentType(record.type))} cabinetOptions={cabinetOptions} electronicsSystemOptions={electronicsSystemOptions} contextScope={contextScope} relationshipText={relationshipText} error={kind === "asset" ? assetError(record) : ""} showSerialReason={kind === "asset"} showSystemDetails={kind === "system"} saveHint="บันทึกการแก้ไขนี้ไว้ในร่างสถานี" onSave={(edited) => saveRelationshipRecord(record, kind, edited, contextScope)} onCancel={() => setSelectedRelationshipId(null)} />;
     };
     const renderLaneEditor = (lane) => {
       if (!laneEditDraft || editingLaneId !== lane.id) return null;
       const scopeChoices = draft.stationFormat === "IMPS" ? ["ImPS"] : ["High Speed", "Low Speed"];
-      return <div className="sc-lane-inline-editor"><label className="ops-field"><span>ชื่อ Lane</span><input value={laneEditDraft.label || ""} onChange={(event) => setLaneEditDraft((current) => ({ ...current, label: event.target.value }))} /></label><label className="ops-field"><span>ทิศทาง</span><input value={laneEditDraft.direction || ""} onChange={(event) => setLaneEditDraft((current) => ({ ...current, direction: event.target.value }))} /></label><label className="ops-field"><span>ขอบเขต WIM</span><select value={laneEditDraft.scope || scopeChoices[0]} onChange={(event) => setLaneEditDraft((current) => ({ ...current, scope: event.target.value }))}>{scopeChoices.map((scope) => <option key={scope} value={scope}>{scope}</option>)}</select></label><div className="sc-lane-inline-actions"><Button variant="secondary" onClick={saveLaneEdit}>บันทึก</Button><Button variant="ghost" onClick={() => { setEditingLaneId(null); setLaneEditDraft(null); }}>ยกเลิก</Button></div></div>;
+      return <div className="sc-lane-inline-editor"><label className="ops-field"><span>ชื่อ Lane</span><input value={laneEditDraft.label || ""} onChange={(event) => setLaneEditDraft((current) => ({ ...current, label: event.target.value }))} /></label><label className="ops-field"><span>ทิศทาง</span><input value={laneEditDraft.direction || ""} onChange={(event) => setLaneEditDraft((current) => ({ ...current, direction: event.target.value }))} /></label><label className="ops-field"><span>ขอบเขต WIM</span><CustomSelect value={laneEditDraft.scope || scopeChoices[0]} onChange={(event) => setLaneEditDraft((current) => ({ ...current, scope: event.target.value }))}>{scopeChoices.map((scope) => <option key={scope} value={scope}>{scope}</option>)}</CustomSelect></label><div className="sc-lane-inline-actions"><Button variant="secondary" onClick={saveLaneEdit}>บันทึก</Button><Button variant="ghost" onClick={() => { setEditingLaneId(null); setLaneEditDraft(null); }}>ยกเลิก</Button></div></div>;
     };
     const selectedRelationshipAsset = selectedRelationshipKind === "asset" ? draft.equipment.find((asset) => asset.id === selectedRelationshipId) : null;
     const selectedRelationshipSystem = selectedRelationshipKind === "system" ? draft.stationSystems.find((system) => system.id === selectedRelationshipId) : null;
@@ -1731,12 +1899,12 @@ export function createContextualStationPage(runtime) {
         const asset = selectedRelationshipAsset;
         const error = assetError(asset);
         const parent = relationshipParentForAsset(asset);
-        return <section className="ops-draft-relationship-editor" aria-label={`แก้ไข ${relationshipAssetLabel(asset)}`}><header><div><p className="ops-eyebrow">SELECTED ASSET</p><h3>{relationshipAssetLabel(asset)}</h3><small>{getRelationshipPath({ format: draft.stationFormat, groupCode: relationshipTree.find((group) => group.categories.some((category) => category.assets.some((entry) => entry.id === asset.id)))?.code, categoryId: getRelationshipCategoryForAsset(asset, parent), kind: "asset" })}{parent ? ` · ${relationshipSystemLabel(parent)}` : ""}</small></div><button type="button" className="ops-wim-icon-button" onClick={() => setSelectedRelationshipId(null)} aria-label="ปิดรายละเอียดอุปกรณ์"><Icon name="close" size="small" /></button></header><div className="ops-draft-relationship-editor-grid"><label className="ops-field"><span>Asset No. <em>(จำเป็น)</em></span><input value={asset.assetNo || ""} aria-invalid={Boolean(error)} onChange={(event) => updateAsset(asset.id, "assetNo", event.target.value)} />{error && <small className="ops-field-error" role="alert">{error}</small>}</label><label className="ops-field"><span>ตำแหน่งติดตั้ง</span><input value={asset.location || ""} onChange={(event) => updateAsset(asset.id, "location", event.target.value)} /></label><label className="ops-field"><span>Serial Number</span><input value={asset.serialNo || ""} onChange={(event) => updateAsset(asset.id, "serialNo", event.target.value)} /></label><label className="ops-field"><span>สถานะ Serial</span><select value={asset.serialStatus || "unknown"} onChange={(event) => updateAsset(asset.id, "serialStatus", event.target.value)}><option value="unknown">ยังไม่ระบุ</option><option value="present">มี Serial</option><option value="not-available">ไม่มี / อ่านไม่ได้</option></select></label></div>{asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-serial-fieldset"><legend>Output ของ Switching DC</legend>{OUTPUTS.map((voltage) => <label key={voltage}><input type="checkbox" checked={(asset.outputVoltages || []).includes(voltage)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(voltage) ? asset.outputVoltages.filter((value) => value !== voltage) : [...(asset.outputVoltages || []), voltage])} />{voltage}VDC</label>)}</fieldset>}<footer><span className={`ops-status-chip ${error ? "is-warning" : "is-ready"}`}>{error ? "ต้องแก้ไข" : "รายการอยู่ในร่างสถานี"}</span><button type="button" className="ops-wim-text-danger" onClick={() => removeReferenceAsset(asset)}><Icon name="delete" size="small" />นำอุปกรณ์ออก</button></footer></section>;
+        return <section className="ops-draft-relationship-editor" aria-label={`แก้ไข ${relationshipAssetLabel(asset)}`}><header><div><p className="ops-eyebrow">SELECTED ASSET</p><h3>{relationshipAssetLabel(asset)}</h3><small>{getRelationshipPath({ format: draft.stationFormat, groupCode: relationshipTree.find((group) => group.categories.some((category) => category.assets.some((entry) => entry.id === asset.id)))?.code, categoryId: getRelationshipCategoryForAsset(asset, parent), kind: "asset" })}{parent ? ` · ${relationshipSystemLabel(parent)}` : ""}</small></div><button type="button" className="ops-wim-icon-button" onClick={() => setSelectedRelationshipId(null)} aria-label="ปิดรายละเอียดอุปกรณ์"><Icon name="close" size="small" /></button></header><div className="ops-draft-relationship-editor-grid"><label className="ops-field"><span>Asset No. <em>(จำเป็น)</em></span><input value={asset.assetNo || ""} aria-invalid={Boolean(error)} onChange={(event) => updateAsset(asset.id, "assetNo", event.target.value)} />{error && <small className="ops-field-error" role="alert">{error}</small>}</label><label className="ops-field"><span>ตำแหน่งติดตั้ง</span><input value={asset.location || ""} onChange={(event) => updateAsset(asset.id, "location", event.target.value)} /></label><label className="ops-field"><span>Serial Number</span><input value={asset.serialNo || ""} onChange={(event) => updateAsset(asset.id, "serialNo", event.target.value)} /></label><label className="ops-field"><span>สถานะ Serial</span><CustomSelect value={asset.serialStatus || "unknown"} onChange={(event) => updateAsset(asset.id, "serialStatus", event.target.value)}><option value="unknown">ยังไม่ระบุ</option><option value="present">มี Serial</option><option value="not-available">ไม่มี / อ่านไม่ได้</option></CustomSelect></label></div><PowerSupplyFields asset={asset} onChange={(field, value) => updateAsset(asset.id, field, value)} />{asset.type === "WIM_SWITCHING_DC" && <fieldset className="ops-serial-fieldset"><legend>Output ของ Switching DC</legend>{OUTPUTS.map((voltage) => <label key={voltage}><input type="checkbox" checked={(asset.outputVoltages || []).includes(voltage)} onChange={() => updateAsset(asset.id, "outputVoltages", (asset.outputVoltages || []).includes(voltage) ? asset.outputVoltages.filter((value) => value !== voltage) : [...(asset.outputVoltages || []), voltage])} />{voltage}VDC</label>)}</fieldset>}<footer><span className={`ops-status-chip ${error ? "is-warning" : "is-ready"}`}>{error ? "ต้องแก้ไข" : "รายการอยู่ในร่างสถานี"}</span><button type="button" className="ops-wim-text-danger" onClick={() => removeReferenceAsset(asset)}><Icon name="delete" size="small" />นำอุปกรณ์ออก</button></footer></section>;
       }
       const system = selectedRelationshipSystem;
       const definition = relationshipSystemDefinitionsById.get(system.canonicalItemId);
       const scopeOptions = definition?.allowedScopes?.filter((scope) => draft.stationFormat === "IMPS" ? !["High Speed", "Low Speed"].includes(scope) : scope !== "ImPS") || [];
-      return <section className="ops-draft-relationship-editor" aria-label={`แก้ไข ${relationshipSystemLabel(system)}`}><header><div><p className="ops-eyebrow">SELECTED SYSTEM</p><h3>{relationshipSystemLabel(system)}</h3><small>{getRelationshipPath({ format: draft.stationFormat, groupCode: relationshipTree.find((group) => group.categories.some((category) => category.systems.some((entry) => entry.id === system.id)))?.code, categoryId: getRelationshipCategoryForSystem(system), kind: "system" })}</small></div><button type="button" className="ops-wim-icon-button" onClick={() => setSelectedRelationshipId(null)} aria-label="ปิดรายละเอียดระบบ"><Icon name="close" size="small" /></button></header><div className="ops-draft-relationship-editor-grid">{scopeOptions.length > 1 && <CustomSelect label={`ขอบเขตของ ${relationshipSystemLabel(system)}`} value={system.scope || ""} onChange={(event) => updateRelationshipSystemScope(system.id, event.target.value)}>{scopeOptions.map((scope) => <option key={scope} value={scope}>{scope}</option>)}</CustomSelect>}<div className="ops-info-banner"><Icon name="info" /><span>System จะตรวจการทำงานของระบบ ส่วนอุปกรณ์จริงจะแสดงแยกในหมวด .01 Equipment</span></div></div>{system.canonicalItemId !== WIM_ID && system.canonicalItemId !== "wim-control" && system.canonicalItemId !== "wim-electronics-system" && <footer><span className="ops-status-chip is-ready">System อยู่ในร่างสถานี</span><button type="button" className="ops-wim-text-danger" onClick={() => { if (definition) toggleSystem(definition, system.scope); setSelectedRelationshipId(null); }}><Icon name="delete" size="small" />นำ System ออก</button></footer>}</section>;
+      return <section className="ops-draft-relationship-editor" aria-label={`แก้ไข ${relationshipSystemLabel(system)}`}><header><div><p className="ops-eyebrow">SELECTED SYSTEM</p><h3>{relationshipSystemLabel(system)}</h3><small>{getRelationshipPath({ format: draft.stationFormat, groupCode: relationshipTree.find((group) => group.categories.some((category) => category.systems.some((entry) => entry.id === system.id)))?.code, categoryId: getRelationshipCategoryForSystem(system), kind: "system" })}</small></div><button type="button" className="ops-wim-icon-button" onClick={() => setSelectedRelationshipId(null)} aria-label="ปิดรายละเอียดระบบ"><Icon name="close" size="small" /></button></header><div className="ops-draft-relationship-editor-grid">{scopeOptions.length > 1 && <CustomSelect label={`ขอบเขตของ ${relationshipSystemLabel(system)}`} value={system.scope || ""} onChange={(event) => updateRelationshipSystemScope(system.id, event.target.value)}>{scopeOptions.map((scope) => <option key={scope} value={scope}>{scope}</option>)}</CustomSelect>}<div className="ops-info-banner"><Icon name="info" /><span>System ใช้ตรวจการทำงานของระบบ ส่วน Equipment จริงแสดงใต้ System ใน Scope นี้</span></div></div>{system.canonicalItemId !== WIM_ID && system.canonicalItemId !== "wim-control" && system.canonicalItemId !== "wim-electronics-system" && <footer><span className="ops-status-chip is-ready">System อยู่ในร่างสถานี</span><button type="button" className="ops-wim-text-danger" onClick={() => { if (definition) toggleSystem(definition, system.scope); setSelectedRelationshipId(null); }}><Icon name="delete" size="small" />นำ System ออก</button></footer>}</section>;
     };
     const confirm = (startInspection = false) => {
       setShowErrors(true);
@@ -1761,36 +1929,40 @@ export function createContextualStationPage(runtime) {
 
     return (
       <section className="ops-page ops-station-wizard">
+        {pendingEquipmentAdd && <EquipmentParentDialog equipmentName={pendingEquipmentAdd.option.nameEn || pendingEquipmentAdd.option.nameTh} choices={pendingEquipmentAdd.choices} lanes={draft.lanes} onClose={() => setPendingEquipmentAdd(null)} onChoose={({ system, cabinet }) => {
+          const { categoryId, option } = pendingEquipmentAdd;
+          setPendingEquipmentAdd(null);
+          addRelationshipRecord(categoryId, "asset", { ...option, parentId: system.id, parentAssetId: cabinet?.id || null, scope: system.scope, confirmedParent: true });
+        }} />}
         {step === 2 ? <header className="ops-station-workspace-header">
-          <div className="ops-station-workspace-heading"><div className="ops-station-breadcrumb" aria-label="เส้นทางปัจจุบัน"><span>ทะเบียนสถานี</span><span aria-hidden="true">›</span><strong>{draft.stationCode || "สร้างสถานีใหม่"}</strong><span aria-hidden="true">›</span><strong>{draft.stationFormat === "IMPS" ? "ผัง IMPS เต็มระบบ" : "ผัง SC เต็มระบบ"}</strong></div><h1 id="page-heading" tabIndex="-1">ผังระบบและอุปกรณ์ประจำสถานี</h1><p>เลือกเพิ่มอุปกรณ์จริงตามที่ติดตั้ง แล้วแก้ไขหรือลบได้ตรงในหมวดระบบที่เกี่ยวข้อง</p></div>
+          <div className="ops-station-workspace-heading"><div className="ops-station-breadcrumb" aria-label="เส้นทางปัจจุบัน"><span>ทะเบียนสถานี</span><span aria-hidden="true">›</span><strong>{stationCodeIsCustom ? draft.stationCode : "สร้างสถานีใหม่"}</strong><span aria-hidden="true">›</span><strong>{draft.stationFormat === "IMPS" ? "ผัง IMPS เต็มระบบ" : "ผัง SC เต็มระบบ"}</strong></div><h1 id="page-heading" tabIndex="-1">ผังระบบและอุปกรณ์ประจำสถานี</h1><p>เลือกเพิ่มอุปกรณ์จริงตามที่ติดตั้ง แล้วแก้ไขหรือลบได้ตรงในหมวดระบบที่เกี่ยวข้อง</p></div>
           <div className="ops-station-workspace-meta"><span>สถานี <strong>{draft.stationName || "ยังไม่ระบุ"}</strong>{stationDirectionLabel ? ` · ${stationDirectionLabel}` : ""}</span><span>วันที่ {currentDateLabel}</span></div>
         </header> : <><Breadcrumb items={[{ label: "ทะเบียนสถานี", href: "#/stations" }, { label: "สร้างสถานีใหม่" }]} /><header className="ops-page-header">
-          <p className="ops-eyebrow">NEW STATION</p><h1 id="page-heading" tabIndex="-1">สร้างสถานีใหม่</h1><p>เลือกชุดระบบที่มีจริง แล้วจัดการหมวด BOQ และ Asset ของระบบนั้นในหน้าเดียวกัน</p>
+          <p className="ops-eyebrow">NEW STATION</p><h1 id="page-heading" tabIndex="-1">สร้างสถานีใหม่</h1><p>เลือกหมวดหลัก แล้วเพิ่ม System และ Equipment ตาม Scope ที่ติดตั้งจริง</p>
         </header><ol className="ops-stepper ops-station-stepper" aria-label="ขั้นตอนสร้างสถานี">{STEP_LABELS.map((label, index) => { const actual = index + 1; return <li key={label} className={step === actual ? "is-current" : step > actual ? "is-complete" : ""} aria-current={step === actual ? "step" : undefined}><span>{actual}</span><div><strong>{label}</strong></div></li>; })}</ol></>}
         {message && <div className="ops-warning-panel" role="status"><Icon name="info" /><span>{message}</span></div>}
 
-        {step === 1 && <section className="ops-panel ops-wizard-card"><div className="ops-panel-heading"><h3>ข้อมูลสถานี</h3></div><div className="ops-station-form"><label className="ops-field"><span>รหัสสถานี <em>(จำเป็น)</em></span><input id="draft-station-stationCode" value={draft.stationCode} onChange={(event) => setField("stationCode", event.target.value)} />{showErrors && validation.errors.stationCode && <small className="ops-field-error">{validation.errors.stationCode}</small>}</label><label className="ops-field"><span>ชื่อสถานี <em>(จำเป็น)</em></span><input id="draft-station-stationName" value={draft.stationName} onChange={(event) => setField("stationName", event.target.value)} />{showErrors && validation.errors.stationName && <small className="ops-field-error">{validation.errors.stationName}</small>}</label><label className="ops-field"><span>รูปแบบสถานี</span><CustomSelect label="รูปแบบสถานี" value={draft.stationFormat} onChange={(event) => changeFormat(event.target.value)}>{STATION_FORMATS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</CustomSelect><small className="ops-field-helper"><strong>{formatDefinition.label}</strong> · {formatDefinition.description}</small></label><div className="ops-field" id="draft-station-province"><MasterSelect kind="province" referenceData={state.referenceData} value={draft.provinceId || ""} onChange={setProvince} label="จังหวัด (จำเป็น)" placeholder="ค้นหาและเลือกจังหวัด" />{showErrors && validation.errors.province && <small className="ops-field-error">{validation.errors.province}</small>}</div><label className="ops-field" id="draft-station-direction"><span>ทิศทาง</span><CustomSelect label="ทิศทาง" value={draft.direction} onChange={(event) => setField("direction", event.target.value)}><option value="unspecified">ไม่ระบุ</option><option value="inbound">ขาเข้า</option><option value="outbound">ขาออก</option><option value="both">สองทิศทาง</option></CustomSelect></label></div><details><summary>ตั้งค่า Vehicle API (ถ้าใช้)</summary><VehicleSearchConfigPanel value={draft.vehicleSearchConfig} stationId="new-station-draft" onChange={(value) => setField("vehicleSearchConfig", value)} /></details></section>}
+        {step > 1 && <details><summary>ตั้งค่าการเชื่อมต่อตามระบบที่ติดตั้ง</summary><VehicleSearchConfigPanel profile={draft} value={draft.vehicleSearchConfig} stationId="new-station-draft" onChange={value => setField("vehicleSearchConfig", value)} /></details>}{step === 1 && <section className="ops-panel ops-wizard-card"><div className="ops-panel-heading"><h3>ข้อมูลสถานี</h3></div><div className="ops-station-form"><label className="ops-field"><span>ชื่อสถานี <em>(จำเป็น)</em></span><input id="draft-station-stationName" value={draft.stationName} onChange={(event) => setField("stationName", event.target.value)} />{showErrors && validation.errors.stationName && <small className="ops-field-error">{validation.errors.stationName}</small>}</label><label className="ops-field"><span className="ops-station-format-heading"><span>รูปแบบสถานี</span><small className="ops-field-helper">({formatDefinition.description})</small></span><CustomSelect label="รูปแบบสถานี" value={draft.stationFormat} onChange={(event) => changeFormat(event.target.value)}>{STATION_FORMATS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</CustomSelect><small className="ops-field-helper"><strong>{formatDefinition.label}</strong></small></label><div className="ops-field" id="draft-station-province"><MasterSelect kind="province" referenceData={state.referenceData} value={draft.provinceId || ""} onChange={setProvince} label="จังหวัด (จำเป็น)" placeholder="ค้นหาและเลือกจังหวัด" />{showErrors && validation.errors.province && <small className="ops-field-error">{validation.errors.province}</small>}</div><label className="ops-field" id="draft-station-direction"><span>ทิศทาง</span><CustomSelect label="ทิศทาง" value={draft.direction} onChange={(event) => setField("direction", event.target.value)}><option value="unspecified">ไม่ระบุ</option><option value="inbound">ขาเข้า</option><option value="outbound">ขาออก</option><option value="both">สองทิศทาง</option></CustomSelect></label></div><details className="ops-station-code-details" id="draft-station-code-details"><summary>มีรหัสสถานีทางการ? แก้ไขรหัส</summary><label className="ops-field"><span>รหัสสถานี</span><input id="draft-station-stationCode" value={draft.stationCode} aria-invalid={Boolean(showErrors && validation.errors.stationCode)} onChange={(event) => setField("stationCode", event.target.value)} /><small className="ops-field-helper">หากไม่แก้ ระบบจะใช้รหัสที่สร้างให้อัตโนมัติ</small>{showErrors && validation.errors.stationCode && <small className="ops-field-error" role="alert">{validation.errors.stationCode}</small>}</label></details><details><summary>ตั้งค่า Vehicle API (ถ้าใช้)</summary><VehicleSearchConfigPanel profile={draft} value={draft.vehicleSearchConfig} stationId="new-station-draft" onChange={(value) => setField("vehicleSearchConfig", value)} /></details></section>}
 
         {step === 2 && <section className="ops-station-equipment-workspace ops-station-new-equipment-layout" aria-label="ระบบและอุปกรณ์">
-          <aside className="ops-station-group-rail" aria-label="เลือกกลุ่มระบบสถานี">
-            <header className="ops-station-group-rail-heading"><p className="ops-eyebrow">{draft.stationFormat} EQUIPMENT LAYOUT</p><h2>หมวดหลัก</h2><p>เลือกหมวดทางซ้าย เพื่อดู Work Spec ของหมวดนั้นตรงกลาง</p></header>
-            <label className="ops-station-group-search"><Icon name="search" size="small" /><input type="search" value={systemSearch} onChange={(event) => updateRelationshipGroupSearch(event.target.value)} placeholder="ค้นหาชื่ออังกฤษหรือไทย" aria-label="ค้นหากลุ่ม ระบบ หรืออุปกรณ์ ด้วยชื่ออังกฤษหรือไทย" /></label>
-            <nav className="ops-station-group-list" aria-label="หมวดหลักของสถานี">
+      <aside className="ops-station-group-rail" aria-label="เลือกจุดติดตั้ง">
+            <header className="ops-station-group-rail-heading"><p className="ops-eyebrow">{draft.stationFormat} INSTALLATION POINTS</p><h2>จุดติดตั้ง</h2><p>เลือกจุดติดตั้งเพื่อดู Scope, System และ Equipment ของจุดนั้น</p></header>
+            <label className="ops-station-group-search"><Icon name="search" size="small" /><input type="search" value={systemSearch} onChange={(event) => updateRelationshipGroupSearch(event.target.value)} placeholder="ค้นหาหมวด Scope ระบบ หรืออุปกรณ์" aria-label="ค้นหาหมวด Scope ระบบ หรืออุปกรณ์ด้วยชื่ออังกฤษหรือไทย" /></label>
+            <nav className="ops-station-group-list" aria-label="จุดติดตั้งของสถานี">
               {visibleRelationshipGroups.map((group) => {
                 const isCurrentGroup = group.groupId === activeRelationshipGroup?.groupId;
                 const hasItems = group.hasData;
                 const secondary = relationshipGroupSecondaryLabel(group);
                 return <button type="button" key={group.groupId} className={`ops-station-group-item ${isCurrentGroup ? "is-current" : ""}`} aria-current={isCurrentGroup ? "location" : undefined} aria-controls="station-work-spec-panel" onClick={() => setRelationshipGroup(group)}>
-                  <span className="ops-station-group-code">{group.groupId}</span>
                   <span className="ops-station-group-copy"><strong>{group.title}</strong>{secondary && <small className="ops-station-group-th">{secondary}</small>}<small className="ops-station-group-count">{relationshipGroupCountLabel(group, true)}</small></span>
-                  <span className={`ops-station-group-state ${hasItems ? "is-selected" : "is-empty"}`}><span aria-hidden="true">{hasItems ? "✓" : "○"}</span>{hasItems ? "เลือกแล้ว" : "ยังไม่เลือก"}</span>
+                  <span className={`ops-station-group-state ${hasItems ? "is-selected" : "is-empty"}`}><span aria-hidden="true">{hasItems ? "✓" : "○"}</span>{hasItems ? "มีรายการแล้ว" : "ยังไม่มีรายการ"}</span>
                 </button>;
               })}
               {!visibleRelationshipGroups.length && <div className="ops-station-group-search-empty" role="status">ไม่พบกลุ่มหรืออุปกรณ์ที่ตรงกับคำค้น</div>}
             </nav>
           </aside>
-          <div className="ops-station-equipment-main" id="station-work-spec-panel" role="region" aria-label={activeRelationshipGroup ? `Work Spec ของ ${activeRelationshipGroup.groupId} ${activeRelationshipGroup.title}` : "Work Spec ของหมวดที่เลือก"}>
-            <header className="ops-station-equipment-heading"><div><p className="ops-eyebrow">{draft.stationFormat} · สร้างสถานีใหม่ · WORK SPEC</p><h2>{activeRelationshipGroup ? `${activeRelationshipGroup.groupId} · ${activeRelationshipGroup.title}` : "Work Spec ของหมวดที่เลือก"}</h2><p>{activeRelationshipGroup ? relationshipGroupSecondaryLabel(activeRelationshipGroup) : "เลือกหมวดจากทางซ้าย"} · กำหนดระบบและอุปกรณ์ตั้งต้นก่อนบันทึกสถานี</p></div><div className="ops-station-equipment-total"><strong>{activeRelationshipGroup?.assetCount || 0}</strong><span>อุปกรณ์ในร่าง</span><small>{workSpecSystemCountForGroup(activeRelationshipGroup)} ระบบในร่าง</small></div></header>
+          <div className="ops-station-equipment-main" id="station-work-spec-panel" role="region" aria-label={activeRelationshipGroup ? `Work Spec ของ ${activeRelationshipGroup.title}` : "Work Spec ของหมวดที่เลือก"}>
+            <header className="ops-station-equipment-heading"><div><p className="ops-eyebrow">{draft.stationFormat} · สร้างสถานีใหม่ · WORK SPEC</p><h2>{activeRelationshipGroup?.title || "Work Spec ของหมวดที่เลือก"}</h2><p>{activeRelationshipGroup ? relationshipGroupSecondaryLabel(activeRelationshipGroup) : "เลือกหมวดจากทางซ้าย"} · กำหนดระบบและอุปกรณ์ตั้งต้นก่อนบันทึกสถานี</p></div><div className="ops-station-equipment-total"><strong>{activeRelationshipGroup?.assetCount || 0}</strong><span>อุปกรณ์ในร่าง</span><small>{workSpecSystemCountForGroup(activeRelationshipGroup)} ระบบในร่าง</small></div></header>
             <section className="ops-station-work-spec-panel" aria-labelledby="draft-work-spec-title">
               <header className="ops-station-work-spec-heading"><div><p className="ops-eyebrow">SYSTEM CATEGORY · WORK SPEC</p><h3 id="draft-work-spec-title">รายการระบบและอุปกรณ์ของหมวดนี้</h3><p>จัดตามความสัมพันธ์ของระบบและอุปกรณ์ โดยแสดงรหัส BOQ/TOR เป็นข้อมูลอ้างอิงรอง</p></div></header>
               {activeWorkSpecNote && <aside className="ops-work-spec-scope-note" aria-label={`ขอบเขต Work Spec ${activeWorkSpecNote.scope}`}>
@@ -1807,6 +1979,7 @@ export function createContextualStationPage(runtime) {
         </section>}
         {step === 3 && <section className={`ops-readiness-panel ${blockingIssues.length ? "has-blockers" : "is-ready"}`} aria-live="polite" aria-labelledby="new-station-readiness-title">
           <header className="ops-readiness-panel-heading"><div><p className="ops-eyebrow">READINESS CHECK</p><h2 id="new-station-readiness-title">{blockingIssues.length ? "ยังไม่พร้อมสร้างสถานี" : "พร้อมสร้างสถานี"}</h2><p>{blockingIssues.length ? `ยังมี ${blockingIssues.length} รายการที่ต้องแก้ก่อนยืนยันสร้างสถานี` : "ข้อมูลขั้นต่ำครบแล้ว สามารถยืนยันสร้าง Station Profile ได้"}</p></div><StatusBadge status={blockingIssues.length ? "waiting" : "normal"}>{blockingIssues.length ? "ต้องแก้ไข" : "พร้อม"}</StatusBadge></header>
+          <section className="ops-station-confirmation" aria-label="ตรวจทานข้อมูลสถานีก่อนสร้าง"><h3>ตรวจทานข้อมูลสถานี</h3><dl>{stationCodeIsCustom && <div><dt>รหัสสถานีทางการ</dt><dd>{draft.stationCode}</dd></div>}<div><dt>ชื่อสถานี</dt><dd>{draft.stationName || "ยังไม่ระบุ"}</dd></div><div><dt>จังหวัด</dt><dd>{draft.province || "ยังไม่ระบุ"}</dd></div><div><dt>ระบบ / อุปกรณ์ / ช่องจราจร</dt><dd>{draft.stationSystems.filter(item => item.active !== false).length} / {activeAssets.length} / {draft.lanes.filter(item => item.active !== false).length}</dd></div></dl><ul>{activeAssets.map(asset => <li key={asset.id}>{asset.assetNo || "ยังไม่มีรหัส"} · {asset.catalogItemLabel || asset.type}</li>)}</ul><Button onClick={() => setStep(1)} variant="secondary">แก้ข้อมูลสถานี</Button><Button onClick={() => setStep(2)} variant="secondary">แก้ระบบและอุปกรณ์</Button></section>
           {blockingIssues.length ? <ul className="ops-readiness-blocker-list">{blockingIssues.map((issue, index) => { const copy = issueCopy(issue); return <li key={`${issue.code}-${issue.assetId || issue.systemId || issue.field || index}`}><span className="ops-readiness-blocker-icon"><Icon name="alert" size="small" /></span><span><strong>{copy.label}</strong><small>{copy.message}</small></span><button type="button" className="ops-readiness-fix" onClick={() => resolveIssue(issue)}>แก้ไข <Icon name="arrow" size="small" /></button></li>; })}</ul> : <div className="ops-readiness-success"><Icon name="check" /><span>ข้อมูลสถานี ระบบ และ Asset พร้อมสำหรับการสร้างสถานีแล้ว</span></div>}
           {warningMessages.length > 0 && <details className="ops-readiness-warnings"><summary>ข้อควรตรวจเพิ่มเติม {warningMessages.length} รายการ</summary><ul>{warningMessages.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul></details>}
         </section>}

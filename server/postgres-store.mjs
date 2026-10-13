@@ -2,8 +2,11 @@ import crypto from "node:crypto";
 import { Pool } from "pg";
 import { mergeScopedState } from "./state-scope.mjs";
 import { mergeConcurrentState, STATE_MERGE_IGNORED_KEYS } from "../src/domain/state-merge.js";
+import { applyWorkspaceOperations } from "../src/domain/workspace-operations.js";
+import { buildJsonbMutation } from './workspace-jsonb.mjs';
+import { focusedVehicleRoundId, saveFocusedVehicleOperations } from './vehicle-operation-store.mjs';
 
-export const POSTGRES_STORE_SCHEMA_VERSION = 2;
+export const POSTGRES_STORE_SCHEMA_VERSION = 4;
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -36,7 +39,7 @@ function assertClosedRoundsImmutable(previous, next) {
   for (const [id, oldRound] of oldRounds) {
     const replacement = nextRounds.get(id);
     if (!replacement && tombstones.has(id)) continue;
-    if (!replacement || stableJson(oldRound) !== stableJson(replacement)) {
+    if (!replacement || (oldRound !== replacement && stableJson(oldRound) !== stableJson(replacement))) {
       const error = new Error(`Closed inspection round ${id} is immutable; create a revision instead`);
       error.code = "IMMUTABLE_ROUND";
       error.statusCode = 409;
@@ -72,8 +75,10 @@ export class PostgresChecklistStore {
       await client.query("BEGIN");
       await client.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-        CREATE TABLE IF NOT EXISTS app_state (id TEXT PRIMARY KEY, version BIGINT NOT NULL, payload JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL, updated_by TEXT);
+        CREATE TABLE IF NOT EXISTS app_state (id TEXT PRIMARY KEY, version BIGINT NOT NULL, payload JSONB NOT NULL, payload_version BIGINT, updated_at TIMESTAMPTZ NOT NULL, updated_by TEXT);
         CREATE TABLE IF NOT EXISTS state_revisions (id BIGSERIAL PRIMARY KEY, state_version BIGINT NOT NULL, payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL, created_by TEXT, reason TEXT);
+        CREATE INDEX IF NOT EXISTS idx_state_revisions_version ON state_revisions(state_version);
+        CREATE TABLE IF NOT EXISTS workspace_operations (operation_id TEXT PRIMARY KEY, actor_id TEXT NOT NULL, request_hash TEXT NOT NULL, result JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
         CREATE TABLE IF NOT EXISTS stations (id TEXT PRIMARY KEY, station_code TEXT, station_name TEXT, station_format TEXT, active BOOLEAN NOT NULL DEFAULT TRUE, data JSONB NOT NULL DEFAULT '{}'::jsonb, updated_at TIMESTAMPTZ NOT NULL, updated_by TEXT);
         CREATE TABLE IF NOT EXISTS lanes (id TEXT PRIMARY KEY, station_id TEXT NOT NULL REFERENCES stations(id) ON DELETE CASCADE, lane_no INTEGER, data JSONB NOT NULL DEFAULT '{}'::jsonb);
         CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, station_id TEXT NOT NULL REFERENCES stations(id) ON DELETE CASCADE, asset_type TEXT, active BOOLEAN NOT NULL DEFAULT TRUE, data JSONB NOT NULL DEFAULT '{}'::jsonb);
@@ -93,6 +98,8 @@ export class PostgresChecklistStore {
         CREATE TABLE IF NOT EXISTS audit_log (id BIGSERIAL PRIMARY KEY, event_type TEXT NOT NULL, actor_id TEXT, actor_role TEXT, resource_type TEXT, resource_id TEXT, request_id TEXT, details JSONB, created_at TIMESTAMPTZ NOT NULL);
         CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_log(created_at DESC);
       `);
+      await client.query("ALTER TABLE app_state ADD COLUMN IF NOT EXISTS payload_version BIGINT");
+      await client.query("UPDATE app_state SET payload_version=version WHERE payload_version IS NULL");
       await client.query("INSERT INTO schema_migrations(version) VALUES ($1) ON CONFLICT (version) DO NOTHING", [POSTGRES_STORE_SCHEMA_VERSION]);
       await client.query("COMMIT");
     } catch (error) {
@@ -105,30 +112,70 @@ export class PostgresChecklistStore {
 
   async getState() {
     await this.ready;
-    const { rows } = await this.pool.query("SELECT version, payload, updated_at, updated_by FROM app_state WHERE id = 'global'");
+    const { rows } = await this.pool.query("SELECT version, payload, payload_version, updated_at, updated_by FROM app_state WHERE id = 'global'");
     const row = rows[0];
     if (!row) return { state: null, version: 0, updatedAt: null, updatedBy: null };
-    return { state: row.payload, version: Number(row.version) || 0, updatedAt: row.updated_at, updatedBy: row.updated_by };
+    return { state: await this.materializeStatePayload(this.pool, row), version: Number(row.version) || 0, updatedAt: row.updated_at, updatedBy: row.updated_by };
   }
 
-  async saveState(state, { expectedVersion, stationIds, actor, reason = "state-update", requestId } = {}) {
-    if (!state || typeof state !== "object" || Array.isArray(state)) {
+  async materializeStatePayload(client, row) {
+    const currentVersion = Number(row?.version || 0);
+    const payloadVersion = Number(row?.payload_version ?? currentVersion);
+    let state = row?.payload || null;
+    if (!state || payloadVersion >= currentVersion) return state;
+    const { rows } = await client.query(
+      "SELECT state_version,payload FROM state_revisions WHERE state_version>$1 AND state_version<=$2 ORDER BY state_version,id",
+      [payloadVersion, currentVersion],
+    );
+    let appliedVersion = payloadVersion;
+    for (const change of rows) {
+      const changeVersion = Number(change.state_version);
+      if (changeVersion < appliedVersion) continue;
+      if (changeVersion > appliedVersion + 1) throw new Error(`Missing workspace revision ${appliedVersion + 1}; cannot materialize current state`);
+      state = change.payload?._workspaceDeltaV1
+        ? applyWorkspaceOperations(state, change.payload.operations, { check: false })
+        : change.payload;
+      appliedVersion = Math.max(appliedVersion, changeVersion);
+    }
+    if (appliedVersion !== currentVersion) throw new Error(`Missing workspace revision ${currentVersion}; cannot materialize current state`);
+    return state;
+  }
+
+  async saveState(state, { expectedVersion, requireExactVersion = false, stationIds, actor, reason = "state-update", requestId, operation, prepareOperation, prepareAttachmentRename } = {}) {
+    if (!operation && (!state || typeof state !== "object" || Array.isArray(state))) {
       const error = new Error("State payload must be an object");
       error.statusCode = 400;
       throw error;
     }
     await this.ready;
     const client = await this.pool.connect();
+    let attachmentRenameLifecycle = null;
+    let committed = false;
     try {
       await client.query("BEGIN");
-      const { rows } = await client.query("SELECT version, payload, updated_at, updated_by FROM app_state WHERE id = 'global' FOR UPDATE");
+      const { rows } = await client.query("SELECT version, payload, payload_version, updated_at, updated_by FROM app_state WHERE id = 'global' FOR UPDATE");
       const currentRow = rows[0];
-      const current = { state: currentRow?.payload || null, version: Number(currentRow?.version || 0), updatedAt: currentRow?.updated_at || null, updatedBy: currentRow?.updated_by || null };
+      const current = { state: await this.materializeStatePayload(client, currentRow), version: Number(currentRow?.version || 0), updatedAt: currentRow?.updated_at || null, updatedBy: currentRow?.updated_by || null };
+      if (requireExactVersion && Number(expectedVersion) !== current.version) {
+        throw Object.assign(new Error('State changed since migration backup; take a new backup before applying'), { statusCode: 409, currentVersion: current.version });
+      }
+      const actorKey = String(actor?.id || actor?.role || 'anonymous');
+      const requestHash = operation ? crypto.createHash('sha256').update(JSON.stringify({ operations: operation.operations, reason })).digest('hex') : null;
+      if (operation) {
+        const receipt = await client.query('SELECT actor_id, request_hash, result FROM workspace_operations WHERE operation_id=$1', [operation.operationId]);
+        if (receipt.rows.length) {
+          const saved = receipt.rows[0];
+          if (saved.actor_id !== actorKey || saved.request_hash !== requestHash) throw Object.assign(new Error('Operation identity already used'), { statusCode: 409 });
+          await client.query('COMMIT');
+          return { ...saved.result, replayed: true };
+        }
+      }
       let nextState = state;
       let mergedConcurrentState = false;
-      if (expectedVersion != null && Number(expectedVersion) !== current.version) {
-        const baseResult = await client.query("SELECT payload FROM state_revisions WHERE state_version = $1", [Number(expectedVersion)]);
-        const baseState = baseResult.rows[0]?.payload;
+      if (operation) {
+        nextState = await prepareOperation(current.state || {}, operation.operations);
+      } else if (expectedVersion != null && Number(expectedVersion) !== current.version) {
+        const baseState = await this.getRevisionState(client, Number(expectedVersion));
         const scopedIncoming = Array.isArray(stationIds) ? mergeScopedState(baseState, state, stationIds) : state;
         const merge = mergeConcurrentState(baseState, current.state, scopedIncoming, { ignoredKeys: STATE_MERGE_IGNORED_KEYS });
         nextState = merge.state;
@@ -148,10 +195,20 @@ export class PostgresChecklistStore {
       const nextVersion = current.version + 1;
       const updatedAt = new Date().toISOString();
       const actorId = actor?.id || null;
-      await client.query(`INSERT INTO app_state(id, version, payload, updated_at, updated_by) VALUES ('global', $1, $2::jsonb, $3, $4)
-        ON CONFLICT(id) DO UPDATE SET version=EXCLUDED.version, payload=EXCLUDED.payload, updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by`, [nextVersion, json(nextState), updatedAt, actorId]);
-      await client.query("INSERT INTO state_revisions(state_version, payload, created_at, created_by, reason) VALUES ($1, $2::jsonb, $3, $4, $5)", [nextVersion, json(nextState), updatedAt, actorId, reason]);
-      await this.syncProjections(client, nextState, { updatedAt, actorId });
+      if (typeof prepareAttachmentRename === 'function') attachmentRenameLifecycle = await prepareAttachmentRename(client, current.state || {}, nextState);
+      if (operation && current.state && operation.operations.filter(op=>op.type!=='check').length <= 8
+          && Number(currentRow?.payload_version ?? current.version) === current.version) {
+        const parameters = [nextVersion,updatedAt,actorId];
+        const mutation = buildJsonbMutation('payload',current.state,operation.operations,parameters,nextState);
+        await client.query(`UPDATE app_state SET version=$1,payload_version=$1,updated_at=$2,updated_by=$3,payload=${mutation} WHERE id='global'`,parameters);
+      } else await client.query(`INSERT INTO app_state(id, version, payload, payload_version, updated_at, updated_by) VALUES ('global', $1, $2::jsonb, $1, $3, $4)
+        ON CONFLICT(id) DO UPDATE SET version=EXCLUDED.version, payload=EXCLUDED.payload, payload_version=EXCLUDED.payload_version, updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by`, [nextVersion, json(nextState), updatedAt, actorId]);
+      if (operation) {
+        const base = await client.query('SELECT 1 FROM state_revisions WHERE state_version=$1 LIMIT 1', [current.version]);
+        if (!base.rows.length) await client.query("INSERT INTO state_revisions(state_version,payload,created_at,created_by,reason) VALUES($1,$2::jsonb,$3,$4,'operation-baseline')", [current.version, json(current.state || {}), updatedAt, actorId]);
+      }
+      await client.query("INSERT INTO state_revisions(state_version, payload, created_at, created_by, reason) VALUES ($1, $2::jsonb, $3, $4, $5)", [nextVersion, json(operation ? { _workspaceDeltaV1: true, operations: operation.operations.filter(op=>op.type!=='check') } : nextState), updatedAt, actorId, reason]);
+      await this.syncProjections(client, nextState, { updatedAt, actorId, previous: current.state, operations: operation?.operations });
       const oldRounds = new Map(asArray(current.state?.inspectionRounds).map((round) => [String(round?.id || ""), round]));
       const nextRoundIds = new Set(asArray(nextState.inspectionRounds).map((round) => String(round?.id || "")));
       const deletedRoundIds = new Set(asArray(nextState.deletedRoundIds).map(String));
@@ -170,17 +227,42 @@ export class PostgresChecklistStore {
         if (round?.basedOnRoundId && Number(round?.revisionNumber || 0) > Number(previous?.revisionNumber || 0)) await this.auditWithClient(client, "round.revision", actor, "inspection-round", round.id, { basedOnRoundId: round.basedOnRoundId, stationId: round.stationId }, requestId);
       }
       await this.auditWithClient(client, "state.update", actor, "state", "global", { version: nextVersion, reason }, requestId);
+      const result = { version: nextVersion, updatedAt, updatedBy: actorId, ...(operation ? { operationId: operation.operationId } : {}) };
+      if (operation) await client.query('INSERT INTO workspace_operations(operation_id,actor_id,request_hash,result) VALUES($1,$2,$3,$4::jsonb)', [operation.operationId, actorKey, requestHash, json(result)]);
       await client.query("COMMIT");
-      return { state: clone(nextState), version: nextVersion, updatedAt, updatedBy: actorId, mergedConcurrentState };
+      committed = true;
+      try { await attachmentRenameLifecycle?.afterCommit?.(); } catch (error) { console.warn(JSON.stringify({ event: 'station_attachment_cleanup_failed', message: error.message })); }
+      return operation ? result : { state: clone(nextState), ...result, mergedConcurrentState };
     } catch (error) {
-      await client.query("ROLLBACK");
+      if (!committed) {
+        await client.query("ROLLBACK");
+        try { await attachmentRenameLifecycle?.afterRollback?.(); } catch (cleanupError) { console.warn(JSON.stringify({ event: 'station_attachment_rollback_cleanup_failed', message: cleanupError.message })); }
+      }
       throw error;
     } finally {
       client.release();
     }
   }
 
-  async syncProjections(client, state, { updatedAt, actorId }) {
+  async saveOperations(operation, options) {
+    const roundId = focusedVehicleRoundId(operation?.operations);
+    if (roundId) return saveFocusedVehicleOperations(this, operation, options, roundId);
+    return this.saveState(null, { ...options, operation });
+  }
+
+  async getRevisionState(client, version) {
+    const { rows } = await client.query('SELECT payload FROM state_revisions WHERE state_version=$1 ORDER BY id DESC LIMIT 1', [version]);
+    if (!rows[0]?.payload?._workspaceDeltaV1) return rows[0]?.payload;
+    const baseline = await client.query("SELECT state_version,payload FROM state_revisions WHERE state_version<=$1 AND NOT (payload ? '_workspaceDeltaV1') ORDER BY state_version DESC,id DESC LIMIT 1", [version]);
+    if (!baseline.rows.length) return undefined;
+    const changes = await client.query('SELECT payload FROM state_revisions WHERE state_version>$1 AND state_version<=$2 ORDER BY state_version,id', [baseline.rows[0].state_version, version]);
+    let state = baseline.rows[0].payload;
+    for (const row of changes.rows) state = row.payload._workspaceDeltaV1 ? applyWorkspaceOperations(state, row.payload.operations, { check: false }) : row.payload;
+    return state;
+  }
+
+  async syncProjections(client, state, { updatedAt, actorId, previous, operations } = {}) {
+    if (previous) return this.syncChangedProjections(client, previous, state, { updatedAt, actorId, operations });
     const profiles = asArray(state.stationProfiles);
     await client.query("DELETE FROM station_tor_items; DELETE FROM lanes; DELETE FROM assets; DELETE FROM systems; DELETE FROM stations;");
     for (const profile of profiles) {
@@ -207,6 +289,66 @@ export class PostgresChecklistStore {
     }
   }
 
+  async syncChangedProjections(client, previous, state, { updatedAt, actorId, operations }) {
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const upsert = async (table, columns, values, keys = ['id']) => {
+      const placeholders = columns.map((_, index) => `$${index + 1}`).join(',');
+      const updates = columns.filter(column => !keys.includes(column)).map(column => `${column}=EXCLUDED.${column}`).join(',');
+      await client.query(`INSERT INTO ${table}(${columns.join(',')}) VALUES(${placeholders}) ON CONFLICT(${keys.join(',')}) DO UPDATE SET ${updates}`, values);
+    };
+    const records = async (before, after, remove, save) => {
+      const old = new Map(asArray(before).map(value => [String(value.id), value]));
+      const fresh = new Map(asArray(after).map(value => [String(value.id), value]));
+      for (const [id, value] of old) if (!fresh.has(id)) await remove(id, value);
+      for (const [id, value] of fresh) if (!old.has(id) || !same(old.get(id), value)) await save(value);
+    };
+    const oldProfiles = new Map(asArray(previous.stationProfiles).map(value => [String(value.id), value]));
+    for (const profile of asArray(state.stationProfiles)) {
+      const stationId = String(profile.id); const before = oldProfiles.get(stationId) || {};
+      if (same(before, profile)) continue;
+      await upsert('stations', ['id','station_code','station_name','station_format','active','data','updated_at','updated_by'], [stationId,profile.stationCode || null,profile.stationName || null,profile.stationFormat || null,profile.active !== false,json(profile),updatedAt,actorId]);
+      for (const [key, table, columns, values] of [
+        ['lanes','lanes',['id','station_id','lane_no','data'], value => [String(value.id),stationId,Number(value.laneNo || 0),json(value)]],
+        ['equipment','assets',['id','station_id','asset_type','active','data'], value => [String(value.id),stationId,value.type || value.canonicalItemId || null,value.active !== false,json(value)]],
+        ['stationSystems','systems',['id','station_id','system_type','active','data'], value => [String(value.id),stationId,value.systemId || value.canonicalItemId || value.type || null,value.active !== false,json(value)]],
+      ]) await records(before[key], profile[key], id => client.query(`DELETE FROM ${table} WHERE id=$1 AND station_id=$2`, [id,stationId]), value => upsert(table,columns,values(value)));
+      const tor = items => asArray(items).map((value,index) => ({ ...value, id: String(value.id || `${stationId}:tor:${index + 1}`) }));
+      await records(tor(before.torItems), tor(profile.torItems), id => client.query('DELETE FROM station_tor_items WHERE station_id=$1 AND item_id=$2',[stationId,id]), value => upsert('station_tor_items',['station_id','item_id','data'],[stationId,value.id,json(value)],['station_id','item_id']));
+    }
+    await records(previous.inspectionRounds, state.inspectionRounds, async id => {
+      await client.query('DELETE FROM inspection_evidence WHERE round_id=$1',[id]);
+      await client.query('DELETE FROM inspection_round_revisions WHERE round_id=$1',[id]);
+      await client.query('DELETE FROM inspection_rounds WHERE id=$1',[id]);
+    }, async round => {
+      const id = String(round.id); const stationId = String(round.stationId || round.snapshot?.stationId || '');
+      const revision = Number(round.revisionNumber || 0);
+      const before = asArray(previous.inspectionRounds).find(value => String(value.id) === id);
+      const roundOps = operations?.filter(op => op.path[0] === 'inspectionRounds' && op.path[1]?.id === id).map(op => ({ ...op,path:op.path.slice(2) }));
+      let updated = false;
+      if (before && roundOps?.length && roundOps.length <= 50 && roundOps.every(op => op.path.length)) {
+        const parameters = [id]; const changes = [];
+        for (const [column,key] of [['station_id','stationId'],['status','status'],['version','version'],['updated_at','updatedAt'],['closed_at','closedAt'],['based_on_round_id','basedOnRoundId'],['revision_number','revisionNumber']]) if (!same(before[key],round[key])) { parameters.push(round[key] ?? null); changes.push(`${column}=$${parameters.length}`); }
+        for (const [column,oldValue,newValue] of [
+          ['created_at',before.createdAt,round.createdAt],
+          ['snapshot_schema_version',before.snapshot?.schemaVersion || before.snapshot?.snapshotSchemaVersion || null,round.snapshot?.schemaVersion || round.snapshot?.snapshotSchemaVersion || null],
+          ['template_version',before.templateVersion || before.snapshot?.templateVersion || null,round.templateVersion || round.snapshot?.templateVersion || null],
+        ]) if (!same(oldValue,newValue)) { parameters.push(newValue ?? null); changes.push(`${column}=$${parameters.length}`); }
+        for (const [column,key] of [['snapshot','snapshot'],['inspection_items','inspectionItems'],['vehicle_search','vehicleSearch'],['meta','meta']]) {
+          const changesInColumn = roundOps.filter(op => op.path[0] === key).map(op => ({...op,path:op.path.slice(1)}));
+          if (changesInColumn.some(op=>op.type!=='check')) changes.push(`${column}=${buildJsonbMutation(column,before[key],changesInColumn,parameters,round[key])}`);
+        }
+        changes.push(`data=${buildJsonbMutation('data',before,roundOps,parameters,round)}`);
+        updated = (await client.query(`UPDATE inspection_rounds SET ${changes.join(',')} WHERE id=$1`,parameters)).rowCount === 1;
+      }
+      if (!updated) await upsert('inspection_rounds',['id','station_id','status','version','created_at','updated_at','closed_at','based_on_round_id','revision_number','snapshot_schema_version','template_version','snapshot','inspection_items','vehicle_search','meta','data'],[id,stationId,round.status || 'draft',Number(round.version || 0),dateValue(round.createdAt),dateValue(round.updatedAt),dateValue(round.closedAt),round.basedOnRoundId || null,revision,round.snapshot?.schemaVersion || round.snapshot?.snapshotSchemaVersion || null,round.templateVersion || round.snapshot?.templateVersion || null,json(round.snapshot || null),json(round.inspectionItems || {}),json(round.vehicleSearch || null),json(round.meta || null),json(round)]);
+      if (!before || round.status === 'closed' || Number(before.revisionNumber || 0) !== revision) await upsert('inspection_round_revisions',['round_id','revision_number','created_at','data'],[id,revision,dateValue(round.updatedAt) || updatedAt,json(round)],['round_id','revision_number']);
+      const items = value => Object.entries(value || {}).map(([itemId,item]) => ({ id: itemId, item }));
+      await records(items(before?.inspectionItems),items(round.inspectionItems), itemId => client.query('DELETE FROM inspection_evidence WHERE round_id=$1 AND item_id=$2',[id,itemId]), value => upsert('inspection_evidence',['round_id','item_id','station_id','status','data'],[id,value.id,stationId,value.item.status || null,json(value.item)],['round_id','item_id']));
+    });
+    const nextProfileIds = new Set(asArray(state.stationProfiles).map(value => String(value.id)));
+    for (const id of oldProfiles.keys()) if (!nextProfileIds.has(id)) await client.query('DELETE FROM stations WHERE id=$1',[id]);
+  }
+
   async listStations(stationIds = null) {
     await this.ready;
     if (Array.isArray(stationIds) && stationIds.length === 0) return [];
@@ -219,6 +361,12 @@ export class PostgresChecklistStore {
     if (Array.isArray(stationIds) && stationIds.length === 0) return [];
     const { rows } = await this.pool.query(Array.isArray(stationIds) ? "SELECT data FROM inspection_rounds WHERE station_id = ANY($1::text[]) ORDER BY updated_at DESC NULLS LAST, id" : "SELECT data FROM inspection_rounds ORDER BY updated_at DESC NULLS LAST, id", Array.isArray(stationIds) ? [stationIds.map(String)] : []);
     return rows.map((row) => row.data);
+  }
+
+  async getAttachmentRoundStation(roundId) {
+    await this.ready;
+    const { rows } = await this.pool.query('SELECT station_id FROM inspection_rounds WHERE id=$1', [String(roundId)]);
+    return rows[0]?.station_id || null;
   }
 
   async createSession({ token, userId, displayName, role, stationIds = [], expiresAt }) {

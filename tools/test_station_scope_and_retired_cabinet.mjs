@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   createDefaultStationProfile,
   createSnapshot,
@@ -25,9 +26,12 @@ assert.deepEqual(
 );
 assert.equal(
   getEquipmentGroupsForRegister([genericCabinet], { includeEmptyGroups: true }).some((group) => group.code === "1.1.11"),
-  false,
-  "generic Cabinet must not keep Station Infrastructure visible in the current register",
+  true,
+  "low-level grouping preserves a stored legacy Cabinet record for compatibility",
 );
+const stationDetailSource = fs.readFileSync(new URL("../src/app/pages/StationDetailPage.jsx", import.meta.url), "utf8");
+assert.match(stationDetailSource, /getEquipmentGroupsForRegister\([\s\S]*?\.filter\(\(group\) => group\.code !== "1\.1\.11"\)/,
+  "the current station register hides the retired generic Cabinet group");
 
 const profile = {
   ...createDefaultStationProfile(),

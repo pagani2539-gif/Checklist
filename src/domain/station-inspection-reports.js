@@ -12,7 +12,7 @@ export const REPORT_COVER_FIELD_LABELS = Object.freeze({
   contractNo: "เลขที่สัญญา",
 });
 
-const LEGACY_REPORT_COVER_FIELDS = Object.freeze([
+const REPORT_COVER_META_FIELDS = Object.freeze([
   ...Object.keys(REPORT_COVER_FIELD_LABELS),
   "contractDate",
   "contractStartDate",
@@ -30,14 +30,16 @@ const asArray = (value) => Array.isArray(value) ? value : [];
 const hasValues = (value) => Object.values(value || {}).some((entry) => text(entry));
 
 export function normalizeReportCoverMeta(value = {}) {
-  return Object.fromEntries(Object.keys(REPORT_COVER_FIELD_LABELS).map((key) => [key, text(value?.[key])]));
+  // Keep recognized fields from older covers during migration and later edits.
+  // The current editor still exposes only REPORT_COVER_FIELD_LABELS.
+  return Object.fromEntries(REPORT_COVER_META_FIELDS.map((key) => [key, text(value?.[key])]));
 }
 
 function normalizeIssuedVersion(value, roundId, index) {
   if (!value || typeof value !== "object") return null;
   // Keep the original cover details on already-issued revisions. New/editable
   // cover metadata is intentionally limited to the fields used on the cover.
-  const coverMeta = Object.fromEntries(LEGACY_REPORT_COVER_FIELDS.map((key) => [key, text(value.coverMeta?.[key])]));
+  const coverMeta = Object.fromEntries(REPORT_COVER_META_FIELDS.map((key) => [key, text(value.coverMeta?.[key])]));
   return {
     id: text(value.id) || `station-report-${roundId}-v${Number(value.version) || index + 1}`,
     version: Math.max(1, Number(value.version) || index + 1),
@@ -98,7 +100,7 @@ export function normalizeStationInspectionReports(values, rounds = null, { migra
     const other = newer ? existing : normalized;
     byRound.set(normalized.roundId, {
       ...selected,
-      coverMeta: normalizeReportCoverMeta(Object.fromEntries(Object.keys(REPORT_COVER_FIELD_LABELS).map((key) => [key, selected.coverMeta[key] || other.coverMeta[key]]))),
+      coverMeta: normalizeReportCoverMeta(Object.fromEntries(REPORT_COVER_META_FIELDS.map((key) => [key, selected.coverMeta[key] || other.coverMeta[key]]))),
       revisions: [...revisionsById.values()].sort((a, b) => a.version - b.version),
     });
   });

@@ -1,7 +1,14 @@
 import { AppIcon as Icon } from "./icon-system.jsx";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
-export function PageHeader({ eyebrow, title, description, actions, children }) {
-  return <div className="ops-page-header"><div><p className="ops-eyebrow">{eyebrow}</p><h1 id="page-heading" tabIndex="-1">{title}</h1>{description && <p className="ops-page-description">{description}</p>}</div>{actions || children}</div>;
+export function PageHeader({ eyebrow, title, description, actions, children, inShell = false }) {
+  const [shellSlot, setShellSlot] = useState(null);
+  useEffect(() => {
+    setShellSlot(inShell ? document.getElementById("ops-workspace-header") : null);
+  }, [inShell]);
+  const header = <div className="ops-page-header"><div><p className="ops-eyebrow">{eyebrow}</p><h1 id="page-heading" tabIndex="-1">{title}</h1>{description && <p className="ops-page-description">{description}</p>}</div>{actions || children}</div>;
+  return inShell && shellSlot ? createPortal(header, shellSlot) : header;
 }
 
 export function Breadcrumb({ items }) {

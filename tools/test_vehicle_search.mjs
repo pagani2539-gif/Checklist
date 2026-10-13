@@ -39,7 +39,7 @@ import {
   VEHICLE_REVIEW_CONTEXT_OPTIONS,
 } from "../src/domain/vehicle-search.js";
 import {
-  createDefaultStationProfile,
+  createDefaultStationProfile, createSnapshot,
   createInspectionRound,
   buildInspectionSections,
   getCloseReadiness,
@@ -323,7 +323,7 @@ const reviewed = updateVehicleSearchReview(initial, "vehicle-event-1", "correct"
 const reviewedAgain = updateVehicleSearchReview(reviewed, "vehicle-event-2", "incorrect");
 assert.equal(reviewedAgain.rows[0].reviewStatus, "correct");
 assert.equal(reviewedAgain.rows[1].reviewStatus, "incorrect");
-assert.deepEqual(getVehicleSearchSummary(reviewedAgain), { total: 4, reviewed: 2, correct: 1, incorrect: 1, pending: 2, accuracy: 50 });
+assert.deepEqual(getVehicleSearchSummary(reviewedAgain), { total: 4, reviewed: 2, correct: 1, incorrect: 1, pending: 2, accuracy: 25 });
 assert.equal(getVehicleSearchSummary(createEmptyVehicleSearchState()).accuracy, null, "accuracy is unavailable before review");
 
 const corrected = updateVehicleSearchDimensionReview(
@@ -353,7 +353,7 @@ const twoRowsAtThreshold = [
 assert.equal(getVehicleReviewOutcome(outcomeFixture(twoRowsAtThreshold)).status, "passed", "six hours plus complete results pass both thresholds");
 assert.equal(getVehicleReviewOutcome(outcomeFixture([{ ...twoRowsAtThreshold[0], reviewStatus: "incorrect" }, twoRowsAtThreshold[1]])).status, "failed", "plate below 80 percent fails the round");
 assert.equal(getVehicleReviewOutcome(outcomeFixture([{ ...twoRowsAtThreshold[0], classificationReviewStatus: "incorrect" }, twoRowsAtThreshold[1]])).status, "failed", "classification below 90 percent fails the round");
-assert.equal(getVehicleReviewOutcome(outcomeFixture([{ ...twoRowsAtThreshold[0], reviewStatus: "unable-to-verify" }, twoRowsAtThreshold[1]])).status, "incomplete", "unable-to-verify is not counted as correct");
+assert.equal(getVehicleReviewOutcome(outcomeFixture([{ ...twoRowsAtThreshold[0], reviewStatus: "unable-to-verify" }, twoRowsAtThreshold[1]])).status, "failed", "unable-to-verify stays in total denominator and is not correct");
 assert.equal(getVehicleReviewOutcome(outcomeFixture([{ ...twoRowsAtThreshold[0], grossWeight: null }, twoRowsAtThreshold[1]])).status, "failed", "missing gross weight fails the overall round");
 
 const calls = [];
@@ -460,15 +460,17 @@ const v2Result = await searchVehicles(criteria, {
   },
 });
 assert.equal(v2Calls.length, 1);
-assert.equal(v2Calls[0].endpoint, `${baseUrl}/api/v2/vehicles/search`);
-assert.deepEqual(JSON.parse(v2Calls[0].options.body), {
+assert.equal(v2Calls[0].endpoint, "/api/vehicle/search", "IMPS always goes through the server proxy");
+assert.equal(JSON.parse(v2Calls[0].options.body).apiProfile, "imps-v2");
+assert.deepEqual(JSON.parse(v2Calls[0].options.body).payload, {
   startDateTime: "2026-09-08T08:15:00+07:00",
   endDateTime: "2026-09-08T17:45:00+07:00",
   pageSize: 200,
   page: 1,
 });
 assert.equal(v2Result.pagination.totalItems, 1);
-assert.equal(v2Result.rows[0].plateImage, `${baseUrl}/api/v2/vehicles/image?path=crop%2Fv2.jpg`);
+assert.equal(v2Result.rows[0].plateImage, `/api/vehicle/image?baseUrl=${encodeURIComponent(baseUrl)}&apiProfile=imps-v2&stationId=6&path=crop%2Fv2.jpg`);
+assert.equal(buildVehicleSearchDirectImageUrl(v2Result.rows[0].plateImage), "");
 
 const abortController = new AbortController();
 abortController.abort();
@@ -489,7 +491,10 @@ await assert.rejects(
 
 const profile = createDefaultStationProfile();
 profile.vehicleSearchConfig = createVehicleSearchConfig({ baseUrl, stationId: "6", stationName: "สถานี API ทดสอบ" });
-const round = createInspectionRound(profile, { inspectionDate: "2026-09-08" });
+const snapshot = createSnapshot(profile);
+delete snapshot.vehicleReviewSystemsVersion;
+delete snapshot.vehicleReviewSystems;
+const round = createInspectionRound(profile, { inspectionDate: "2026-09-08" }, { snapshot });
 assert.equal(round.snapshot.vehicleSearchConfig.baseUrl, baseUrl);
 assert.equal(round.snapshot.vehicleSearchConfig.apiProfile, "legacy-v1");
 assert.equal(round.snapshot.vehicleSearchConfig.stationHost, "test-vehicle-api");
@@ -508,7 +513,7 @@ assert.equal(JSON.stringify(round.snapshot), snapshotBefore, "vehicle results do
 const currentVehicleItem = round.inspectionItems && Object.keys(round.inspectionItems).find((id) => id.includes("5.1.plate-document"));
 const currentVehicleDefinition = buildInspectionSections(round.snapshot).flatMap((section) => section.items).find((item) => item.id === currentVehicleItem);
 assert.equal(isVehicleApiReviewItem(currentVehicleDefinition, round.snapshot), true);
-assert.equal(currentVehicleDefinition.label, "Database Management and Reporting System · ตรวจผลอ่านป้ายทะเบียนจาก API", "new v2 snapshots use API-only plate review copy");
+assert.equal(currentVehicleDefinition.label, "ตรวจผลอ่านป้ายทะเบียนจาก API", "new v2 snapshots use API-only plate review copy");
 assert.equal(currentVehicleDefinition.evidenceSlots.length, 0, "new API-only work has no document slot");
 assert.equal(round.inspectionItems[currentVehicleItem].status, "normal", "new API-only work has no pending physical-condition status");
 const currentReadiness = getCloseReadiness(roundWithVehicleSearch);

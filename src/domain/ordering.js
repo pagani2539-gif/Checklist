@@ -1,3 +1,4 @@
+import { WIM_ELECTRONICS_DISPLAY_TYPES, sortElectronicsByCabinet } from "./wim-electronics-order.js";
 export const EQUIPMENT_ORDER_VERSION = "lane-type-asset-v1";
 
 const WIM_TYPE_ORDER = Object.freeze({
@@ -113,9 +114,11 @@ export function sortWimEquipment(equipment = [], lanes = []) {
  */
 export function sortEquipmentForDisplay(equipment = [], lanes = []) {
   const laneById = new Map((Array.isArray(lanes) ? lanes : []).map((lane) => [lane?.id, lane]));
+  const electronicsOrder = new Map(sortElectronicsByCabinet((Array.isArray(equipment) ? equipment : []).filter(item => WIM_ELECTRONICS_DISPLAY_TYPES.includes(item.type))).map((item, index) => [item.id, index]));
   return (Array.isArray(equipment) ? equipment : [])
     .map((item, index) => ({ item, index }))
     .sort((left, right) => {
+      if (electronicsOrder.has(left.item?.id) && electronicsOrder.has(right.item?.id)) return electronicsOrder.get(left.item.id) - electronicsOrder.get(right.item.id);
       const bothWim = isWim(left.item) && isWim(right.item);
       if (bothWim) return compareWimEntries(left, right, laneById);
 

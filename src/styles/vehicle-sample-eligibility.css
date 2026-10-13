@@ -1,0 +1,62 @@
+.ops-vehicle-eligibility-counts { display:flex; flex-wrap:wrap; gap:6px 14px; padding:8px 12px; color:#17466e; background:#fff; border:1px solid #b8d7ef; border-radius:8px; }
+.ops-vehicle-eligibility-counts strong { color:#153651; }
+.ops-vehicle-eligibility-triage { padding:14px; border:1px solid #b8d7ef; border-radius:12px; background:#f6fbff; }
+.ops-vehicle-eligibility-heading { display:flex; justify-content:space-between; align-items:start; gap:18px; padding-bottom:12px; border-bottom:1px solid #d3e5f3; }
+.ops-vehicle-eligibility-heading h4 { margin:2px 0 4px; color:#153651; }
+.ops-vehicle-eligibility-heading span,.ops-vehicle-eligibility-heading strong { color:#536f88; font-size:12px; }
+.ops-vehicle-eligibility-heading strong { text-align:right; }
+.ops-vehicle-eligibility-layout { display:grid; grid-template-columns:minmax(230px, .8fr) minmax(0, 1.5fr); gap:14px; padding-top:14px; }
+.ops-vehicle-eligibility-queue,.ops-vehicle-eligibility-detail { min-width:0; padding:12px; border:1px solid #d4e4f0; border-radius:9px; background:#fff; }
+.ops-vehicle-eligibility-queue > strong { display:block; margin-bottom:9px; }
+.ops-vehicle-eligibility-row-list { display:grid; gap:6px; max-height:620px; overflow:auto; }
+.ops-vehicle-eligibility-row-list > button { display:grid; gap:4px; width:100%; padding:9px; color:#23476a; text-align:left; background:#fff; border:1px solid #d6e5f0; border-radius:7px; cursor:pointer; }
+.ops-vehicle-eligibility-row-list > button.is-active { border-color:#0787f5; box-shadow:0 0 0 2px #0787f522; }
+.ops-vehicle-eligibility-row-list > button span,.ops-vehicle-eligibility-row-list > button em { font-size:11px; font-style:normal; color:#607b92; }
+.ops-vehicle-eligibility-row-list > button em.is-eligible { color:#087447; }
+.ops-vehicle-eligibility-row-list > button em.is-excluded { color:#a74a1c; }
+.ops-vehicle-eligibility-pagination { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:10px; }
+.ops-vehicle-eligibility-pagination span { font-size:12px; color:#607b92; }
+.ops-vehicle-eligibility-detail > header { display:flex; justify-content:space-between; align-items:start; gap:10px; }
+.ops-vehicle-eligibility-detail h5 { margin:2px 0 5px; font-size:17px; }
+.ops-vehicle-eligibility-detail > header span { color:#607b92; font-size:12px; }
+.ops-vehicle-eligibility-detail > header > strong { color:#087447; font-size:12px; }
+.ops-vehicle-eligibility-detail > header > strong.is-excluded { color:#a74a1c; }
+.ops-vehicle-eligibility-images { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:12px 0; }
+.ops-vehicle-eligibility-images > div { display:grid; align-content:start; gap:6px; min-width:0; }
+.ops-vehicle-eligibility-api-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:10px 0; }
+.ops-vehicle-eligibility-api-values > div { min-width:0; padding:8px; background:#f3f8fc; border-radius:6px; }
+.ops-vehicle-eligibility-api-values dt { color:#607b92; font-size:11px; }
+.ops-vehicle-eligibility-api-values dd { margin:2px 0 0; overflow-wrap:anywhere; font-weight:700; }
+.ops-vehicle-eligibility-guidance { padding:9px 11px; color:#17466e; background:#eef7ff; border-left:3px solid #0787f5; font-size:12px; }
+.ops-vehicle-eligibility-actions { display:grid; gap:9px; }
+.ops-vehicle-eligibility-actions > div { display:flex; flex-wrap:wrap; gap:8px; }
+.ops-vehicle-eligibility-actions :is(select,textarea) { width:100%; }
+.ops-vehicle-eligibility-audit { display:block; margin-top:10px; color:#607b92; }
+.snapshot-excluded-vehicle-table { border-color:#d8c6b8; }
+.snapshot-excluded-vehicle-table > thead > tr > th { background:#fff4eb; }
+.snapshot-excluded-vehicle-table td:last-child small { display:block; margin-top:4px; }
+@media (max-width:760px) {
+  .ops-vehicle-eligibility-heading { flex-direction:column; }
+  .ops-vehicle-eligibility-heading strong { text-align:left; }
+  .ops-vehicle-eligibility-layout { grid-template-columns:minmax(0,1fr); }
+  .ops-vehicle-eligibility-row-list { max-height:320px; }
+  .ops-vehicle-eligibility-api-values { grid-template-columns:minmax(0,1fr); }
+  .ops-vehicle-eligibility-images { grid-template-columns:minmax(0,1fr); }
+  .ops-vehicle-eligibility-actions > div { display:grid; }
+  .ops-vehicle-eligibility-actions > div > button { width:100%; }
+}
+
+
+
+/* Reuse the existing queue/main/evidence/inspector layout without new geometry. */
+.ops-vehicle-eligibility-inspector h4 { margin:0 0 10px; font-size:15px; }
+.ops-vehicle-eligibility-layout .ops-vehicle-focus-evidence-stack { overflow:auto; min-height:0; }
+@media screen and (min-width:1280px) {
+ .ops-vehicle-api-page .ops-vehicle-focus-panel:has(.ops-vehicle-eligibility-layout) :is(.ops-vehicle-period-selector,.ops-vehicle-focus-criteria) { align-self:start; align-content:start; }
+ .ops-vehicle-api-page .ops-vehicle-focus-panel:has(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-criteria { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .ops-vehicle-api-page .ops-vehicle-focus-panel:has(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-criteria > button { grid-column:1 / -1; justify-self:end; }
+}
+
+.ops-vehicle-eligibility-sample-controls { margin-top:12px; border-top:1px solid #d4e4f0; padding-top:10px; }
+.ops-vehicle-eligibility-sample-controls .ops-vehicle-sample-settings { display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:0; border:0; background:transparent; }
+.ops-vehicle-eligibility-sample-controls .ops-vehicle-source { display:none; }

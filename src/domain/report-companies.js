@@ -195,12 +195,8 @@ function getFormatQualifiedCoverMeta(code) {
 }
 
 export const REPORT_COVER_STANDARD = Object.freeze({
-  // A4-like landscape cover composition from the approved LTP reference.
-  // The rest of the standard report remains the existing A4 document flow.
-  canvas: Object.freeze({ width: 1672, height: 1188 }),
-  aspectRatio: '1672 / 1188',
-  maxMastheadTitleLines: 2,
-  requiredZones: Object.freeze(['title', 'subtitle', 'description', 'sectionTitle', 'photo', 'sectionList']),
+  canvas: Object.freeze({ width: 1672, height: 941 }),
+  aspectRatio: '1672 / 941',
 });
 
 export function getReportCoverSections(model) {
@@ -218,45 +214,35 @@ export function getReportCoverSections(model) {
   });
 }
 
-const COMMON_LAYOUT = Object.freeze({
-  title: [322, 49, 790, 155],
-  subtitle: [322, 180, 790, 48],
-  description: [322, 235, 790, 30],
-  sectionTitle: [278, 310, 820, 44],
-  photo: [278, 354, 820, 598],
-  sectionList: [1124, 666, 480, 258],
-  logo: [30, 45, 205, 135],
-});
-
 export const REPORT_COMPANIES = [
   {
     id: 'ntr',
+    heroImage: 'ntr-hero.png',
+    heroPosition: '47% 54%',
     name: 'NTR',
     aliases: ['NTR', 'NTR Engineer', 'NTR Engineer Co Ltd', 'เอ็นทีอาร์'],
     logo: 'ntr-logo.jpg',
     coverVariant: 'ntr',
-    cover: { ...COMMON_LAYOUT },
-    heroCrop: { x: 620, y: 264, width: 1019, height: 643 },
     theme: { ink: '#071d4c', heading: '#102847', accent: '#2d74d8', paper: '#f7fbff', line: '#a5b9d7', accentSoft: '#e8f0fa' },
   },
   {
     id: 'ltp',
+    heroImage: 'ltp-hero.png',
+    heroPosition: '50% 54%',
     name: 'LTP',
     aliases: ['LTP', 'LTP Engineering', 'แอลทีพี'],
     logo: 'ltp-logo.png',
     coverVariant: 'ltp',
-    cover: { ...COMMON_LAYOUT },
-    heroCrop: { x: 33, y: 246, width: 945, height: 606 },
     theme: { ink: '#052d5b', heading: '#082e5f', accent: '#ed1b2f', paper: '#fff', line: '#cbd8e8', accentSoft: '#fff0f1' },
   },
   {
     id: 'is8',
+    heroImage: 'is8-hero.png',
+    heroPosition: '48% 56%',
     name: 'iSMART',
     aliases: ['IS8', 'iSmart', 'i-SMART', 'ไอสมาร์ท'],
     logo: 'is8-logo.png',
     coverVariant: 'is8',
-    cover: { ...COMMON_LAYOUT },
-    heroCrop: { x: 42, y: 244, width: 984, height: 549 },
     theme: { ink: '#075394', heading: '#050d18', accent: '#ff741d', paper: '#f7fbff', line: '#799abf', accentSoft: '#eef7ff' },
   },
 ];

@@ -23,20 +23,34 @@ const newRoundItems = getNewRoundChecklistItems({
   checklistPresentationVersion: "boq-system-groups-v2",
 });
 
-assert.ok(newRoundItems.some((item) => item.systemRecordId && item.label.startsWith("License Plate Recognition Control System")), "new rounds keep the LPR System row");
+assert.ok(newRoundItems.some((item) => item.systemRecordId && item.label.startsWith("ตรวจการทำงานของ License Plate Recognition Control System")), "new rounds keep the LPR System row with the current English-first equipment name");
 assert.ok(newRoundItems.some((item) => item.assetId && String(item.assetName || "").startsWith("LPR Camera")), "new rounds keep LPR Camera Asset rows");
 assert.equal(newRoundItems.some((item) => item.assetName === "LPR Control System Equipment"), false, "new rounds do not create retired LPR control Asset rows");
 
-const oneSystemAllScopes = {
+const perLaneSystems = [1, 2].map((laneNo) => ({
+  id: `lpr-system-lane-${laneNo}`,
+  canonicalItemId: "lpr-control",
+  scope: laneNo === 1 ? "High Speed" : "Low Speed",
+  laneId: `lane-${laneNo}`,
+  quantity: 1,
+  active: true,
+}));
+const perLaneProfile = {
   ...profile,
-  stationSystems: [{ id: "lpr-station-wide", canonicalItemId: "lpr-control", scope: "Station-wide", quantity: 1, active: true }],
-  equipment: [
-    { ...profile.equipment.find((asset) => asset.type === "LPR_CAMERA"), id: "lpr-high", scope: "High Speed" },
-    { ...profile.equipment.find((asset) => asset.type === "LPR_CAMERA"), id: "lpr-low", scope: "Low Speed" },
+  lanes: [
+    { id: "lane-1", laneNo: 1, scope: "High Speed", active: true },
+    { id: "lane-2", laneNo: 2, scope: "Low Speed", active: true },
   ],
+  stationSystems: perLaneSystems,
+  equipment: profile.equipment.filter((asset) => asset.type !== "LPR_CAMERA").concat([
+    { ...profile.equipment.find((asset) => asset.type === "LPR_CAMERA"), id: "lpr-high", scope: "High Speed", laneId: "lane-1", parentSystemId: "lpr-system-lane-1" },
+    { ...profile.equipment.find((asset) => asset.type === "LPR_CAMERA"), id: "lpr-low", scope: "Low Speed", laneId: "lane-2", parentSystemId: "lpr-system-lane-2" },
+  ]),
 };
-assert.deepEqual(getChecklistScopeState(oneSystemAllScopes).activeAssets.map((asset) => asset.id), ["lpr-high", "lpr-low"], "one Station-wide LPR System owns cameras in every installed scope");
-assert.ok(getNewRoundChecklistItems(oneSystemAllScopes).some((item) => item.assetId === "lpr-high"));
-assert.ok(getNewRoundChecklistItems(oneSystemAllScopes).some((item) => item.assetId === "lpr-low"));
+assert.deepEqual(getChecklistScopeState(perLaneProfile).activeAssets.map((asset) => asset.id), ["lpr-high", "lpr-low"], "each Lane-bound LPR System owns its camera");
+const perLaneItems = getNewRoundChecklistItems(perLaneProfile);
+assert.ok(perLaneItems.some((item) => item.assetId === "lpr-high"));
+assert.ok(perLaneItems.some((item) => item.assetId === "lpr-low"));
+assert.deepEqual(perLaneItems.filter((item) => item.sectionCode === "3.1" && Number.isInteger(item.laneNo)).map((item) => item.laneNo), [1, 1, 2, 2], "3.1 rows follow the two saved LPR Lane relationships");
 
 console.log("lpr layout tests passed");

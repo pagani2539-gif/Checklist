@@ -2,6 +2,7 @@
 // for the current inspection round. These statuses are different from an
 // item being structurally non-applicable in the immutable Snapshot.
 export const EVIDENCE_BYPASS_ITEM_STATUSES = Object.freeze(["na", "not-installed"]);
+export const CHECKLIST_PROGRESS_POLICY_VERSION = "recorded-results-v2";
 
 export function isEvidenceBypassItemStatus(status) {
   return EVIDENCE_BYPASS_ITEM_STATUSES.includes(status);
@@ -9,4 +10,9 @@ export function isEvidenceBypassItemStatus(status) {
 
 export function isReportHiddenItemStatus(status) {
   return isEvidenceBypassItemStatus(status);
+}
+
+export function usesLegacyChecklistProgressPolicy(round) {
+  return round?.status === "closed"
+    && round?.progressPolicyVersion !== CHECKLIST_PROGRESS_POLICY_VERSION;
 }

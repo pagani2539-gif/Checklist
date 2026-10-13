@@ -1,4 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import "../../styles/vehicle-report.css";
+import "../../styles/report-page-rules.css";
+import "../../styles/printable-report-route.css";
+import AcDcLegacyArchive from "../AcDcLegacyArchive.jsx";
+import { displayedImageAttachment } from '../../domain/image-annotation.js';
+import { memo, useEffect, useRef, useState } from "react";
+import { getVehiclePlateVerificationLabel } from "../../domain/vehicle-search.js";
+import { buildVehicleSnapshotEvidencePages } from "../../domain/vehicle-snapshot-evidence.js";
+import { VehicleEvidenceReadiness, VehicleSnapshotEvidencePage, VehicleSnapshotEvidenceReport } from "./VehicleSnapshotEvidence.jsx";
+import { registerPrintableImageSource } from "./print-image-optimizer.js";
+import { getEquipmentIconName } from "../icon-system.jsx";
 
 export function createPrintableReportComponent(runtime) {
   const {
@@ -7,16 +17,51 @@ export function createPrintableReportComponent(runtime) {
     getReportCompany, getStoredAttachment, shortId, statusClass,
   } = runtime;
 
-  function PrintableAttachment({ attachment, label }) {
+  function PrintableAttachment({ attachment: originalAttachment, label }) {
+    const attachment = displayedImageAttachment(originalAttachment);
     const [previewUrl, setPreviewUrl] = useState("");
     const [loadError, setLoadError] = useState(false);
     const [mediaReady, setMediaReady] = useState(false);
+    const [retryWaiting, setRetryWaiting] = useState(false);
+    const [retryAttempt, setRetryAttempt] = useState(0);
+    const loadErrorRef = useRef(false);
+    const retryableRef = useRef(false);
+    const retryAfterMsRef = useRef(0);
+    const retryTimerRef = useRef(null);
     const objectUrlRef = useRef("");
+    const unregisterPrintSourceRef = useRef(() => {});
+
+    useEffect(() => {
+      const retryFailedAttachment = (event) => {
+        if (!loadErrorRef.current || !retryableRef.current || retryTimerRef.current) return;
+        const deadline = Number(event.detail?.deadline) || Date.now() + 60_000;
+        const retryDelay = Math.max(0, retryAfterMsRef.current);
+        if (Date.now() + retryDelay >= deadline) return;
+        setRetryWaiting(true);
+        retryTimerRef.current = window.setTimeout(() => {
+          retryTimerRef.current = null;
+          retryAfterMsRef.current = 0;
+          loadErrorRef.current = false;
+          retryableRef.current = false;
+          setRetryWaiting(false);
+          setRetryAttempt((current) => current + 1);
+        }, retryDelay);
+      };
+      window.addEventListener("checklist:retry-report-attachments", retryFailedAttachment);
+      return () => {
+        window.removeEventListener("checklist:retry-report-attachments", retryFailedAttachment);
+        if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      };
+    }, []);
 
     useEffect(() => {
       let cancelled = false;
       setPreviewUrl("");
       setLoadError(false);
+      loadErrorRef.current = false;
+      retryableRef.current = false;
+      retryAfterMsRef.current = 0;
+      setRetryWaiting(false);
       setMediaReady(false);
       if (!attachment?.id) return undefined;
       const attachmentType = String(attachment.type || "");
@@ -24,32 +69,46 @@ export function createPrintableReportComponent(runtime) {
       getStoredAttachment(attachment.id).then((blob) => {
         if (cancelled) return;
         if (!blob) {
+          loadErrorRef.current = true;
+          retryableRef.current = false;
           setLoadError(true);
           return;
         }
         const nextUrl = URL.createObjectURL(blob);
         objectUrlRef.current = nextUrl;
+        unregisterPrintSourceRef.current = registerPrintableImageSource(nextUrl, blob);
         setPreviewUrl(nextUrl);
         if (!isMedia) setMediaReady(true);
-      }).catch(() => {
-        if (!cancelled) setLoadError(true);
+      }).catch((error) => {
+        if (!cancelled) {
+          retryAfterMsRef.current = Number(error?.retryAfterMs) || 0;
+          loadErrorRef.current = true;
+          retryableRef.current = error?.status === 429 || error?.status >= 500 || error?.status == null;
+          setLoadError(true);
+        }
       });
       return () => {
         cancelled = true;
+        if (retryTimerRef.current) {
+          window.clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = null;
+        }
         if (objectUrlRef.current) {
+          unregisterPrintSourceRef.current();
+          unregisterPrintSourceRef.current = () => {};
           URL.revokeObjectURL(objectUrlRef.current);
           objectUrlRef.current = "";
         }
       };
-    }, [attachment?.id]);
+    }, [attachment?.id, retryAttempt]);
 
     if (!attachment) return null;
     const isVideo = String(attachment.type || "").startsWith("video/");
     const isImage = String(attachment.type || "").startsWith("image/");
-    const state = loadError ? "missing" : previewUrl && mediaReady ? "ready" : "loading";
+    const state = retryWaiting ? "loading" : loadError ? "missing" : previewUrl && mediaReady ? "ready" : "loading";
     return <figure className={`ops-print-attachment ${loadError ? "is-missing" : ""}`} data-print-attachment={state}>
       <div className="ops-print-attachment-image-wrap">
-        {previewUrl && !loadError && isVideo ? <video src={previewUrl} controls preload="metadata" onLoadedData={() => setMediaReady(true)} onError={() => setLoadError(true)} aria-label={`${REPORT_TEXT.attachment.videoAlt} ${label}`} /> : previewUrl && !loadError && isImage ? <img src={previewUrl} alt={`${REPORT_TEXT.attachment.imageAlt} ${label}`} data-print-image="true" onLoad={() => setMediaReady(true)} onError={() => setLoadError(true)} /> : <span className="ops-print-attachment-warning">{loadError ? REPORT_TEXT.attachment.missingFile : attachment.type === "application/pdf" ? REPORT_TEXT.attachment.documentFile : REPORT_TEXT.attachment.attachedFile}</span>}
+        {previewUrl && !loadError && isVideo ? <video src={previewUrl} controls preload="metadata" onLoadedData={() => setMediaReady(true)} onError={() => { loadErrorRef.current = true; retryableRef.current = true; setLoadError(true); }} aria-label={`${REPORT_TEXT.attachment.videoAlt} ${label}`} /> : previewUrl && !loadError && isImage ? <img src={previewUrl} alt={`${REPORT_TEXT.attachment.imageAlt} ${label}`} data-print-image="true" onLoad={() => setMediaReady(true)} onError={() => { loadErrorRef.current = true; retryableRef.current = true; setLoadError(true); }} /> : <span className="ops-print-attachment-warning">{retryWaiting ? "กำลังลองโหลดหลักฐานอีกครั้ง..." : loadError ? REPORT_TEXT.attachment.missingFile : attachment.type === "application/pdf" ? REPORT_TEXT.attachment.documentFile : REPORT_TEXT.attachment.attachedFile}</span>}
       </div>
       <figcaption>{REPORT_TEXT.attachment.caption} · {label}</figcaption>
     </figure>;
@@ -81,7 +140,6 @@ export function createPrintableReportComponent(runtime) {
       const entryLabel = entry.displayLabel || entry.sourceLabel || item.label;
       return <div className="ops-print-evidence-slot" key={entry.id}>
         <div className="ops-print-evidence-heading"><strong>{entryLabel}</strong><span className={`ops-evidence-status ${statusClass(entry.status)}`}>{entry.statusLabel}</span></div>
-        {entry.sourceLabel && entry.sourceLabel !== entryLabel && <small>{REPORT_TEXT.attachment.pdfReference} {entry.sourceLabel}</small>}
         {entry.note && <p>{entry.note}</p>}
         {entry.attachment ? <PrintableAttachment attachment={entry.attachment} label={entryLabel} /> : <span className="ops-print-evidence-empty">{REPORT_TEXT.placeholder.noEvidenceFile}</span>}
       </div>;
@@ -89,11 +147,18 @@ export function createPrintableReportComponent(runtime) {
   }
 
   function PrintableChecklistItem({ item }) {
+    const itemContext = [
+      item.systemLabel && `ระบบ ${item.systemLabel}`,
+      item.scope && `ขอบเขต ${item.scope}`,
+      item.laneNo && `${REPORT_TEXT.table.lanePrefix} ${item.laneNo}`,
+      item.location,
+      item.serialNo && `${REPORT_TEXT.table.serialPrefix} ${item.serialNo}`,
+    ].filter(Boolean);
     return <tr className={`ops-print-item ${statusClass(item.status)}`} data-print-item-id={item.id}>
       <td className="ops-print-item-number"><span>{String(item.index || "-").padStart(2, "0")}</span></td>
-      <td className="ops-print-item-description"><h4>{item.label}</h4>{(item.assetNo || item.location || item.serialNo || item.laneNo) && <p>{[item.assetNo, item.laneNo && `${REPORT_TEXT.table.lanePrefix} ${item.laneNo}`, item.location, item.serialNo && `${REPORT_TEXT.table.serialPrefix} ${item.serialNo}`].filter(Boolean).join(" · ")}</p>}{item.relationshipPath && <small className="ops-print-relationship-path">{item.relationshipPath}</small>}</td>
+      <td className="ops-print-item-description"><h4><Icon name={getContextualReportIcon(item)} size="small" /> {item.label}</h4>{(item.assetNo || itemContext.length > 0) && <p>{[item.assetNo, ...itemContext].filter(Boolean).join(" · ")}</p>}{item.relationshipPath && <small className="ops-print-relationship-path">{item.relationshipPath}</small>}</td>
       <td className="ops-print-item-status"><StatusBadge status={item.status}>{item.statusLabel}</StatusBadge></td>
-      <td className="ops-print-item-details"><strong>{getPrintableItemValue(item)}</strong>{item.note && <p><b>{REPORT_TEXT.table.note}</b> {item.note}</p>}{item.helper && <small>{item.helper}</small>}</td>
+      <td className="ops-print-item-details">{item.value !== "" && item.value != null && <strong>{getPrintableItemValue(item)}</strong>}{item.note && <p><b>{REPORT_TEXT.table.note}</b> {item.note}</p>}</td>
       <td className="ops-print-item-evidence"><PrintableEvidenceCell item={item} /></td>
     </tr>;
   }
@@ -111,13 +176,12 @@ export function createPrintableReportComponent(runtime) {
         <div className="ops-print-cleaning-category"><span>{categoryCode}</span><div><p>อุปกรณ์ที่เกี่ยวข้อง</p><h3>{categoryTitle}</h3></div></div>
         <StatusBadge status={item.status}>{item.statusLabel}</StatusBadge>
       </header>
-      <h2 className="ops-print-cleaning-title">ทำความสะอาด {cleaningName}</h2>
+      <h2 className="ops-print-cleaning-title"><Icon name="broom" size="small" /> ทำความสะอาด {cleaningName}</h2>
       <dl className="ops-print-cleaning-facts">
         <div><dt>อุปกรณ์</dt><dd>{cleaningName}</dd></div>
-        <div><dt>Asset No.</dt><dd>{item.assetNo || "—"}</dd></div>
-        <div><dt>ตำแหน่ง</dt><dd>{item.location || "—"}</dd></div>
+        {item.assetNo && <div><dt>Asset No.</dt><dd>{item.assetNo}</dd></div>}
+        {item.location && <div><dt>ตำแหน่ง</dt><dd>{item.location}</dd></div>}
       </dl>
-      {item.helper && <p className="ops-print-cleaning-helper">{item.helper}</p>}
       {item.note && <p className="ops-print-cleaning-note"><strong>{REPORT_TEXT.table.note}</strong> {item.note}</p>}
       <div className="ops-print-cleaning-stage-grid">
         {evidenceEntries.map((entry, index) => {
@@ -149,6 +213,9 @@ export function createPrintableReportComponent(runtime) {
 
   const PRINT_SECTION_ICON_BY_CODE = Object.freeze({
     "1.1": "equipment",
+    "1.1.5": "scan",
+    "1.1.11": "server",
+    "1.1.12": "analytics",
     "2.1": "sensor",
     "2.2": "settings",
     "2.3": "circuit",
@@ -163,7 +230,13 @@ export function createPrintableReportComponent(runtime) {
     "7.1": "display",
   });
 
-  const REPORT_BLUEPRINT_BACKGROUND = "/report/blueprint-paper-bg.png";
+  function getContextualReportIcon(item) {
+    if (item.isEquipmentCleaning || item.isAreaCleaning) return "broom";
+    if (item.assetType) return getEquipmentIconName(item.assetType);
+    const readinessIcons = { "1.1.staff": "users", "1.1.vehicle": "truck", "1.1.crane": "truck", "1.1.traffic-cone-light": "trafficCone", "1.1.tools": "tools", "1.1.road-closure": "trafficCone" };
+    return readinessIcons[item.templateId || item.id] || PRINT_SECTION_ICON_BY_CODE[item.sectionCode] || "clipboard";
+  }
+
 
   function PrintableSectionOverview({ sections }) {
     if (!sections.length) return null;
@@ -232,7 +305,7 @@ export function createPrintableReportComponent(runtime) {
     return <article className={`ops-presentation-evidence-card ${entry.attachment ? "has-attachment" : "is-missing"}`.trim()} data-presentation-evidence-id={entry.id}>
       <header className="ops-presentation-evidence-heading">
         <span className="ops-presentation-step">{String(index + 1).padStart(2, "0")}</span>
-        <div><strong>{label}</strong>{entry.sourceLabel && entry.sourceLabel !== label && <small>{REPORT_TEXT.attachment.pdfReference} {entry.sourceLabel}</small>}</div>
+        <div><strong><Icon name={item.isEquipmentCleaning || item.isAreaCleaning ? "broom" : "camera"} size="small" /> {label}</strong></div>
         <span className={`ops-evidence-status ${statusClass(entry.status)}`}>{entry.statusLabel}</span>
       </header>
       <div className="ops-presentation-evidence-media">
@@ -244,94 +317,14 @@ export function createPrintableReportComponent(runtime) {
   }
 
   function getPresentationSummaryCells({ item, metadata, evidenceComplete, evidenceTotal }) {
-    const stationLabel = metadata.stationName || metadata.stationCode || REPORT_TEXT.placeholder.station;
-    const assetDetails = [item.laneNo && `${REPORT_TEXT.table.lanePrefix} ${item.laneNo}`, item.location].filter(Boolean).join(" · ") || REPORT_TEXT.placeholder.equipment;
-    const serialDetails = item.note || item.helper || REPORT_TEXT.placeholder.note;
-    return [
-      { label: REPORT_TEXT.presentation.result, value: item.statusLabel, description: `${REPORT_TEXT.presentation.station} ${stationLabel}`, icon: STATUS_META[item.status]?.icon || "info" },
-      { label: REPORT_TEXT.presentation.itemDetails, value: getPrintableItemValue(item), description: item.helper || REPORT_TEXT.presentation.recordedValue, icon: "clipboard" },
-      { label: REPORT_TEXT.presentation.equipmentLane, value: item.assetNo || REPORT_TEXT.placeholder.missing, description: assetDetails, icon: "equipment" },
-      { label: REPORT_TEXT.presentation.serialNote, value: item.serialNo || REPORT_TEXT.placeholder.missing, description: serialDetails, icon: "info" },
-      { label: REPORT_TEXT.presentation.evidenceSummary, value: `${evidenceComplete} / ${evidenceTotal} ช่อง`, description: evidenceTotal > evidenceComplete ? REPORT_TEXT.presentation.evidenceIncomplete : REPORT_TEXT.presentation.evidenceComplete, icon: evidenceTotal > evidenceComplete ? "alert" : "check", emphasis: true },
+    const cells = [{ label: REPORT_TEXT.presentation.result, value: item.statusLabel, description: "", icon: STATUS_META[item.status]?.icon || "info" }];
+    if (item.value !== "" && item.value !== null && item.value !== undefined) cells.push({ label: "ค่าที่ตรวจวัด", value: getPrintableItemValue(item), description: "", icon: "clipboard" });
+    const context = [item.scope && `ขอบเขต ${item.scope}`, item.laneNo && `${REPORT_TEXT.table.lanePrefix} ${item.laneNo}`, item.location].filter(Boolean).join(" · ");
+    if (item.assetId || item.assetNo || item.systemRecordId || context) cells.push({ label: item.assetId || item.assetNo ? "อุปกรณ์" : "ขอบเขตการตรวจ", value: item.assetNo || item.assetName || item.systemLabel || context, description: context, icon: item.assetType ? getEquipmentIconName(item.assetType) : "system" });
+    if (item.serialNo) cells.push({ label: "Serial", value: item.serialNo, description: "", icon: "tag" });
+    return [...cells,
+      { label: "หลักฐานประกอบ", value: `${evidenceComplete} / ${evidenceTotal} ช่อง`, description: evidenceTotal > evidenceComplete ? REPORT_TEXT.presentation.evidenceIncomplete : REPORT_TEXT.presentation.evidenceComplete, icon: evidenceTotal > evidenceComplete ? "alert" : "check", emphasis: true },
     ];
-  }
-
-  function getPresentationCoverEvidence(model) {
-    const attached = [];
-    const fallback = [];
-    model.sections.forEach((section) => section.items.forEach((item) => {
-      const printableEntries = getPrintableEvidenceEntries(item);
-      if (printableEntries.length) {
-        printableEntries.forEach((entry) => {
-          const candidate = { section, item, entry };
-          if (entry.attachment) attached.push(candidate);
-          else fallback.push(candidate);
-        });
-        return;
-      }
-      const [placeholder] = getPresentationEvidenceEntries(item);
-      fallback.push({ section, item, entry: placeholder });
-    }));
-    return [...attached, ...fallback].slice(0, 3);
-  }
-
-  function CoverIcon({ name, size = "normal" }) {
-    return <Icon name={name} size={size} />;
-  }
-
-  function PrintablePresentationCover({ model }) {
-    const { metadata, summary, sections } = model;
-    const coverEvidence = getPresentationCoverEvidence(model);
-    const overallStatus = summary.issues > 0 ? REPORT_COPY.status.issue : summary.pending > 0 ? REPORT_COPY.status.presentationPending : REPORT_COPY.status.presentationComplete;
-    const overallStatusIcon = summary.issues > 0 ? "alert" : summary.pending > 0 ? "info" : "check";
-    const overallStatusTone = summary.issues > 0 ? "damaged" : summary.pending > 0 ? "pending" : "normal";
-    const summaryCells = [
-      { label: REPORT_TEXT.presentation.progress, value: `${summary.progress}%`, detail: `${summary.done} จาก ${summary.total} รายการ`, icon: "clipboard" },
-      { label: REPORT_TEXT.presentation.checkedItems, value: `${summary.done} / ${summary.total}`, detail: REPORT_TEXT.presentation.progressDetail, icon: "check" },
-      { label: REPORT_TEXT.presentation.evidenceRecorded, value: summary.evidenceComplete, detail: `จาก ${summary.evidenceTotal} ช่อง`, icon: "photo" },
-      { label: REPORT_TEXT.presentation.categoryCount, value: sections.length, detail: REPORT_TEXT.presentation.categoryDetail, icon: "grid" },
-    ];
-    return <section className="ops-presentation-cover-v2" aria-label={REPORT_TEXT.aria.cover}>
-      <img className="ops-presentation-cover-v2-background" src={REPORT_BLUEPRINT_BACKGROUND} alt="" aria-hidden="true" />
-      <div className="ops-presentation-cover-v2-content">
-        <header className="ops-presentation-cover-v2-header">
-          <div className="ops-presentation-cover-v2-title">
-            <p>{REPORT_TEXT.presentation.brandEyebrow}</p>
-            <h1>{REPORT_TEXT.presentation.title}</h1>
-            <span>{REPORT_TEXT.presentation.subtitle}</span>
-          </div>
-          <div className="ops-presentation-cover-v2-context">
-            <div className="ops-cover-context-field"><CoverIcon name="pin" /><div><span>{REPORT_TEXT.presentation.station}</span><strong>{metadata.stationCode || REPORT_TEXT.placeholder.missing}</strong><small>{metadata.stationName || REPORT_TEXT.placeholder.station}</small></div></div>
-            <div className="ops-cover-context-field"><CoverIcon name="calendar" /><div><span>{REPORT_TEXT.presentation.inspectionDate}</span><strong>{metadata.inspectionDate ? formatDate(metadata.inspectionDate) : REPORT_TEXT.placeholder.missing}</strong></div></div>
-            <div className={`ops-presentation-cover-v2-status ${statusClass(overallStatusTone)}`}><span>{REPORT_TEXT.presentation.inspectionStatus}</span><strong className="ops-cover-status-pill"><CoverIcon name={overallStatusIcon} />{overallStatus}</strong></div>
-          </div>
-        </header>
-        <div className="ops-presentation-cover-v2-evidence-grid">
-          {coverEvidence.map(({ entry, item }, index) => {
-            const label = entry.displayLabel || entry.sourceLabel || item.label;
-            const caption = getPresentationEvidenceCaption(entry, item.helper || REPORT_TEXT.presentation.evidenceCaption);
-            return <article className={`ops-presentation-cover-v2-evidence-card ${entry.attachment ? "has-attachment" : "is-missing"}`.trim()} key={`${item.id}-${entry.id || index}`}>
-              <header><span>{index + 1}</span><strong>{label}</strong></header>
-              <div className="ops-presentation-cover-v2-evidence-media">
-                {entry.attachment ? <PrintableAttachment attachment={entry.attachment} label={label} /> : <div className="ops-presentation-cover-v2-placeholder"><CoverIcon name="camera" size="small" /><strong>{REPORT_TEXT.placeholder.noEvidenceFile}</strong><small>{entry.statusLabel || REPORT_TEXT.placeholder.evidenceStatus}</small></div>}
-              </div>
-              <p>{caption}</p>
-              {index < coverEvidence.length - 1 && <span className="ops-presentation-cover-v2-arrow" aria-hidden="true"><CoverIcon name="arrow" size="small" /></span>}
-            </article>;
-          })}
-        </div>
-        <section className="ops-presentation-cover-v2-summary" aria-label={REPORT_TEXT.aria.summary}>
-          {summaryCells.map((cell) => <div className="ops-presentation-cover-v2-summary-cell" key={cell.label}>
-            <span className="ops-presentation-cover-v2-summary-icon"><CoverIcon name={cell.icon} size="small" /></span>
-            <div><span>{cell.label}</span><strong>{cell.value}</strong><small>{cell.detail}</small></div>
-          </div>)}
-        </section>
-        <section className="ops-presentation-cover-v2-scope" aria-label={REPORT_TEXT.aria.scope}>
-          <div className="ops-presentation-cover-v2-scope-heading"><span className="ops-presentation-cover-v2-scope-icon"><CoverIcon name="target" size="small" /></span><strong>{REPORT_TEXT.presentation.scopeTitle}</strong></div>
-          <div className="ops-presentation-cover-v2-scope-items">{sections.slice(0, 6).map((section) => <span key={section.code}><CoverIcon name="check" size="small" />{section.title}</span>)}{sections.length > 6 && <span className="is-more">+{sections.length - 6} {REPORT_TEXT.presentation.moreCategories}</span>}</div>
-        </section>
-      </div>
-    </section>;
   }
 
   function PrintablePresentationPage({ children, className = "" }) {
@@ -339,50 +332,52 @@ export function createPrintableReportComponent(runtime) {
   }
 
   function PrintablePresentationItemSlide({ section, item, position, total, evidenceEntries, allEvidenceEntries, metadata, continuation = false, companyId = "ntr" }) {
+    const taskLabel = item.assetName ? item.label.replace(`${item.assetName} · `, "").replace(` · ${item.assetName}`, "").replace(item.assetNo ? ` · ${item.assetNo}` : "\u0000", "") : item.label;
     const itemDetails = [
+      item.systemLabel && `ระบบ ${item.systemLabel}`,
+      item.scope && `ขอบเขต ${item.scope}`,
       item.assetNo && `${REPORT_TEXT.presentation.assetNo} ${item.assetNo}`,
       item.laneNo && `${REPORT_TEXT.table.lanePrefix} ${item.laneNo}`,
       item.location,
       item.serialNo && `${REPORT_TEXT.table.serialPrefix} ${item.serialNo}`,
     ].filter(Boolean);
     const stationLabel = metadata.stationName || metadata.stationCode || REPORT_TEXT.placeholder.station;
-    const inspectionDateLabel = metadata.inspectionDate ? formatDate(metadata.inspectionDate) : REPORT_TEXT.placeholder.date;
     const evidenceComplete = allEvidenceEntries.filter(isPrintableEvidenceComplete).length;
     const evidenceTotal = allEvidenceEntries.length;
     const summaryCells = getPresentationSummaryCells({ item, metadata, evidenceComplete, evidenceTotal });
     const company = getReportCompany(companyId);
     return <section className={`ops-presentation-item-slide company-slide-${company.id} slots-${Math.min(evidenceEntries.length, 4)}${continuation ? " is-continuation" : ""}`.trim()} data-print-presentation-item-id={item.id} data-print-presentation-position={position} data-presentation-continuation={continuation ? "true" : "false"} aria-label={`${REPORT_TEXT.presentation.itemPrefix}ตรวจ ${item.label}`}>
-      <header className="ops-presentation-reference-header">
-        <div className="ops-presentation-reference-title"><img className="company-slide-logo" data-company-asset src={`/report/companies/${company.logo}`} alt={`${company.name} logo`} /><div><span>{REPORT_TEXT.presentation.reportByStation} · {company.name}</span><strong>{section.title}</strong></div></div>
+      <header className="ops-presentation-reference-header without-round">
+        <div className="ops-presentation-reference-title"><img className="company-slide-logo" data-company-asset src={`/report/companies/${company.logo}`} alt={`${company.name} logo`} /><div><span>{REPORT_TEXT.presentation.reportByStation} · {company.name}</span><strong>รายงานผลการตรวจสอบและบำรุงรักษา</strong></div></div>
         <div className="ops-presentation-reference-context"><span>{REPORT_TEXT.presentation.referenceStation}</span><strong>{stationLabel}</strong></div>
-        <div className="ops-presentation-reference-context"><span>{REPORT_TEXT.presentation.referenceDate}</span><strong>{inspectionDateLabel}</strong></div>
         <div className={`ops-presentation-reference-status ${statusClass(item.status)}`}><Icon name={STATUS_META[item.status]?.icon || "info"} size="small" /><strong>{item.statusLabel}</strong></div>
       </header>
       <header className="ops-presentation-item-heading">
-        <div><p className="ops-eyebrow">{section.code} · {REPORT_TEXT.presentation.itemPrefix} {position} / {total}{continuation ? ` · ${REPORT_TEXT.presentation.continuation}` : ""}</p><h2>{item.label}</h2>{itemDetails.length > 0 && <p>{itemDetails.join(" · ")}</p>}</div>
+        <div><p className="ops-eyebrow"><Icon name={getContextualReportIcon(item)} size="small" /> {section.code} · {section.title}{continuation ? ` · ${REPORT_TEXT.presentation.continuation}` : ""}</p><h2>{item.assetName && !item.isAreaCleaning ? item.assetName : item.label}</h2>{item.assetName && !item.isAreaCleaning && <p className="ops-presentation-task"><Icon name={item.isEquipmentCleaning ? "broom" : "clipboard"} size="small" /> รายการตรวจ: {taskLabel}</p>}{itemDetails.length > 0 && <p>{itemDetails.join(" · ")}</p>}</div>
       </header>
       <div className="ops-presentation-evidence-grid">
         {evidenceEntries.map((entry, index) => <PrintablePresentationEvidenceCard key={entry.id} entry={entry} item={item} index={index} total={evidenceEntries.length} />)}
       </div>
-      <div className="ops-presentation-summary-band" aria-label={REPORT_TEXT.presentation.summary}>
+      <div className="ops-presentation-summary-band" style={{ "--report-summary-columns": summaryCells.length }} aria-label={REPORT_TEXT.presentation.summary}>
         {summaryCells.map((cell) => <div className={`ops-presentation-summary-cell${cell.emphasis ? " is-emphasis" : ""}`.trim()} key={cell.label}><span className="ops-presentation-summary-icon"><Icon name={cell.icon} size="small" /></span><div><span>{cell.label}</span><strong>{cell.value}</strong><small>{cell.description}</small></div></div>)}
       </div>
-      <footer className="ops-presentation-slide-footnote">{item.note ? `${REPORT_TEXT.presentation.note} ${item.note}` : item.helper || REPORT_TEXT.presentation.snapshotFooter}</footer>
+      <footer className="ops-presentation-slide-footnote">{item.note && <span>{REPORT_TEXT.presentation.note} {item.note}</span>}<span>หน้า {position} / {total}</span></footer>
     </section>;
   }
 
   function PrintablePresentationSlides({ model, vehicleSlides = [], companyId = "ntr" }) {
-    const slideItems = model.sections.flatMap((section) => section.items.flatMap((item) => {
+    const slideItems = model.orderedItems.flatMap((item) => {
+      const section = item.presentationSection || { code: item.sectionCode || "", title: item.sourceSectionTitle || "" };
       const allEvidenceEntries = getPresentationEvidenceEntries(item);
       return chunkPresentationEvidence(allEvidenceEntries).map((evidenceEntries, index) => ({ section, item, evidenceEntries, allEvidenceEntries, continuation: index > 0 }));
-    }));
+    });
     const totalSlides = slideItems.length + vehicleSlides.length;
     if (!totalSlides) return <div className="ops-presentation-empty"><EmptyState icon="info" title={REPORT_TEXT.placeholder.noActiveItems}>{REPORT_TEXT.presentation.noActiveItemsDetail}</EmptyState></div>;
     return <div className={`ops-presentation-slide-list company-slides-${companyId}`} data-presentation-slide-count={totalSlides} data-presentation-vehicle-slide-count={vehicleSlides.length}>
       {slideItems.map((slide, index) => <PrintablePresentationPage className={`company-slide-page company-${companyId}${index === totalSlides - 1 ? " is-last" : ""}`} key={`checklist-${slide.item.id}-${index}`}><PrintablePresentationItemSlide {...slide} metadata={model.metadata} companyId={companyId} position={index + 1} total={totalSlides} /></PrintablePresentationPage>)}
       {vehicleSlides.map((slide, index) => {
         const position = slideItems.length + index + 1;
-        return <PrintablePresentationPage className={`company-slide-page company-${companyId}${position === totalSlides ? " is-last" : ""}`} key={`vehicle-${slide.scopeReport.scope || "all"}-${slide.dimension}`}><PrintableVehiclePresentationSlide {...slide} metadata={model.metadata} companyId={companyId} position={position} total={totalSlides} /></PrintablePresentationPage>;
+        return <VehicleSnapshotEvidencePage key={`vehicle-${slide.key}`} page={slide} metadata={model.metadata} presentation wrapPage={(content, lastPage) => <PrintablePresentationPage className={`company-slide-page company-${companyId}${position === totalSlides && lastPage ? " is-last" : ""}`}>{content}</PrintablePresentationPage>} renderAttachment={attachment => <PrintableAttachment attachment={attachment} label="หลักฐานเดิมประกอบผลตรวจ" />} />;
       })}
     </div>;
   }
@@ -390,7 +385,7 @@ export function createPrintableReportComponent(runtime) {
   function buildPrintableGalleryItems(model, { omitCleaning = false } = {}) {
     const items = [];
     const seen = new Set();
-    model.sections.forEach((section) => section.items.forEach((item) => {
+    model.orderedItems.forEach((item) => {
       if (omitCleaning && (item.isEquipmentCleaning || item.isAreaCleaning)) return;
       getPrintableEvidenceEntries(item).forEach((entry) => {
         const attachment = entry.attachment;
@@ -399,7 +394,7 @@ export function createPrintableReportComponent(runtime) {
         seen.add(attachment.id);
         items.push({ attachment, label: entry.displayLabel || entry.sourceLabel || item.label });
       });
-    }));
+    });
     return items;
   }
 
@@ -439,7 +434,7 @@ export function createPrintableReportComponent(runtime) {
     const max = Math.max(summary.total || 0, ...values.map(([, value]) => value), 1);
     return <section className="ops-print-vehicle-chart" aria-label={title}>
       <div className="ops-print-vehicle-chart-heading"><h4>{title}</h4><strong>เกณฑ์ ≥ {threshold}%</strong></div>
-      <div className="ops-print-vehicle-chart-accuracy"><span>ความถูกต้อง · ถูก {summary.correct}/{summary.reviewed} คันที่ตัดสิน</span><strong>{summary.accuracy === null ? "—" : `${summary.accuracy}%`}</strong><div className="ops-print-vehicle-threshold-track"><span style={{ width: `${Math.min(100, Math.max(0, summary.accuracy || 0))}%` }} /><i style={{ left: `${threshold}%` }} aria-hidden="true" /></div><small>บันทึกผลแล้ว {summary.decided}/{summary.total} คัน · รอตรวจ {summary.pending} คัน</small></div>
+      <div className="ops-print-vehicle-chart-accuracy"><span>ความถูกต้อง · ถูก {summary.correct}/{summary.reviewed} คันที่ตัดสิน</span><strong>{summary.accuracy === null ? "—" : `${summary.accuracyDisplay || summary.accuracy}%`}</strong><div className="ops-print-vehicle-threshold-track"><span style={{ width: `${Math.min(100, Math.max(0, summary.accuracy || 0))}%` }} /><i style={{ left: `${threshold}%` }} aria-hidden="true" /></div><small>บันทึกผลแล้ว {summary.decided}/{summary.total} คัน · รอตรวจ {summary.pending} คัน</small></div>
       <div className="ops-print-vehicle-chart-bars">{values.map(([label, value, tone]) => <div className={`ops-print-vehicle-chart-row tone-${tone}`} key={label}><div><span>{label}</span><strong>{value} คัน</strong></div><div className="ops-print-vehicle-chart-track"><span style={{ width: `${Math.round((value / max) * 100)}%` }} /></div></div>)}</div>
     </section>;
   }
@@ -463,7 +458,7 @@ export function createPrintableReportComponent(runtime) {
   function PrintableVehicleReportImage({ src, label }) {
     const [failed, setFailed] = useState(false);
     if (!src || failed) return <div className="ops-print-vehicle-image-missing">{src ? "โหลดภาพไม่ได้" : "ไม่มีภาพ"}</div>;
-    return <figure className="ops-print-vehicle-evidence-image"><img src={src} alt={label} onError={() => setFailed(true)} /><figcaption>{label}</figcaption></figure>;
+    return <figure className="ops-print-vehicle-evidence-image"><img src={src} alt={label} data-print-image="true" onError={() => setFailed(true)} /><figcaption>{label}</figcaption></figure>;
   }
 
   function PrintableVehicleEvidenceRow({ row }) {
@@ -473,36 +468,18 @@ export function createPrintableReportComponent(runtime) {
     return <article className="ops-print-vehicle-evidence-row">
       <header><strong>{row.plateNumber || "ไม่พบทะเบียน"}</strong><span>{row.occurredAt ? formatDateTime(row.occurredAt) : "ไม่พบเวลา"} · {row.lane || "ไม่ระบุ Lane"}</span></header>
       <dl><div><dt>ทะเบียนจาก API</dt><dd>{row.plateNumber || "—"} · {vehiclePrintStatusLabel(row.reviewStatus)}</dd></div><div><dt>ทะเบียนที่ยืนยัน</dt><dd>{plateDetail.correctedValue ? `${plateCorrectionTarget ? `${plateCorrectionTarget} · ` : ""}${plateDetail.correctedValue}` : "เหมือนค่า API / ไม่มีการแก้"}</dd></div><div><dt>ประเภทรถจาก API</dt><dd>{row.vehicleClassLabel || "—"} · {vehiclePrintStatusLabel(row.classificationReviewStatus)}</dd></div><div><dt>ประเภทที่ยืนยัน</dt><dd>{classificationDetail.correctedValue || "เหมือนค่า API / ไม่มีการแก้"}</dd></div><div><dt>น้ำหนักรวม</dt><dd>{formatVehiclePrintWeight(row.grossWeight)}</dd></div></dl>
-      {(plateDetail.reasonCode || classificationDetail.reasonCode || plateDetail.note || classificationDetail.note) && <div className="ops-print-vehicle-evidence-reason"><strong>เหตุผล/หมายเหตุ</strong><span>{[vehicleReviewReasonLabel("plate", plateDetail.reasonCode), vehicleReviewReasonLabel("classification", classificationDetail.reasonCode), plateDetail.note, classificationDetail.note].filter(Boolean).join(" · ")}</span></div>}
+      {(plateDetail.reasonCode || classificationDetail.reasonCode || plateDetail.note || classificationDetail.note || plateDetail.verificationScope) && <div className="ops-print-vehicle-evidence-reason"><strong>เหตุผล/หมายเหตุ</strong><span>{[vehicleReviewReasonLabel("plate", plateDetail.reasonCode), getVehiclePlateVerificationLabel(plateDetail), vehicleReviewReasonLabel("classification", classificationDetail.reasonCode), plateDetail.note, classificationDetail.note].filter(Boolean).join(" · ")}</span></div>}
       <div className="ops-print-vehicle-evidence-images"><PrintableVehicleReportImage src={row.plateImage} label="ภาพป้ายทะเบียนจาก API" /><PrintableVehicleReportImage src={row.overviewImage} label="ภาพรถจาก API" />{plateDetail.evidenceAttachment && <PrintableAttachment attachment={plateDetail.evidenceAttachment} label="หลักฐานเพิ่มเติมด้านทะเบียน" />}{classificationDetail.evidenceAttachment && <PrintableAttachment attachment={classificationDetail.evidenceAttachment} label="หลักฐานเพิ่มเติมด้านประเภทรถ" />}</div>
     </article>;
   }
 
-  function PrintableVehicleReport({ vehicleReport }) {
+  function PrintableVehicleReport({ vehicleReport, metadata }) {
     if (!vehicleReport) return null;
-    const scopeReports = vehicleReport.scoped ? vehicleReport.scopes : [vehicleReport];
-    return <section className="ops-print-vehicle-summary"><div><p className="ops-eyebrow">ผลตรวจจาก API สถานี</p><h3>ผลตรวจข้อมูลรถจาก API</h3><span>{vehicleReport.scoped ? "แยกผลตรวจตามช่วงกลางวันและกลางคืน" : `${vehicleReport.criteria?.startAt || "—"} ถึง ${vehicleReport.criteria?.endAt || "—"}`}</span></div>{scopeReports.map((scopeReport) => {
-      const plateSummary = scopeReport.summary?.dimensions?.plate;
-      const classificationSummary = scopeReport.summary?.dimensions?.classification;
-      const issues = scopeReport.issues || [];
-      return <section className="ops-print-vehicle-scope" key={scopeReport.scope || "all"}>
-        <div className="ops-print-vehicle-scope-heading"><strong>{scopeReport.scopeLabel || "ผลรวม"}</strong>{scopeReport.scopeTimeLabel && <span>{scopeReport.scopeTimeLabel}</span>}<small>{scopeReport.criteria?.startAt || "—"} ถึง {scopeReport.criteria?.endAt || "—"} · {scopeReport.sourceStation?.id || "—"} · {scopeReport.sourceStation?.name || "—"} · {scopeReport.pagination?.totalPages || 0} หน้า · {scopeReport.pagination?.totalItems || 0} คัน</small></div>
-        <div className="ops-print-vehicle-outcome"><strong>ผลรอบทดสอบ: {scopeReport.outcome?.label || "ยังไม่สรุป"}</strong><span>{scopeReport.outcome?.sampleBasis === "count" ? "ผ่านเงื่อนไขจำนวนรถ 100 คัน" : scopeReport.outcome?.sampleBasis === "duration" ? "ผ่านเงื่อนไขระยะเวลา 6 ชั่วโมง" : "ยังไม่ผ่านเงื่อนไขจำนวน/เวลา"}</span>{scopeReport.outcome?.reasons?.length > 0 && <small>{scopeReport.outcome.reasons.map((reason) => reason.label).join(" · ")}</small>}</div>
-        <div className="ops-print-vehicle-charts"><PrintableVehicleChart title="ผลการอ่านป้ายทะเบียน" summary={plateSummary} threshold={scopeReport.thresholds?.plate || 80} /><PrintableVehicleChart title="ผลการคัดแยกประเภทรถ" summary={classificationSummary} threshold={scopeReport.thresholds?.classification || 90} /><PrintableVehicleReasonChart issues={issues} /></div>
-        <section className="ops-print-vehicle-detail-section"><h4>ตารางรายละเอียดรถทุกคัน</h4><div className="ops-print-vehicle-table-wrap"><table className="ops-print-vehicle-table"><thead><tr><th>ลำดับ/รหัส</th><th>วันเวลา · เลน</th><th>ทะเบียน / ผลตรวจ</th><th>ประเภทรถ / ผลตรวจ</th><th>น้ำหนักรวม</th><th>หลักฐาน</th></tr></thead><tbody>{(scopeReport.rows || []).map((row, index) => <tr key={row.id}><td><strong>{index + 1}</strong><small>{row.id}</small></td><td>{row.occurredAt ? formatDateTime(row.occurredAt) : "—"}<small>{row.lane || "—"}</small></td><td><strong>{row.plateNumber || "—"}</strong><small>{vehiclePrintStatusLabel(row.reviewStatus)}{row.reviewDetails?.plate?.correctionTarget ? ` · ${vehicleCorrectionTargetLabel("plate", row.reviewDetails.plate.correctionTarget)}: ${row.reviewDetails.plate.correctedValue || "—"}` : row.reviewDetails?.plate?.correctedValue ? ` · ยืนยัน ${row.reviewDetails.plate.correctedValue}` : ""}</small></td><td><strong>{row.vehicleClassLabel || "—"}</strong><small>{vehiclePrintStatusLabel(row.classificationReviewStatus)}{row.reviewDetails?.classification?.correctedValue ? ` · ยืนยัน ${row.reviewDetails.classification.correctedValue}` : ""}</small></td><td>{formatVehiclePrintWeight(row.grossWeight)}</td><td>{row.plateImage || row.overviewImage || row.reviewDetails?.plate?.evidenceAttachment || row.reviewDetails?.classification?.evidenceAttachment ? "มีหลักฐาน" : "ไม่มีภาพ"}</td></tr>)}</tbody></table></div></section>
-        <section className="ops-print-vehicle-issues"><strong>รายการผิดหรืออ่านไม่ได้ ({issues.length})</strong>{issues.length ? <ul>{issues.map((issue) => <li key={`${scopeReport.scope || "all"}-${issue.id}`}><b>{issue.plateNumber || issue.rowId}</b> · {issue.dimensionLabel} · {issue.statusLabel}{issue.correctionTargetLabel ? ` · ส่วนที่ผิด: ${issue.correctionTargetLabel}` : ""}{issue.reasonLabel ? ` · ${issue.reasonLabel}` : ""}{issue.note ? ` · ${issue.note}` : ""}</li>)}</ul> : <span>ไม่พบรายการผิดหรืออ่านไม่ได้</span>}</section>
-        <section className="ops-print-vehicle-evidence-appendix"><div className="ops-print-vehicle-evidence-heading"><h4>ภาคผนวกภาพหลักฐานรายคัน</h4><span>{(scopeReport.rows || []).length} คัน</span></div>{(scopeReport.rows || []).map((row) => <PrintableVehicleEvidenceRow key={`evidence-${row.id}`} row={row} />)}</section>
-      </section>;
-    })}</section>;
+    return <VehicleSnapshotEvidenceReport report={vehicleReport} metadata={metadata} renderAttachment={attachment => <PrintableAttachment attachment={attachment} label="หลักฐานเดิมประกอบผลตรวจ" />} />;
   }
 
   function getVehiclePresentationSlides(vehicleReport) {
-    if (!vehicleReport) return [];
-    const scopeReports = vehicleReport.scoped ? vehicleReport.scopes : [vehicleReport];
-    return scopeReports.flatMap((scopeReport) => [
-      { scopeReport, dimension: "plate" },
-      ...(scopeReport.supportsClassification ? [{ scopeReport, dimension: "classification" }] : []),
-    ]);
+    return buildVehicleSnapshotEvidencePages(vehicleReport);
   }
 
   function getVehiclePresentationSampleRows(scopeReport, dimension) {
@@ -557,7 +534,7 @@ export function createPrintableReportComponent(runtime) {
 
   function PrintableVehiclePresentationMetrics({ summary, threshold }) {
     const metrics = [
-      { label: "ความถูกต้อง", value: summary?.accuracy === null || summary?.accuracy === undefined ? "—" : `${summary.accuracy}%`, detail: `เกณฑ์ ≥ ${threshold}%`, emphasis: true },
+      { label: "ความถูกต้อง", value: summary?.accuracy === null || summary?.accuracy === undefined ? "—" : `${summary.accuracyDisplay || summary.accuracy}%`, detail: `เกณฑ์ ≥ ${threshold}%`, emphasis: true },
       { label: "ถูกต้อง", value: summary?.correct || 0 },
       { label: "ไม่ถูกต้อง", value: summary?.incorrect || 0 },
       { label: "ตรวจไม่ได้", value: summary?.unableToVerify || 0 },
@@ -620,12 +597,18 @@ export function createPrintableReportComponent(runtime) {
     const reportCover = model.reportCover || {};
     const correction = model.correction;
     const reportDocument = REPORT_TEXT.document;
+    const detailRuns = [];
+    model.orderedItems.forEach((item, index) => {
+      const section = item.presentationSection || { code: item.sectionCode || "", title: item.sourceSectionTitle || "" };
+      const cleaning = usesCleaningPages && (item.isEquipmentCleaning || item.isAreaCleaning);
+      const previous = detailRuns[detailRuns.length - 1];
+      if (previous && previous.section.code === section.code && previous.cleaning === cleaning) previous.items.push(item);
+      else detailRuns.push({ key: `${section.code}-${index}`, section, cleaning, items: [item] });
+    });
     const missingReportValue = REPORT_TEXT.placeholder.missing;
     const reportValue = (value) => value || missingReportValue;
     const reportControlFields = [
       [reportDocument.controlLabels.documentNo, reportValue(metadata.documentNo)],
-      [reportDocument.controlLabels.round, metadata.roundId ? shortId(metadata.roundId) : missingReportValue],
-      [reportDocument.controlLabels.inspectionDate, metadata.inspectionDate ? formatDate(metadata.inspectionDate) : missingReportValue],
       [reportDocument.controlLabels.stationCode, reportValue(metadata.stationCode)],
       [reportDocument.controlLabels.createdAt, metadata.createdAt ? formatDate(metadata.createdAt) : missingReportValue],
     ];
@@ -640,13 +623,13 @@ export function createPrintableReportComponent(runtime) {
     ];
     const reportProjectContext = [metadata.projectName, metadata.stationName].filter(Boolean).join(" · ") || missingReportValue;
     const reportRevisionMarker = round.basedOnRoundId
-      ? `ฉบับแก้ไขครั้งที่ ${round.revisionNumber || 1} · อ้างอิงรอบ ${shortId(round.basedOnRoundId)}`
+      ? `ฉบับแก้ไขครั้งที่ ${round.revisionNumber || 1}`
       : correction
         ? `มีการแก้ไขย้อนหลัง ${correction.count} ครั้ง`
         : "";
     const vehicleReport = model.vehicleSearch;
     const vehiclePresentationSlides = getVehiclePresentationSlides(vehicleReport);
-    const hasPresentationSlides = model.sections.some((section) => section.items.length > 0) || vehiclePresentationSlides.length > 0;
+    const hasPresentationSlides = model.orderedItems.length > 0 || vehiclePresentationSlides.length > 0;
     return <section className={`ops-print-report company-report-${company.id} company-report-variant-${company.coverVariant} ${preview ? "is-report-preview" : ""} ${draft ? "is-draft" : ""}`.trim()} style={reportThemeStyle} data-company={company.id} data-company-variant={company.coverVariant} data-report-template={model.templateId} data-report-variant={reportVariantId} data-report-design="field-audit-v3" data-report-mode={isPresentation ? "presentation" : "standard"} data-report-draft={draft ? "true" : "false"} aria-label={`${isPresentation ? REPORT_TEXT.aria.presentation : REPORT_TEXT.aria.standard} ${company.name}${draft ? " ฉบับร่าง" : ""}`}>
       {!isPresentation && <CompanyReportCover model={model} companyId={companyId} draft={draft} />}
       {!isPresentation && <div className="company-report-document-details">
@@ -668,35 +651,28 @@ export function createPrintableReportComponent(runtime) {
       </header>
       <dl className="ops-print-meta-grid">{metadataFields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <PrintableSummaryStrip summary={model.summary} />
-       <PrintableVehicleReport vehicleReport={vehicleReport} />
+       <PrintableVehicleReport vehicleReport={vehicleReport} metadata={model.metadata} />
       <PrintableSectionOverview sections={model.sections} />
         </div>
       </div>}
       {isPresentation && <PrintablePresentationPage className={`is-cover${hasPresentationSlides ? "" : " is-last"}`}><CompanyReportCover model={model} companyId={companyId} draft={draft} presentation /></PrintablePresentationPage>}
-       {isPresentation ? <PrintablePresentationSlides model={model} vehicleSlides={vehiclePresentationSlides} companyId={company.id} /> : <>
-        <div className={`ops-print-section-list${model.sections.length ? "" : " is-empty"}`}>
-          {model.sections.map((section) => {
-            const cleaningItems = usesCleaningPages
-              ? section.items.filter((item) => item.isEquipmentCleaning || item.isAreaCleaning)
-              : [];
-            const tableItems = usesCleaningPages
-              ? section.items.filter((item) => !item.isEquipmentCleaning && !item.isAreaCleaning)
-              : section.items;
-            return <section className={`ops-print-section${section.items.length <= 6 ? " is-compact" : ""}`} key={section.code} data-report-section={section.code}>
-              {(!usesCleaningPages || tableItems.length > 0 || cleaningItems.length === 0) && <>
-                <div className="ops-print-section-title"><span>{section.code}</span><div><h3>{section.title}</h3><p>{section.items.length} {REPORT_TEXT.table.itemCount}</p></div><strong>{REPORT_TEXT.table.enabled}</strong></div>
-                <div className="ops-print-table-wrap"><table className="ops-print-items-table"><caption className="sr-only">{REPORT_TEXT.table.description}หมวด {section.title}</caption><colgroup><col className="ops-print-col-number" /><col className="ops-print-col-description" /><col className="ops-print-col-status" /><col className="ops-print-col-details" /><col className="ops-print-col-evidence" /></colgroup><thead><tr><th scope="col">{REPORT_TEXT.table.number}</th><th scope="col">{REPORT_TEXT.table.description}</th><th scope="col">{REPORT_TEXT.table.status}</th><th scope="col">{REPORT_TEXT.table.details}</th><th scope="col">{REPORT_TEXT.table.evidence}</th></tr></thead><tbody>{tableItems.map((item) => <PrintableChecklistItem key={item.id} item={item} />)}</tbody></table></div>
-              </>}
-              {cleaningItems.map((item) => <PrintableCleaningChecklistItem key={item.id} item={item} section={section} />)}
-            </section>;
-          })}
+       {preview && vehicleReport && <VehicleEvidenceReadiness />}
+      {isPresentation ? <PrintablePresentationSlides model={model} vehicleSlides={vehiclePresentationSlides} companyId={company.id} /> : <>
+        <div className={`ops-print-section-list${model.orderedItems.length ? "" : " is-empty"}`}>
+          {detailRuns.map((run) => run.cleaning
+            ? run.items.map((item) => <PrintableCleaningChecklistItem key={item.id} item={item} section={run.section} />)
+            : <section className={`ops-print-section${run.items.length <= 6 ? " is-compact" : ""}`} key={run.key} data-report-section={run.section.code}>
+              <div className="ops-print-section-title"><span>{run.section.code}</span><div><h3>{run.section.title}</h3><p>{run.items.length} {REPORT_TEXT.table.itemCount}</p></div><strong>{REPORT_TEXT.table.enabled}</strong></div>
+              <div className="ops-print-table-wrap"><table className="ops-print-items-table"><caption className="sr-only">{REPORT_TEXT.table.description}หมวด {run.section.title}</caption><colgroup><col className="ops-print-col-number" /><col className="ops-print-col-description" /><col className="ops-print-col-status" /><col className="ops-print-col-details" /><col className="ops-print-col-evidence" /></colgroup><thead><tr><th scope="col">{REPORT_TEXT.table.number}</th><th scope="col">{REPORT_TEXT.table.description}</th><th scope="col">{REPORT_TEXT.table.status}</th><th scope="col">{REPORT_TEXT.table.details}</th><th scope="col">{REPORT_TEXT.table.evidence}</th></tr></thead><tbody>{run.items.map((item) => <PrintableChecklistItem key={item.id} item={item} />)}</tbody></table></div>
+            </section>)}
            </div>
-           {!model.sections.length && <EmptyState icon="info" title={REPORT_TEXT.placeholder.noActiveItems}>{reportDocument.noActiveItemsDetail}</EmptyState>}
+           {!model.orderedItems.length && <EmptyState icon="info" title={REPORT_TEXT.placeholder.noActiveItems}>{reportDocument.noActiveItemsDetail}</EmptyState>}
           <PrintableEvidenceGallery model={model} omitCleaning={usesCleaningPages} />
        </>}
+      <AcDcLegacyArchive archive={round.acDcSplitArchive} print renderEvidence={(item, value) => <div className="ops-print-evidence-gallery">{(item.evidenceSlots || []).map(slot => { const evidence = value.evidence?.[slot.id] || {}; return <div key={slot.id}><p>{slot.displayLabel || slot.label}{evidence.value ? ` · ${evidence.value}` : ""}</p>{evidence.note && <p>{evidence.note}</p>}{evidence.attachment && <PrintableAttachment attachment={evidence.attachment} label={slot.displayLabel || slot.label} />}</div>; })}{value.attachment && <PrintableAttachment attachment={value.attachment} label={item.label} />}</div>} />
       <footer className="ops-print-footer"><span>{REPORT_TEXT.presentation.snapshotFooter}</span><span>{reportVariantId} · {isPresentation ? reportDocument.modePresentation : reportDocument.modeA4}</span></footer>
      </section>;
   }
 
-  return PrintableReport;
+  return memo(PrintableReport);
 }

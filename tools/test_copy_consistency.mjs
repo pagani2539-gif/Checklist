@@ -155,9 +155,9 @@ assert.match(read("README.md"), /อุปกรณ์จริงที่ใ�
 assert.match(read("docs/glossary.md"), /รหัสอุปกรณ์ \(Asset No\.\)/);
 assert.match(appText, /ข้อมูลส่วนนี้ใช้ประกอบการลงนามในรายงานเท่านั้น ไม่ใช่ขั้นตอนการอนุมัติของระบบ/);
 const reportCopyText = JSON.stringify(REPORT_COPY.report);
-assert.match(reportCopyText, /ผู้จัดทำรายงาน/);
-assert.match(reportCopyText, /ผู้ตรวจสอบรายงาน/);
-assert.match(reportCopyText, /ผู้มีอำนาจลงนาม/);
+assert.match(reportCopyText, /วันที่จัดทำรายงาน/);
+assert.match(appText, /ผู้จัดทำรายงาน/);
+assert.match(appText, /ผู้มีอำนาจลงนาม/);
 assert.match(read("task.md"), /บันทึกเดิม \(Legacy — ไม่ใช่ตัวเลขปัจจุบัน\)/);
 assert.match(read("task.md"), /checklist-master-v5-system-mapped/);
 assert.match(read("task.md"), /13 หมวด \/ 44 รายการ/);

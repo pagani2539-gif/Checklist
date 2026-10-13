@@ -1,3 +1,5 @@
+import { isSystemVehicleRound, normalizeSystemVehicleSearch } from "./vehicle-review-systems.js";
+import { getRoundVehicleSearchConfig, getRoundVehicleConnectionSnapshot } from './round-vehicle-connection.js';
 import {
   ASSET_NO_SCOPE_VERSION,
   createDefaultStationProfile,
@@ -16,17 +18,21 @@ import {
 import { normalizeVehicleReviewState, normalizeVehicleSearchState, isVehicleReviewScopeState } from "./vehicle-search.js";
 import { normalizeContractWorkspaceState } from "./contracts.js";
 import { normalizeStationInspectionReports } from "./station-inspection-reports.js";
+import { vehicleEvidenceAttachmentIds } from "./vehicle-evidence-images.js";
+import { CURRENT_STATE_VERSION } from "./state-version.js";
+
+export { CURRENT_STATE_VERSION };
 
 export const STORAGE_KEY = "checklist-mvp-v1";
-export const CURRENT_STATE_VERSION = 18;
 export const IMPS_PURGE_VERSION = "imps-data-purge-v1";
 
 function normalizeRoundVehicleSearchForStorage(round) {
-  const snapshot = round?.snapshot || {};
-  const options = { baseUrl: snapshot?.vehicleSearchConfig?.baseUrl, apiProfile: snapshot?.vehicleSearchConfig?.apiProfile };
+  const snapshot = getRoundVehicleConnectionSnapshot(round);
+  if (isSystemVehicleRound(round)) return normalizeSystemVehicleSearch(round.vehicleSearch, snapshot, { dateFrom: round.meta?.inspectionDate, dateTo: round.meta?.inspectionDate });
+  const options = getRoundVehicleSearchConfig(round);
   const fallback = { dateFrom: round?.meta?.inspectionDate, dateTo: round?.meta?.inspectionDate, stationCode: snapshot?.stationCode };
   const vehicleSearch = round?.vehicleSearch;
-  return snapshot?.vehicleReviewScopeVersion && isVehicleReviewScopeState(vehicleSearch)
+  return isVehicleReviewScopeState(vehicleSearch)
     ? normalizeVehicleReviewState(vehicleSearch, fallback, options)
     : normalizeVehicleSearchState(vehicleSearch, fallback, options);
 }
@@ -87,6 +93,7 @@ function collectAttachmentIds(value, ids = new Set(), seen = new Set()) {
   if (!value || typeof value !== "object" || seen.has(value)) return ids;
   seen.add(value);
   if (value.attachment?.id) ids.add(String(value.attachment.id));
+  if (value.imageAnnotation?.renderedAttachment?.id) ids.add(String(value.imageAnnotation.renderedAttachment.id));
   if (Array.isArray(value)) {
     value.forEach((entry) => collectAttachmentIds(entry, ids, seen));
   } else {
@@ -108,6 +115,11 @@ export function attachmentIdsForState(state = {}) {
     state?.items,
     state?.inspectionSnapshot,
   ].forEach((value) => collectAttachmentIds(value, ids));
+  for (const records of [state?.inspectionRounds, state?.inspectionHistory, state?.inspectionWorkspaces]) {
+    for (const record of Array.isArray(records) ? records : []) {
+      vehicleEvidenceAttachmentIds(record?.vehicleEvidenceArchive).forEach(id => ids.add(id));
+    }
+  }
   return [...ids];
 }
 

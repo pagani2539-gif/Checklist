@@ -43,8 +43,8 @@ const lprSystem = {
 const systemOnlyProfile = { ...baseProfile, stationSystems: [lprSystem] };
 const systemOnlyItems = getNewRoundChecklistItems(createSnapshot(systemOnlyProfile));
 assert.ok(systemOnlyItems.some((item) => item.sectionCode === "1.1"));
-assert.ok(systemOnlyItems.some((item) => item.sectionCode === "5.1"));
-assert.ok(systemOnlyItems.some((item) => item.sectionCode === "6.1"));
+assert.equal(systemOnlyItems.some((item) => item.sectionCode === "5.1"), false, "an LPR-only profile must not receive the WIM automatic software suite");
+assert.equal(systemOnlyItems.some((item) => item.sectionCode === "6.1"), false, "an LPR-only profile must not receive the WIM automatic software suite");
 assert.ok(systemOnlyItems.some((item) => item.systemRecordId === lprSystem.id));
 assert.equal(systemOnlyItems.some((item) => item.assetId), false, "System-only scope must not invent Asset rows");
 
@@ -115,8 +115,15 @@ const highLprProfile = {
     canonicalItemId: "lpr-control",
     scope: "High Speed",
     quantity: 1,
+    laneId: "lane-high",
     active: true,
   }],
+  equipment: [...wimProfile.equipment, makeEquipment("LPR_CAMERA", 1, {
+    id: "scope-lpr-high-camera",
+    scope: "High Speed",
+    laneId: "lane-high",
+    parentSystemId: "scope-lpr-high",
+  })],
 };
 const highLprLaneChecks = getNewRoundChecklistItems(createSnapshot(highLprProfile))
   .filter((item) => item.sectionCode === "3.1" && item.laneId);

@@ -56,9 +56,9 @@ for (const [token, value] of Object.entries({
 })) assert.ok(tokens.includes(`${token}: ${value};`), `${token} should preserve the existing palette value ${value}`);
 
 for (const [token, value] of Object.entries({
-  "--ops-type-micro": "10px",
-  "--ops-type-caption-sm": "11px",
-  "--ops-type-caption": "12px",
+  "--ops-type-micro": "11px",
+  "--ops-type-caption-sm": "12px",
+  "--ops-type-caption": "13px",
   "--ops-type-meta": "13px",
   "--ops-type-label": "14px",
   "--ops-type-body-compact": "15px",
@@ -71,11 +71,20 @@ for (const [token, value] of Object.entries({
 })) assert.ok(tokens.includes(`${token}: ${value};`), `${token} should preserve the existing ${value} type size`);
 
 const tokenizedScreenFontSizes = new Set(Object.values({
-  micro: "10px", captionSm: "11px", caption: "12px", meta: "13px", label: "14px", bodyCompact: "15px",
+  micro: "11px", captionSm: "12px", caption: "13px", meta: "13px", label: "14px", bodyCompact: "15px",
   body: "16px", headingSm: "18px", section: "20px", headingMd: "22px", pageSm: "24px", pageLg: "32px",
 }));
 for (const [file, source] of [["foundation.css", foundation], ["redesign.css", redesign], ["workspace-layout.css", workspaceLayout]]) {
   postcss.parse(source, { from: file }).walkDecls("font-size", (decl) => {
+    let parent = decl.parent;
+    let printOnly = false;
+    while (parent) {
+      if (parent.type === "atrule" && parent.name === "media" && /print/i.test(parent.params)) printOnly = true;
+      parent = parent.parent;
+    }
+    const generatedGlyph = /::(?:before|after)/.test(decl.parent.selector || "")
+      && decl.parent.nodes.some((sibling) => sibling.prop === "content");
+    if (printOnly || decl.parent.selector?.includes(".ops-print-") || generatedGlyph) return;
     assert.ok(!tokenizedScreenFontSizes.has(decl.value.trim()), `${file} should use a type token for ${decl.value}`);
   });
 }
@@ -98,7 +107,7 @@ const statusColorValues = new Map([
   ["--ops-color-warning-strong", "#c2410c"],
   ["--ops-color-danger-border", "#fecaca"],
   ["--ops-color-neutral-surface", "#f8fafc"],
-  ["--ops-color-closed-surface", "#eef2f7"],
+  ["--ops-color-closed-surface", "#e2e8f0"],
   ["--ops-color-warning-surface", "#fff7ed"],
   ["--ops-color-attention", "#a16207"],
   ["--ops-color-attention-border", "#fde68a"],

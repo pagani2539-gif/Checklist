@@ -1,16 +1,65 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const hook = fs.readFileSync(path.join(root, "src/app/useServerWorkspaceSync.js"), "utf8");
-const app = fs.readFileSync(path.join(root, "src/app/App.jsx"), "utf8");
-
-assert.match(hook, /pending\?\.state[\s\S]*pending\.status !== "conflict"/, "startup should not auto-save a known conflict draft");
-assert.match(hook, /if \(pending\.status === "conflict"\) \{\s+activateConflict\(pending, true\);\s+return;\s+\}/, "online recovery should keep conflicts blocked from automatic replay");
-assert.match(hook, /if \(!serverConflictRef\.current\?\.downloaded\) return false/, "discard must stay unavailable until the draft is exported");
-assert.match(hook, /const latest = await loadServerState\(\);[\s\S]*if \(!await clearPendingServerState\(\)\)/, "returning to server state should load current data before clearing the draft");
-assert.match(app, /className="ops-server-conflict" role="alert"/, "a conflict should remain visible beyond the transient toast");
-assert.match(app, /disabled=\{!serverConflict\.downloaded\}/, "the discard action must require a successful export first");
-console.log("test_server_conflict_recovery_contract: pass");
+import { prepareWorkspaceViewUpdate } from "../src/domain/workspace-operations.js";
+import { describeWorkspaceSaveError } from "../src/domain/workspace-save-error.js";
+// Execute the real hook with a small hook host; storage/API boundaries are controlled.
+const source = fs.readFileSync(new URL("../src/app/useServerWorkspaceSync.js", import.meta.url), "utf8")
+  .replace(/^import .*;$/gm, "").replace("export function", "function");
+const effects = [];
+const statuses = [];
+const saveErrors = [];
+let slot = 0;
+let view;
+let version = 5;
+let clearCalls = 0;
+let saves = [];
+let failure = false;
+let reloadFailure = false;
+const messages = [];
+const factory = new Function("useCallback", "useEffect", "useRef", "useState", "CURRENT_STATE_VERSION", "normalizeServerChecklistState", "clearPendingServerState", "loadServerState", "saveServerState", "saveServerOperations", "prepareWorkspaceViewUpdate", "describeWorkspaceSaveError", source + "; return useServerWorkspaceSync;");
+const hook = factory(fn => fn, fn => effects.push(fn), value => ({ current: value }), value => {
+  const id = slot++;
+  return [value, next => { if (id === 4) statuses.push(next); if (id === 5) saveErrors.push(next); }];
+}, 17, value => value, async () => { clearCalls++; return true; }, async () => {
+  if (reloadFailure) throw new Error("offline");
+  return { version, state: { version: 17, central: true } };
+}, async (payload, expectedVersion) => {
+  saves.push({ payload, expectedVersion });
+  if (failure) throw Object.assign(new Error("conflict"), { status: 409 });
+  return { version: ++version, state: payload };
+}, async () => { throw new Error("operation transport is not expected in this legacy-state test"); }, prepareWorkspaceViewUpdate, describeWorkspaceSaveError);
+globalThis.fetch = async () => ({ ok: true, json: async () => ({ user: { role: "admin" } }) });
+const api = hook({ serverStorage: true, setState: next => { view = next; }, notify: msg => messages.push(msg) });
+const cleanup = effects[0]();
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(clearCalls, 1);
+assert.equal(view.central, true);
+assert.equal(saves.length, 0, "opening does not replay a legacy draft");
+const success = await api.persistServerState({ deleted: true }, "station-delete");
+assert.equal(success.version, 6);
+assert.equal(statuses.at(-1), "saved");
+failure = true;
+const first = api.persistServerState({ conflicting: true });
+const stale = api.persistServerState({ stale: true });
+assert.equal(await first, null);
+assert.equal(await stale, null);
+assert.equal(saves.length, 2, "failure cancels queued stale payloads");
+assert.equal(view.central, true);
+assert.equal(statuses.at(-1), "failed");
+assert.equal(saveErrors.at(-1).status, 409);
+assert.match(saveErrors.at(-1).message, /เปลี่ยนระหว่างบันทึก/);
+failure = false;
+assert.ok(await api.persistServerState({ next: true }), "next edit can save after central reload");
+failure = true;
+reloadFailure = true;
+await api.persistServerState({ lost: true });
+const count = saves.length;
+await api.persistServerState({ blocked: true });
+assert.equal(saves.length, count, "unavailable central data cannot be overwritten");
+reloadFailure = false;
+failure = false;
+assert.equal(await api.refreshServerState(), true);
+assert.ok(await api.persistServerState({ afterRefresh: true }));
+cleanup();
+delete globalThis.fetch;
+console.log("test_server_conflict_recovery_contract: pass (discard, reload, queue invalidation, acknowledgement)");

@@ -1,0 +1,87 @@
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #eef3f8;
+}
+
+.vehicle-summary-preview {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 30px clamp(16px, 3vw, 48px) 48px;
+}
+
+.vehicle-summary-preview-label {
+  max-width: 1440px;
+  margin: 0 auto 10px;
+  color: #566b82;
+  font-size: 13px;
+}
+
+.vehicle-summary-preview-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1440px;
+  margin: 0 auto 16px;
+}
+
+.vehicle-summary-preview-switch button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid #c7d6e5;
+  border-radius: 999px;
+  background: #fff;
+  color: #263f5b;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vehicle-summary-preview-switch button.is-current {
+  border-color: #155b8d;
+  background: #eaf3f9;
+  color: #155b8d;
+  font-weight: 700;
+}
+
+.vehicle-summary-preview-report {
+  display: block !important;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.vehicle-summary-preview-report .snapshot-vehicle-page {
+  box-sizing: border-box;
+  min-height: 820px;
+  padding: 24px;
+  background: #fff;
+}
+
+.vehicle-summary-preview-report .vehicle-period-summary {
+  align-items: stretch;
+}
+
+.vehicle-summary-preview-report .vehicle-analytics-panel {
+  max-width: 1440px;
+  margin: 24px auto;
+}
+
+@media (max-width: 760px) {
+  .vehicle-summary-preview-report .snapshot-vehicle-page {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .vehicle-summary-preview-report .vehicle-period-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

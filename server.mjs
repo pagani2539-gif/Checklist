@@ -1,3 +1,5 @@
+import { getInstalledVehicleSystems, getVehicleSystemConfig } from "./src/domain/vehicle-review-systems.js";
+import { getRoundVehicleSearchConfig } from './src/domain/round-vehicle-connection.js';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,11 +49,22 @@ const api = createApi({
   enforceStationScope,
 });
 
-async function resolveVehicleStationTarget(stationId) {
+async function resolveVehicleStationTarget(stationId, systemKey = "", roundId = "") {
   const current = await store.getState();
   const station = (Array.isArray(current?.state?.stationProfiles) ? current.state.stationProfiles : [])
     .find((entry) => String(entry?.id || '') === String(stationId || ''));
-  const vehicleSearchConfig = createVehicleSearchConfig(station?.vehicleSearchConfig, '');
+  if (roundId) {
+    const round = (current.state.inspectionRounds || []).find(entry => entry.id === roundId && entry.stationId === stationId);
+    if (!round || (systemKey && !round.snapshot?.vehicleReviewSystems?.some(entry => entry.key === systemKey))) throw new Error('ไม่พบระบบในรอบตรวจนี้');
+    const config = getRoundVehicleSearchConfig(round, systemKey);
+    if (!config.baseUrl) throw new Error('ไม่พบปลายทางของระบบในรอบตรวจนี้');
+    return config;
+  }
+  const installed = getInstalledVehicleSystems(station);
+  const system = installed.find(entry => entry.key === systemKey);
+  if (systemKey && !system) throw new Error('ระบบนี้ไม่ได้ติดตั้งในสถานี');
+  const vehicleSearchConfig = system ? getVehicleSystemConfig(station, system, installed) : createVehicleSearchConfig(station?.vehicleSearchConfig, '');
+  if (systemKey && (!vehicleSearchConfig.baseUrl || (systemKey === 'imps' && !vehicleSearchConfig.searchUrl))) throw new Error('ยังไม่ได้ตั้งค่าการเชื่อมต่อ');
   return vehicleSearchConfig.baseUrl ? vehicleSearchConfig : null;
 }
 

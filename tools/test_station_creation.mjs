@@ -24,6 +24,7 @@ import {
   createStationDraft,
   createEmptyStationDraft,
   validateStationDraft,
+  getStationReadiness,
   createStationProfileFromDraft,
   makeLane,
 } from "../src/domain/master-checklist.js";
@@ -88,7 +89,8 @@ const countByType = (equipment) => Object.fromEntries(EQUIPMENT_TYPES.map((type)
 ]));
 
 const stationDraft = createEmptyStationDraft();
-assert.equal(stationDraft.stationCode, "");
+assert.match(stationDraft.stationCode, /^ST-/);
+assert.equal(stationDraft.stationCode, `ST-${stationDraft.id.slice("station-".length).toUpperCase()}`);
 assert.equal(stationDraft.stationName, "");
 assert.deepEqual(stationDraft.lanes, []);
 assert.deepEqual(stationDraft.stationSystems, [], "a new station must not seed System records");
@@ -149,7 +151,7 @@ assert.deepEqual(summaryModel.referenceTotals, [{ unit: "ระบบ", quantity
 assert.equal(MASTER_CHECKLIST_SECTIONS.find((section) => section.code === "3.1")?.items.length, 4, "lane-based Checklist 3.1 must remain available alongside the LPR Control System row");
 const emptyDraftValidation = validateStationDraft(stationDraft, []);
 assert.equal(emptyDraftValidation.valid, false);
-assert.equal(emptyDraftValidation.errors.stationCode, "กรุณากรอกรหัสสถานี");
+assert.equal(emptyDraftValidation.errors.stationCode, undefined, "the generated code means users do not have to invent one");
 assert.equal(emptyDraftValidation.errors.stationName, "กรุณากรอกชื่อสถานี");
 assert.ok(emptyDraftValidation.warnings.some((warning) => warning.includes("ยังไม่ได้กำหนดช่องจราจร")));
 assert.equal(parseHash("#/stations/new").name, "newStation");
@@ -164,6 +166,67 @@ const duplicateAssetValidation = validateStationDraft({ stationCode: "TEST-NEW",
 assert.equal(duplicateAssetValidation.valid, false);
 assert.equal(duplicateAssetValidation.errors.assetNoById["draft-lpr-1"], "รหัสอุปกรณ์ (Asset No.) ซ้ำกับรายการอื่นในสถานีนี้");
 assert.equal(duplicateAssetValidation.errors.assetNoById["draft-lpr-2"], "รหัสอุปกรณ์ (Asset No.) ซ้ำกับรายการอื่นในสถานีนี้");
+
+const lprSystems = [
+  { id: "lpr-system-1", canonicalItemId: "lpr-control", systemId: "lpr-control", scope: "High Speed", quantity: 1, laneId: "lpr-lane-1", active: true },
+  { id: "lpr-system-2", canonicalItemId: "lpr-control", systemId: "lpr-control", scope: "High Speed", quantity: 1, laneId: "lpr-lane-2", active: true },
+];
+const lprLanes = [
+  makeLane(1, { id: "lpr-lane-1", scope: "High Speed" }),
+  makeLane(2, { id: "lpr-lane-2", scope: "High Speed" }),
+];
+const lprCameras = [
+  makeEquipment("LPR_CAMERA", 1, { id: "lpr-camera-1", assetNo: "LPR-HS-01", scope: "High Speed", parentSystemId: "lpr-system-1" }),
+  makeEquipment("LPR_CAMERA", 2, { id: "lpr-camera-2", assetNo: "LPR-HS-02", scope: "High Speed", parentSystemId: "lpr-system-2" }),
+];
+const completeLprDraft = {
+  ...stationDraft,
+  stationCode: "LPR-LANE-01",
+  stationName: "สถานี LPR สองช่อง",
+  provinceId: "province-test",
+  direction: "unspecified",
+  stationFormat: "SC",
+  stationSystems: lprSystems,
+  lanes: lprLanes,
+  equipment: lprCameras,
+};
+assert.equal(validateStationDraft(completeLprDraft, []).valid, true, "two LPR Systems on two Lanes with one child camera each pass station validation");
+assert.equal(getStationReadiness(completeLprDraft).ready, true, "a complete 2 System / 2 Lane / 2 Camera register is ready");
+for (const [format, scopes] of [["SC", ["High Speed", "Low Speed", "3D"]], ["IMPS", ["ImPS", "3D"]]]) {
+  for (const [index, scope] of scopes.entries()) {
+    const systemId = `${format.toLowerCase()}-lpr-system-${index + 1}`;
+    const laneId = `${format.toLowerCase()}-lpr-lane-${index + 1}`;
+    const scopedDraft = {
+      ...stationDraft,
+      stationCode: `${format}-LPR-${index + 1}`,
+      stationName: `${format} LPR ${scope}`,
+      provinceId: "province-test",
+      stationFormat: format,
+      stationSystems: [{ id: systemId, canonicalItemId: "lpr-control", systemId: "lpr-control", scope, quantity: 1, laneId, active: true }],
+      lanes: [makeLane(1, { id: laneId, scope })],
+      equipment: [makeEquipment("LPR_CAMERA", 1, { id: `${systemId}-camera`, assetNo: `LPR-${format}-${index + 1}`, scope, parentSystemId: systemId })],
+    };
+    assert.equal(validateStationDraft(scopedDraft, []).valid, true, `${format} LPR System and one camera pass in ${scope}`);
+    assert.equal(getStationReadiness(scopedDraft).ready, true, `${format} ${scope} is ready with one Lane and one camera`);
+  }
+}
+const normalizedLprProfile = normalizeStationProfile(completeLprDraft);
+assert.deepEqual(normalizedLprProfile.stationSystems.filter((system) => system.canonicalItemId === "lpr-control").map((system) => system.laneId), ["lpr-lane-1", "lpr-lane-2"], "LPR lane relationships survive profile normalization");
+assert.equal(normalizedLprProfile.equipment.find((asset) => asset.id === "lpr-camera-1").assetNo, "LPR-HS-01", "LPR Asset No. remains attached to the same camera record");
+
+const missingLprCamera = { ...completeLprDraft, equipment: [lprCameras[0]] };
+assert.equal(validateStationDraft(missingLprCamera, []).errors.lprCameraBySystemId["lpr-system-2"], "กรุณาเพิ่มกล้อง LPR จริง 1 ตัวใต้ระบบนี้");
+assert.ok(getStationReadiness(missingLprCamera).blockers.some((blocker) => blocker.code === "LPR_CAMERA_REQUIRED" && blocker.systemId === "lpr-system-2"));
+const duplicateLprCamera = { ...completeLprDraft, equipment: [...lprCameras, makeEquipment("LPR_CAMERA", 3, { id: "lpr-camera-duplicate", assetNo: "LPR-HS-03", scope: "High Speed", parentSystemId: "lpr-system-1" })] };
+assert.ok(getStationReadiness(duplicateLprCamera).blockers.some((blocker) => blocker.code === "LPR_CAMERA_DUPLICATE" && blocker.systemId === "lpr-system-1"));
+const duplicateLprLane = { ...completeLprDraft, stationSystems: [lprSystems[0], { ...lprSystems[1], laneId: "lpr-lane-1" }] };
+assert.ok(getStationReadiness(duplicateLprLane).blockers.some((blocker) => blocker.code === "LPR_SYSTEM_LANE_DUPLICATE"));
+const mismatchedLprScope = { ...completeLprDraft, stationSystems: [{ ...lprSystems[0], scope: "Low Speed" }, lprSystems[1]] };
+assert.ok(getStationReadiness(mismatchedLprScope).blockers.some((blocker) => blocker.code === "LPR_SYSTEM_LANE_SCOPE_MISMATCH"));
+const orphanLprCamera = { ...completeLprDraft, equipment: [{ ...lprCameras[0], parentSystemId: null }, lprCameras[1]] };
+assert.ok(getStationReadiness(orphanLprCamera).blockers.some((blocker) => blocker.code === "LPR_CAMERA_PARENT_REQUIRED" && blocker.assetId === "lpr-camera-1"));
+const wrongLprCameraScope = { ...completeLprDraft, equipment: [{ ...lprCameras[0], scope: "Low Speed" }, lprCameras[1]] };
+assert.ok(getStationReadiness(wrongLprCameraScope).blockers.some((blocker) => blocker.code === "LPR_CAMERA_SCOPE_MISMATCH" && blocker.assetId === "lpr-camera-1"));
 
 const committedProfile = createStationProfileFromDraft({
   stationCode: " TEST-COMMIT ",
@@ -324,7 +387,7 @@ equipment.forEach((entry) => {
 });
 
 const registerGroups = getEquipmentGroupsForRegister(equipment);
-assert.deepEqual(registerGroups.map((group) => group.code), ["1.1.5", "1.1.12", "2.1", "2.2", "2.3", "3.2", "4.1", "4.2", "5.1", "5.2", "7.1"]);
+assert.deepEqual(registerGroups.map((group) => group.code), ["1.1.5", "1.1.12", "1.1.11", "2.1", "2.2", "2.3", "3.1", "3.2", "4.1", "4.2", "5.1", "5.2", "7.1"], "register grouping retains legacy categories when their stored records are present");
 assert.deepEqual(registerGroups.find((group) => group.code === "3.2").types.map((type) => type.value), ["LPR_CAMERA"]);
 assert.deepEqual(registerGroups.find((group) => group.code === "5.2").types.map((type) => type.value), ["IMPS_DISPLAY_PROCESSING"]);
 assert.deepEqual(registerGroups.find((group) => group.code === "2.1").types.map((type) => type.value), ["WIM_SENSOR", "WIM_LOOP"]);
@@ -397,7 +460,7 @@ const representativeProfile = {
     { id: "representative-wim-sorting", canonicalItemId: "wim-sorting", systemId: "wim", componentId: "sorting", scope: "High Speed", quantity: 1, laneId: "lane-1", instanceNo: 1 },
     { id: "representative-wim-control", canonicalItemId: "wim-control", systemId: "wim", componentId: "control", quantity: 1 },
     { id: "representative-wim-electronics", canonicalItemId: "wim-electronics-system", systemId: "wim", componentId: "electronics", quantity: 1 },
-    { id: "representative-lpr", canonicalItemId: "lpr-control", systemId: "lpr", componentId: "control", scope: "High Speed", quantity: 1 },
+    { id: "representative-lpr", canonicalItemId: "lpr-control", systemId: "lpr", componentId: "control", scope: "High Speed", quantity: 1, laneId: "lane-1" },
     { id: "representative-cctv", canonicalItemId: "cctv-system", systemId: "cctv", componentId: "camera", quantity: 1 },
     { id: "representative-data", canonicalItemId: "data-management", systemId: "other", componentId: "database", quantity: 1 },
     { id: "representative-display", canonicalItemId: "station-display", systemId: "other", componentId: "display-processing", quantity: 1 },
@@ -408,6 +471,7 @@ const representativeProfile = {
   equipment: EQUIPMENT_TYPES.map((type, index) => makeEquipment(type.value, 1, {
     id: `representative-${type.value.toLowerCase()}`,
     location: `${type.label} test`,
+    ...(type.value === "LPR_CAMERA" ? { parentSystemId: "representative-lpr", scope: "High Speed" } : {}),
     ...(type.value === "WIM_SENSOR" || type.value === "WIM_LOOP" ? { parentSystemId: "representative-wim-sorting", laneId: "lane-1" } : {}),
   })),
 };
@@ -490,15 +554,15 @@ assert.throws(
 const oldRound = createInspectionRound({
   ...emptyProfile,
   id: "station-old-test",
-  stationSystems: [{ id: "old-wim-sorting", canonicalItemId: "wim-sorting", systemId: "wim", componentId: "sorting", quantity: 1, laneId: "lane-1", instanceNo: 1 }],
-  lanes: [makeLane(1)],
+  stationSystems: [{ id: "old-wim-sorting", canonicalItemId: "wim-sorting", systemId: "wim", componentId: "sorting", quantity: 1, scope: "High Speed", laneId: "lane-1", instanceNo: 1 }],
+  lanes: [makeLane(1, { scope: "High Speed" })],
   equipment: [makeEquipment("WIM_SENSOR", 1, { id: "old-sensor-1", location: "old location", parentSystemId: "old-wim-sorting", laneId: "lane-1" })],
   checklistConfig: { disabledTemplateIds: ["sensor-1"] },
 });
 const newProfileAfterOldRound = {
   ...emptyProfile,
-  stationSystems: [{ id: "new-wim-sorting", canonicalItemId: "wim-sorting", systemId: "wim", componentId: "sorting", quantity: 1, laneId: "lane-1", instanceNo: 1 }],
-  lanes: [makeLane(1)],
+  stationSystems: [{ id: "new-wim-sorting", canonicalItemId: "wim-sorting", systemId: "wim", componentId: "sorting", quantity: 1, scope: "High Speed", laneId: "lane-1", instanceNo: 1 }],
+  lanes: [makeLane(1, { scope: "High Speed" })],
   equipment: [makeEquipment("WIM_LOOP", 1, { id: "new-loop-1", parentSystemId: "new-wim-sorting", laneId: "lane-1" })],
 };
 const newRound = createInspectionRound(newProfileAfterOldRound);

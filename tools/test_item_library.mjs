@@ -97,7 +97,7 @@ const migrated = migrateChecklistState({
 });
 assert.equal(CURRENT_STATE_VERSION, 18);
 assert.equal(migrated.version, 18);
-assert.equal(migrated.itemCatalog.length, 24);
+assert.equal(migrated.itemCatalog.length, 23, "the current catalog count excludes the retired generic AC/DC entry");
 assert.equal(migrated.stationProfiles[0].equipment[0].catalogItemId, "system.wim_sensor");
 assert.equal(migrated.stationProfiles[0].equipment[0].categoryCode, "2.1");
 

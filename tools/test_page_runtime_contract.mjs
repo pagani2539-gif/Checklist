@@ -63,11 +63,22 @@ assert.deepEqual(createPageRuntime({ Button: "button", Icon: "icon", unused: tru
 assert.throws(() => createPageRuntime({ Icon: "icon" }, ["Button"]), /missing the required dependency "Button"/);
 
 const appSource = fs.readFileSync(path.join(root, "src/app/App.jsx"), "utf8");
-assert.doesNotMatch(appSource, /create[A-Za-z]+Page\(PAGE_RUNTIME\)/, "page factories should receive a selected runtime interface");
-assert.doesNotMatch(appSource, /createContextualStationPage\(\{ \.\.\.PAGE_RUNTIME/, "station setup should receive its selected runtime interface");
-for (const key of Object.keys(PAGE_RUNTIME_KEYS)) {
-  assert.ok(appSource.includes(`routeRuntime("${key}"`), `App.jsx should select the ${key} runtime interface`);
-}
-assert.match(appSource, /const contextualStationRuntime = \{ \.\.\.PAGE_RUNTIME, VehicleSearchConfigPanel,/);
+assert.match(appSource, /const PAGE_RUNTIME_LOADERS = Object\.freeze\(/);
+assert.match(appSource, /return createPageRuntime\(module\.createRuntime\(\), PAGE_RUNTIME_KEYS\[key\]\)/);
+const runtimeLoaderKeys = new Set([...appSource.matchAll(/^\s*([A-Za-z]+):\s*\(\)\s*=>\s*import\("\.\/page-runtimes\//gm)].map((match) => match[1]));
+assert.deepEqual(runtimeLoaderKeys, new Set(Object.keys(PAGE_RUNTIME_KEYS)), "every page runtime should load through an explicit dynamic import");
+assert.match(appSource, /const PAGE_COMPONENTS = Object\.freeze\(/);
+assert.match(appSource, /adminUsers: createLazyPage\(async \(\) => \(await import\("\.\/AdminUsersPage\.jsx"\)\)\.AdminUsersPage\)/);
+assert.match(appSource, /historyDetail: checklistPage/);
+assert.match(appSource, /historyVehicleApi: vehicleApiPage/);
+assert.match(appSource, /LazyContractContextBar = lazy\(\(\) => import\("\.\/ContractContextBar\.jsx"\)\)/);
+assert.doesNotMatch(appSource, /from ["']\.\/pages\//, "routed page factories should not be imported eagerly");
+assert.doesNotMatch(appSource, /from ["']\.\/AdminUsersPage\.jsx["']/);
+assert.doesNotMatch(appSource, /from ["']\.\.\/domain\/(master-checklist|vehicle-search|evidence-checklist|contracts)\.js["']/, "page domain modules should not be imported by the application shell");
+
+const attachmentFieldsSource = fs.readFileSync(path.join(root, "src/app/AttachmentFields.jsx"), "utf8");
+assert.match(attachmentFieldsSource, /lazy\(\(\) => import\("\.\/ImageAnnotationEditor\.jsx"\)\)/, "image annotation editor should load only when attachment editing is requested");
+const mainSource = fs.readFileSync(path.join(root, "src/main.jsx"), "utf8");
+assert.doesNotMatch(mainSource, /snapshot-evidence-pdf|PrintableReport/);
 
 console.log("test_page_runtime_contract: pass");

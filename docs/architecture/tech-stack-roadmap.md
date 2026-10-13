@@ -1,6 +1,6 @@
 # Roadmap สถาปัตยกรรมและ Tech Stack หลัง MVP
 
-สถานะ: roadmap ที่ปรับให้ตรงกับ repository ณ 24 กันยายน 2569 — **ไม่ใช่ ADR**; ส่วนที่เป็น server/API มี implementation baseline แล้ว แต่ยังไม่ใช่หลักฐาน Public production
+สถานะ: roadmap ที่ปรับให้ตรงกับ repository ณ 4 ตุลาคม 2569 — **ไม่ใช่ ADR**; ส่วนที่เป็น server/API มี implementation baseline แล้ว แต่ยังไม่ใช่หลักฐาน Public production
 
 ## วัตถุประสงค์
 
@@ -14,7 +14,7 @@
 
 - Frontend เป็น React/Vite และทำงานแบบ static web application
 - Local mode เก็บ state หลักและ metadata ใน `localStorage` ของ browser เครื่องนั้น; ไฟล์แนบเก็บใน IndexedDB ภายในเครื่อง
-- Server mode ใช้ `/api/v1/state` และ API ไฟล์แนบ โดย server ใช้ PostgreSQL และ filesystem/S3-compatible attachment store; เมื่อ API ขัดข้อง client เก็บ pending state ชั่วคราวใน IndexedDB
+- Server mode ใช้ `/api/v1/state` และ API ไฟล์แนบ โดย server ใช้ PostgreSQL และ filesystem/S3-compatible attachment store; เมื่อบันทึกไม่สำเร็จ client ไม่เก็บ pending state ใน browser แต่ยกเลิกการแก้ไขที่ยังไม่บันทึกและโหลดข้อมูลส่วนกลางล่าสุด หากโหลดไม่ได้จะระงับการเขียนจนกว่าจะโหลดข้อมูลได้
 - มี Station Profile, Asset, System, Lane และรอบตรวจที่สร้าง Snapshot ณ เวลาเริ่มรอบ
 - มี Contract, Work Package และ Contract Station Assignment; การสร้างรอบตรวจเลือกบริบทสัญญา/งวด/สถานีร่วมกัน และ Contract Work Report แยกจากรายงานตรวจสถานี
 - Snapshot ของรอบเดิมไม่เปลี่ยนตาม Station Profile หรือข้อความมาตรฐานที่แก้ภายหลัง; รอบที่ปิดแล้วอ่านอย่างเดียว และการแก้ไขต้องสร้าง revision ใหม่

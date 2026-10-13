@@ -49,3 +49,37 @@ No actionable P0, P1, or P2 visual or interaction findings remain. The reference
 - Removed the unused `รายการ Custom / อุปกรณ์เพิ่มเติม` disclosure from the Step 2 workspace, including its renderer data path, workspace CSS, and stale regression assertion; the underlying catalog/domain definition remains unchanged for existing data compatibility.
 
 final result: passed
+
+# Vehicle API day and night report summary
+
+## Reference and implementation capture
+
+- Reference: user-selected day/night report image, displayed at `2048 x 736` after the attachment resize.
+- Implementation: local report preview rendered from the real `VehicleSnapshotEvidencePage` and summary builder with synthetic values matching the reference.
+- Wide viewport: `2048 x 736`; the screen report used two side-by-side panels, each `656px` wide. Both period icons rendered at `60.65px` and the period labels at `24.26px`.
+- A4 report preview: two panels at about `333px` each; period icons at `44px`.
+- 16:9 report preview: two panels at about `527px` each; period icons at `52.7px`.
+- A4 rows use a narrower three-column grid and `9px` text; 16:9 status rows are about `9px`, values about `8.4px`, and axis labels about `7.4px`. All checked rows and summary headings fit inside their panels.
+- Mobile viewport: `390 x 844`; the screen panels stack, each is about `278px` wide, and the icon is `34px`. All four status rows fit without row overflow. The page has no horizontal overflow (375px document client width with the vertical scrollbar).
+
+## Reference comparison
+
+- Day icon now uses the system's filled Tabler sun: a solid gold disk with eight rounded rays, matching the reference more closely than the previous outline sun.
+- Night icon uses the system's moon-and-stars glyph. The crescent is filled navy, with two navy stars visible in the opening, matching the selected reference. Existing general-purpose `sun` and `moon` icon mappings remain unchanged.
+- Day panel uses the warm cream/gold palette; night panel uses pale blue/navy. The four status colors remain correct green `#16a36a`, incorrect red `#e05260`, unable-to-verify amber `#e7a22c`, and pending blue-gray `#8a9bb3`.
+- The chart still shows four rows and a shared 0–100 axis. The sample values remain day `99/0/1/0` and night `81/1/11/7`; percentages and totals are correct.
+
+## Font and verification
+
+- The report uses the system typography token `--ops-font-sans`, whose stack is `Noto Sans Thai`, `Leelawadee UI`, `Tahoma`, `Arial`, then `sans-serif`. In the rendered preview, `Noto Sans Thai` was loaded (`document.fonts.check('16px "Noto Sans Thai"')` returned true).
+- `node tools/test_vehicle_hex_summary.mjs` — passed.
+- `node tools/test_vehicle_report_score.mjs` — passed.
+- `node tools/test_vehicle_snapshot_evidence.mjs` — passed, including archive retry and report comparison checks.
+- A direct Vite production build to a temporary directory completed successfully. It reported warnings for the `.env` `NODE_ENV`, two non-module scripts in `index.html`, and large chunks.
+
+## Scope and result
+
+- Only presentation changed. API fields, scoring, denominators, status groups, Snapshot/history, evidence, and the daytime-only classification rules were not changed.
+- No actionable clipping or icon mismatch remains in the tested screen, A4, and 16:9 layouts. The first A4 pass exposed row overflow; the narrower A4 grid removed it, and a repeat check reported no row overflow.
+
+final result: passed

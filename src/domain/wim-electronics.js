@@ -19,7 +19,7 @@ const subEquipment = (value, sourceLabel, prefix, role, extra = {}) => ({
 });
 
 export const WIM_ELECTRONICS_SUB_EQUIPMENT_TYPES = Object.freeze([
-  subEquipment("WIM_AC_DC_POWER_SUPPLY", "AC/DC POWER SUPPLY", "ACDC", "power-supply"),
+  subEquipment("WIM_AC_DC_POWER_SUPPLY", "AC/DC POWER SUPPLY", "ACDC", "power-supply", { legacyOnly: true }),
   subEquipment("WIM_NETWORK_EQUIPMENT", "NETWORK EQUIPMENT", "NET", "network"),
   subEquipment("WIM_CONTROLLER", "WIM CONTROLLER", "WIMCTRL", "controller"),
   subEquipment("WIM_PHASE_PROTECTION", "PHASE PROTECTION", "PHASE", "protection"),

@@ -1,3 +1,7 @@
+import "../../styles/contracts.css";
+import "../../styles/contract-agreement-print.css";
+import "../../styles/printable-report-route.css";
+import CustomSelect from "../CustomSelect.jsx";
 import ContractAgreementCover from "../ContractAgreementCover.jsx";
 
 function displayDate(value) {
@@ -17,6 +21,7 @@ function withoutContractCoverDraft(current, contractId) {
   delete drafts[contractId];
   return { ...current, ui: { ...ui, contractAgreementCoverDrafts: drafts } };
 }
+
 
 export function createContractAgreementCoverPage(runtime) {
   const {
@@ -137,7 +142,7 @@ export function createContractAgreementCoverPage(runtime) {
         </section>
 
         <section className="contract-agreement-preview-panel" aria-label="ตัวอย่างหน้าปกสัญญา">
-          <div className="contract-agreement-preview-heading"><div><p className="ops-eyebrow">A4 PREVIEW</p><h2>ตัวอย่างหน้าปก</h2><span className="ops-heading-note">ตัวอย่างนี้ใช้ข้อมูลร่างปัจจุบัน ส่วนฉบับที่ออกแล้วจะไม่เปลี่ยนตามการแก้ Contract</span></div>{issuedCovers.length > 0 && <label className="contract-agreement-version-select"><span>ฉบับประวัติ</span><select value={selectedCoverId} onChange={(event) => setSelectedCoverId(event.target.value)}><option value="">ร่างปัจจุบัน</option>{issuedCovers.map((cover) => <option key={cover.id} value={cover.id}>ฉบับที่ {cover.version} · {displayDate(cover.createdAt?.slice(0, 10))}</option>)}</select></label>}</div>
+          <div className="contract-agreement-preview-heading"><div><p className="ops-eyebrow">A4 PREVIEW</p><h2>ตัวอย่างหน้าปก</h2><span className="ops-heading-note">ตัวอย่างนี้ใช้ข้อมูลร่างปัจจุบัน ส่วนฉบับที่ออกแล้วจะไม่เปลี่ยนตามการแก้ Contract</span></div>{issuedCovers.length > 0 && <label className="contract-agreement-version-select"><span>ฉบับประวัติ</span><CustomSelect value={selectedCoverId} onChange={(event) => setSelectedCoverId(event.target.value)}><option value="">ร่างปัจจุบัน</option>{issuedCovers.map((cover) => <option key={cover.id} value={cover.id}>ฉบับที่ {cover.version} · {displayDate(cover.createdAt?.slice(0, 10))}</option>)}</CustomSelect></label>}</div>
           {selectedIssuedCover && <p className="ops-info-banner"><Icon name="archive" />กำลังดู snapshot ฉบับที่ {selectedIssuedCover.version} ซึ่งเป็นข้อมูลคงที่ ณ วันที่ออกเอกสาร <Button onClick={() => setSelectedCoverId("")} variant="ghost">กลับร่างปัจจุบัน</Button></p>}
           <div className="contract-agreement-preview"><ContractAgreementCover snapshot={previewSnapshot} version={selectedIssuedCover?.version} mode={selectedIssuedCover ? "issued" : "draft"} /></div>
           {issuedCovers.length > 0 && <div className="contract-agreement-issued-list"><h3>ประวัติหน้าปกที่ออกแล้ว</h3>{issuedCovers.map((cover) => <button type="button" key={cover.id} className={selectedCoverId === cover.id ? "is-selected" : ""} onClick={() => setSelectedCoverId(cover.id)}><strong>ฉบับที่ {cover.version}</strong><span>{displayDate(cover.createdAt?.slice(0, 10))}</span></button>)}</div>}

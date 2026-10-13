@@ -9,6 +9,8 @@ import {
 } from "../src/domain/master-checklist.js";
 import { createVehicleSearchConfig } from "../src/domain/vehicle-search.js";
 import { createRevisionRound } from "../src/domain/correction.js";
+import { canUseNotInstalled } from "../src/domain/checklist-completion.js";
+import { CHECKLIST_PROGRESS_POLICY_VERSION } from "../src/domain/inspection-status.js";
 import { CURRENT_STATE_VERSION, migrateChecklistState } from "../src/domain/storage.js";
 
 function completeRound(round) {
@@ -46,8 +48,8 @@ function completeRound(round) {
 const profile = createDefaultStationProfile();
 profile.vehicleSearchConfig = createVehicleSearchConfig({ baseUrl: "http://vehicle-api.test:3005", stationId: profile.id, stationName: profile.stationName });
 const draft = createInspectionRound(profile, { projectName: "Flow test" });
+assert.equal(draft.progressPolicyVersion, CHECKLIST_PROGRESS_POLICY_VERSION, "new rounds use the current result-recording policy");
 const ready = completeRound(draft);
-assert.equal(getCloseReadiness(ready).canClose, true, "a complete round should close");
 assert.equal(getCloseReadiness(ready).canConfirmClose, true, "a complete round should allow close confirmation");
 
 const firstItem = getItemsForSnapshot(ready.snapshot).find((item) => item.applicable !== false);
@@ -81,8 +83,8 @@ const noImage = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstI
 const noImageReadiness = getCloseReadiness(noImage);
 assert.equal(noImageReadiness.blockers.some((entry) => entry.slotId === firstSlot.id), true);
 assert.equal(noImageReadiness.canConfirmClose, true, "missing evidence can be acknowledged when closing");
-const notApplicableBypass = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstItem.id]: { ...ready.inspectionItems[firstItem.id], status: "na" } } };
-assert.equal(getCloseReadiness(notApplicableBypass).canClose, true, "manual not-applicable status skips item and evidence blockers");
+const notApplicableBypass = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstItem.id]: { ...ready.inspectionItems[firstItem.id], status: "na", note: "ไม่อยู่ในขอบเขตงาน" } } };
+assert.equal(getCloseReadiness(notApplicableBypass).blockers.some((entry) => entry.itemId === firstItem.id), false, "manual not-applicable status skips item and evidence blockers");
 
 const naWithPendingEvidence = {
   ...notApplicableBypass,
@@ -97,37 +99,40 @@ const naWithPendingEvidence = {
     },
   },
 };
-assert.equal(getCloseReadiness(naWithPendingEvidence).canClose, true, "not-applicable skips pending evidence");
+assert.equal(getCloseReadiness(naWithPendingEvidence).blockers.some((entry) => entry.itemId === firstItem.id), false, "not-applicable skips pending evidence");
 assert.equal(getRoundSummary(naWithPendingEvidence).evidenceTotal, getRoundSummary(ready).evidenceTotal - 1, "not-applicable evidence is removed from the denominator");
 
 const serverSite = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstItem.id]: { ...ready.inspectionItems[firstItem.id], evidence: { ...ready.inspectionItems[firstItem.id].evidence, [firstSlot.id]: { ...ready.inspectionItems[firstItem.id].evidence[firstSlot.id], status: "server-site", note: "" } } } } };
-assert.equal(getCloseReadiness(serverSite).canClose, false);
+assert.equal(getCloseReadiness(serverSite).blockers.some((entry) => entry.slotId === firstSlot.id), true);
 const serverSiteWithNote = { ...serverSite, inspectionItems: { ...serverSite.inspectionItems, [firstItem.id]: { ...serverSite.inspectionItems[firstItem.id], evidence: { ...serverSite.inspectionItems[firstItem.id].evidence, [firstSlot.id]: { ...serverSite.inspectionItems[firstItem.id].evidence[firstSlot.id], note: "ติดตั้งอยู่ที่ Server สน." } } } } };
-assert.equal(getCloseReadiness(serverSiteWithNote).canClose, true);
+assert.equal(getCloseReadiness(serverSiteWithNote).blockers.some((entry) => entry.slotId === firstSlot.id), false);
 
 const damaged = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstItem.id]: { ...ready.inspectionItems[firstItem.id], status: "damaged" } } };
-assert.equal(getCloseReadiness(damaged).canClose, true, "damaged is follow-up, not a close blocker");
+assert.equal(getCloseReadiness(damaged).blockers.some((entry) => entry.itemId === firstItem.id), false, "damaged is follow-up, not a close blocker");
 assert.equal(getCloseReadiness(damaged).issues.some((entry) => entry.itemId === firstItem.id), true);
-const notInstalled = { ...ready, inspectionItems: { ...ready.inspectionItems, [firstItem.id]: { ...ready.inspectionItems[firstItem.id], status: "not-installed", note: "ยังไม่ติดตั้งในจุดนี้" } } };
-assert.equal(getCloseReadiness(notInstalled).canClose, true);
-const notInstalledWithoutNote = { ...notInstalled, inspectionItems: { ...notInstalled.inspectionItems, [firstItem.id]: { ...notInstalled.inspectionItems[firstItem.id], note: "" } } };
-assert.equal(getCloseReadiness(notInstalledWithoutNote).canClose, true, "not-installed does not require a note");
+const notInstalledItem = getItemsForSnapshot(ready.snapshot).find((item) => item.applicable !== false && canUseNotInstalled(item) && item.evidenceSlots.length);
+const notInstalledSlot = notInstalledItem.evidenceSlots[0];
+const notInstalled = { ...ready, inspectionItems: { ...ready.inspectionItems, [notInstalledItem.id]: { ...ready.inspectionItems[notInstalledItem.id], status: "not-installed", note: "ยังไม่ติดตั้งในจุดนี้" } } };
+assert.equal(getCloseReadiness(notInstalled).blockers.some((entry) => entry.itemId === notInstalledItem.id), false);
+const notInstalledWithoutNote = { ...notInstalled, inspectionItems: { ...notInstalled.inspectionItems, [notInstalledItem.id]: { ...notInstalled.inspectionItems[notInstalledItem.id], note: "" } } };
+assert.equal(getCloseReadiness(notInstalledWithoutNote).blockers.some((entry) => entry.itemId === notInstalledItem.id), false, "not-installed can be skipped without a reason");
+assert.equal(getRoundSummary(notInstalledWithoutNote).total, getRoundSummary(ready).total - 1, "not-installed is outside the current checklist denominator");
 
 const notInstalledWithPendingEvidence = {
   ...notInstalledWithoutNote,
   inspectionItems: {
     ...notInstalledWithoutNote.inspectionItems,
-    [firstItem.id]: {
-      ...notInstalledWithoutNote.inspectionItems[firstItem.id],
+    [notInstalledItem.id]: {
+      ...notInstalledWithoutNote.inspectionItems[notInstalledItem.id],
       evidence: {
-        ...notInstalledWithoutNote.inspectionItems[firstItem.id].evidence,
-        [firstSlot.id]: { ...notInstalledWithoutNote.inspectionItems[firstItem.id].evidence[firstSlot.id], status: "pending", attachment: null },
+        ...notInstalledWithoutNote.inspectionItems[notInstalledItem.id].evidence,
+        [notInstalledSlot.id]: { ...notInstalledWithoutNote.inspectionItems[notInstalledItem.id].evidence[notInstalledSlot.id], status: "pending", attachment: null },
       },
     },
   },
 };
-assert.equal(getCloseReadiness(notInstalledWithPendingEvidence).canClose, true, "not-installed skips pending evidence");
-assert.equal(getRoundSummary(notInstalledWithPendingEvidence).evidenceTotal, getRoundSummary(ready).evidenceTotal - 1, "not-installed evidence is removed from the denominator");
+assert.equal(getCloseReadiness(notInstalledWithPendingEvidence).blockers.some((entry) => entry.itemId === notInstalledItem.id), false, "bypassed items do not require evidence to close");
+assert.equal(getRoundSummary(notInstalledWithPendingEvidence).evidenceTotal, getRoundSummary(ready).evidenceTotal - notInstalledItem.evidenceSlots.length, "not-installed evidence is removed from the denominator");
 
 const closed = { ...ready, status: "closed", closedAt: "2026-09-03T01:00:00.000Z" };
 const sourceJson = JSON.stringify(closed);
@@ -136,6 +141,7 @@ assert.equal(closed.status, "closed");
 assert.equal(JSON.stringify(closed), sourceJson, "creating a revision must not mutate the source");
 assert.notEqual(revision.id, closed.id);
 assert.equal(revision.status, "draft");
+assert.equal(revision.progressPolicyVersion, CHECKLIST_PROGRESS_POLICY_VERSION, "revision drafts use the current result-recording policy");
 assert.equal(revision.basedOnRoundId, closed.id);
 assert.equal(revision.revisionNumber, 1);
 assert.equal(revision.revisionReason, "แก้ค่าตามใบตรวจฉบับแก้ไข");

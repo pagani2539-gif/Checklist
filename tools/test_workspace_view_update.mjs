@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import { buildWorkspaceOperations, applyWorkspaceOperations, prepareWorkspaceViewUpdate } from '../src/domain/workspace-operations.js';
+const rows = Array.from({length:102}, (_, i) => ({id:`car-${i}`,reviewStatus:'pending'}));
+const dataset = {fetchedAt:'old', rows, sourceRows:structuredClone(rows)};
+const central = {inspectionRounds:[{id:'round',status:'draft',vehicleSearch:{scopes:{day:structuredClone(dataset),night:structuredClone(dataset)}}}],inspectionWorkspaces:[{id:'round',vehicleSearch:structuredClone(dataset)}]};
+const view = structuredClone(central);
+for (const round of [...view.inspectionRounds,...view.inspectionWorkspaces]) {
+  const datasets = round.vehicleSearch.scopes ? Object.values(round.vehicleSearch.scopes) : [round.vehicleSearch];
+  for (const data of datasets) for (const row of [...data.rows,...data.sourceRows]) Object.assign(row,Object.fromEntries(Array.from({length:20},(_,i)=>[`default-${i}`,null])));
+}
+assert.ok(buildWorkspaceOperations(central,view).length > 10000, 'fixture must reproduce implicit normalization exceeding the operation limit');
+assert.deepEqual(prepareWorkspaceViewUpdate(central,view,view).operations,[], 'opening a normalized view is not a central edit');
+const next = structuredClone(view);
+next.inspectionRounds[0].vehicleSearch.scopes.night.fetchedAt='new';
+const prepared=prepareWorkspaceViewUpdate(central,view,next);
+assert.ok(prepared.operations.length<10);
+assert.deepEqual(prepared.state.inspectionWorkspaces,central.inspectionWorkspaces,'legacy aliases must not be normalized on an unrelated edit');
+assert.deepEqual(prepared.state.inspectionRounds[0].vehicleSearch.scopes.day,central.inspectionRounds[0].vehicleSearch.scopes.day);
+assert.deepEqual(applyWorkspaceOperations(central,prepared.operations),prepared.state);
+const edited=structuredClone(view);edited.inspectionRounds[0].vehicleSearch.scopes.night.rows[0].reviewStatus='correct';
+const single=prepareWorkspaceViewUpdate(central,view,edited);
+assert.ok(single.operations.length<10);
+assert.equal(single.state.inspectionRounds[0].vehicleSearch.scopes.night.rows[0].reviewStatus,'correct');
+assert.equal(single.state.inspectionRounds[0].vehicleSearch.scopes.night.rows[0]['default-0'],undefined);
+const concurrent=structuredClone(central);concurrent.inspectionRounds[0].vehicleSearch.scopes.night.rows[0].reviewStatus='incorrect';
+assert.throws(()=>applyWorkspaceOperations(concurrent,single.operations),/conflict|changed/i);
+const missingView=structuredClone(central);missingView.inspectionRounds[0].newContainer={value:'default'};
+const missingNext=structuredClone(missingView);missingNext.inspectionRounds[0].newContainer.value='edited';
+assert.equal(prepareWorkspaceViewUpdate(central,missingView,missingNext).state.inspectionRounds[0].newContainer.value,'edited');
+const reordered=structuredClone(view);
+reordered.inspectionRounds[0].vehicleSearch.scopes.night.rows.reverse();
+reordered.inspectionRounds[0].vehicleSearch.scopes.night.rows[0].reviewStatus='correct';
+const ordered=prepareWorkspaceViewUpdate(central,view,reordered).state.inspectionRounds[0].vehicleSearch.scopes.night.rows;
+assert.equal(ordered[0].id,'car-101');assert.equal(ordered[0].reviewStatus,'correct');
+console.log('Raw central state vs normalized view: user-only edits, replacement, missing parents and conflict protection passed');

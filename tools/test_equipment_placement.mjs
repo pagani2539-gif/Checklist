@@ -36,7 +36,6 @@ const wimElectronicsAssets = getCanonicalItemsForFormat("SC")
   .filter((item) => item.kind === "asset" && item.checklistMapping.includes("2.3"));
 assert.deepEqual(wimElectronicsAssets.map((item) => item.id), [
   "wim-electronics",
-  "wim-ac-dc-power-supply",
   "wim-network-equipment",
   "wim-controller",
   "wim-phase-protection",

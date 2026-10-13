@@ -74,22 +74,21 @@ const deleteRecordStart = page.indexOf("const deleteRelationshipRecord =", saveR
 const saveRecord = page.slice(saveRecordStart, deleteRecordStart);
 assert.doesNotMatch(saveRecord, /มี System ชนิดเดียวกันใน Scope นี้อยู่แล้ว/, "separate System instances may share a Scope");
 
-const relationshipOptions = (format, groupId) => buildStationRelationshipTree({
+const relationshipOptions = (format, categoryId) => buildStationRelationshipTree({
   stationFormat: format,
   systems: [],
   equipment: [],
   includeEmptyGroups: true,
   includeCatalogOptions: true,
-}).find((group) => group.groupId === groupId)?.categories.flatMap((category) => category.systemOptions || []) || [];
-assert.ok(relationshipOptions("SC", "SC-01").some((option) => option.canonicalItemId === "wim-high-data-control" && option.scope === "High Speed"), "SC High Speed must retain its own WIM Data/Control System options");
-assert.ok(relationshipOptions("SC", "SC-04").some((option) => option.canonicalItemId === "wim-low-data-control" && option.scope === "Low Speed"), "SC Low Speed must retain its own WIM Data/Control System options");
-assert.ok(relationshipOptions("SC", "SC-02").some((option) => option.canonicalItemId === "vms-control" && option.scope === "High Speed"), "SC High Speed must retain VMS in its own Scope");
-assert.ok(relationshipOptions("SC", "SC-05").some((option) => option.canonicalItemId === "vms-control" && option.scope === "Low Speed"), "SC Low Speed must retain VMS in its own Scope");
-assert.ok(relationshipOptions("IMPS", "IMPS-01").some((option) => option.canonicalItemId === "image-processing-management" && option.scope === "Image Processing"), "IMPS must retain its Image Processing System");
-assert.ok(relationshipOptions("IMPS", "IMPS-04").some((option) => option.canonicalItemId === "lpr-control" && option.scope === "ImPS"), "IMPS LPR must stay separate from its 3D LPR System");
-assert.ok(relationshipOptions("IMPS", "IMPS-03").some((option) => option.canonicalItemId === "lpr-control" && option.scope === "3D"), "IMPS 3D LPR must remain in the 3D Scope");
-assert.equal(relationshipOptions("IMPS", "IMPS-02").some((option) => option.canonicalItemId.startsWith("wim-high-") || option.canonicalItemId.startsWith("wim-low-")), false, "SC High/Low WIM Data Systems must not leak into IMPS");
-assert.equal(relationshipOptions("IMPS", "IMPS-05").some((option) => option.canonicalItemId === "vms-control"), false, "SC-only VMS must not leak into IMPS");
+}).flatMap((group) => group.categories || []).filter((category) => category.id === categoryId).flatMap((category) => category.systemOptions || []);
+assert.equal(relationshipOptions("SC", "data-control").some((option) => option.canonicalItemId.startsWith("wim-high-") || option.canonicalItemId.startsWith("wim-low-")), false, "retired High/Low WIM Data/Control Systems remain readable but are not addable in the current catalog");
+assert.ok(relationshipOptions("SC", "vms").some((option) => option.canonicalItemId === "vms-control" && option.scope === "High Speed"), "SC High Speed must retain VMS in its own Scope");
+assert.ok(relationshipOptions("SC", "vms").some((option) => option.canonicalItemId === "vms-control" && option.scope === "Low Speed"), "SC Low Speed must retain VMS in its own Scope");
+assert.ok(relationshipOptions("IMPS", "image-processing").some((option) => option.canonicalItemId === "image-processing-management" && option.scope === "Image Processing"), "IMPS must retain its Image Processing System");
+assert.ok(relationshipOptions("IMPS", "lpr").some((option) => option.canonicalItemId === "lpr-control" && option.scope === "ImPS"), "IMPS LPR must stay separate from its 3D LPR System");
+assert.ok(relationshipOptions("IMPS", "lpr").some((option) => option.canonicalItemId === "lpr-control" && option.scope === "3D"), "IMPS 3D LPR must remain in the 3D Scope");
+assert.equal(relationshipOptions("IMPS", "data-control").some((option) => option.canonicalItemId.startsWith("wim-high-") || option.canonicalItemId.startsWith("wim-low-")), false, "SC High/Low WIM Data Systems must not leak into IMPS");
+assert.equal(relationshipOptions("IMPS", "vms").some((option) => option.canonicalItemId === "vms-control"), false, "SC-only VMS must not leak into IMPS");
 
 const addRecordStart = page.indexOf("const addRelationshipRecord =");
 const selectRecordStart = page.indexOf("const selectRelationshipRecord =", addRecordStart);

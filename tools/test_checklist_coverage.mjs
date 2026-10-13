@@ -104,7 +104,7 @@ const electronicsProfile = {
 };
 const unlinkedElectronicsSnapshot = createSnapshot(electronicsProfile);
 const unlinkedElectronicsCoverage = getChecklistCoverageSummary(unlinkedElectronicsSnapshot, getItemsForSnapshot(unlinkedElectronicsSnapshot));
-assert.deepEqual(unlinkedElectronicsCoverage.missingEquipment.map((asset) => asset.assetNo), missingWimElectronicsTypes.map(([, assetNo]) => assetNo), "six WIM Electronics Assets without a Cabinet parent remain visible as uncovered");
+assert.deepEqual(unlinkedElectronicsCoverage.missingEquipment.map((asset) => asset.assetNo).sort(), missingWimElectronicsTypes.map(([, assetNo]) => assetNo).sort(), "six WIM Electronics Assets without a Cabinet parent remain visible as uncovered");
 const linkedElectronicsProfile = { ...electronicsProfile, equipment: electronicsAssets.map((asset) => asset.type === "CONTROL_CABINET" || asset.type === "WIM_NETWORK_EQUIPMENT" ? asset : { ...asset, parentAssetId: electronicsCabinet.id }) };
 const linkedElectronicsSnapshot = createSnapshot(linkedElectronicsProfile);
 const linkedElectronicsCoverage = getChecklistCoverageSummary(linkedElectronicsSnapshot, getItemsForSnapshot(linkedElectronicsSnapshot));
@@ -183,6 +183,7 @@ const historicalSnapshot = createSnapshot({
   equipment: [makeEquipment("JOYSTICK", 1, { id: "historical-joystick-1" })],
 });
 delete historicalSnapshot.assetChecklistRecipeVersion;
+delete historicalSnapshot.checklistWordingVersion;
 const historicalItems = getItemsForSnapshot(historicalSnapshot).filter((item) => item.assetId === "historical-joystick-1");
 assert.equal(historicalItems.length, 1, "historical Snapshot must retain its original single fallback item");
 assert.equal(historicalItems[0].label, "ตรวจสภาพและการทำงานของอุปกรณ์", "historical Snapshot must not receive the new dedicated recipe");

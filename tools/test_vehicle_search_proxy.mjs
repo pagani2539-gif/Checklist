@@ -80,12 +80,12 @@ const secondUpstream = http.createServer(async (request, response) => {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   proxyRequests.push({ method: request.method, pathname: requestUrl.pathname, target: targetValue, body: Buffer.concat(chunks).toString("utf8") });
-  if (request.method === "POST" && requestUrl.pathname === "/api" && targetUrl?.pathname === "/api/vehicle/search") {
+  if (request.method === "POST" && (requestUrl.pathname === "/api/vehicle/search" || requestUrl.pathname === "/api" && ["/api/vehicle/search", "/api/v2/vehicles/search"].includes(targetUrl?.pathname))) {
     response.writeHead(200, { "Content-Type": "application/json" });
     response.end(JSON.stringify({ data: [{ plateNumber: "สถานี-b" }] }));
     return;
   }
-  if (request.method === "GET" && requestUrl.pathname === "/api" && targetUrl?.pathname === "/api/vehicle/image") {
+  if (request.method === "GET" && requestUrl.pathname === "/api" && ["/api/vehicle/image", "/api/v2/vehicles/image"].includes(targetUrl?.pathname)) {
     response.writeHead(200, { "Content-Type": "image/jpeg" });
     response.end(Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
     return;
@@ -131,7 +131,14 @@ const dynamicTargetProxy = http.createServer((request, response) => handleVehicl
   enforceStationScope: true,
   enforceStationTarget: true,
   allowedOrigins: new Set(),
-  resolveStationTarget: async (stationId) => dynamicProfileTargets[stationId] || "",
+  resolveStationTarget: async (stationId, systemKey, roundId) => {
+    if (systemKey) {
+      if (stationId !== "station-a" || !["sc-hs", "sc-ls", "imps"].includes(systemKey)) return null;
+      if (roundId && roundId !== "round-station-a") throw new Error("รอบตรวจไม่ตรงกับสถานี");
+      return systemKey === "imps" ? { baseUrl: proxyTargetBaseUrl, connectionMode: "proxy", searchUrl: proxySearchUrl.replace("/api/vehicle/search", "/api/v2/vehicles/search") } : systemKey === "sc-hs" ? baseUrl : `http://127.0.0.1:${secondUpstreamPort}`;
+    }
+    return dynamicProfileTargets[stationId] || "";
+  },
 }));
 const dynamicTargetProxyPort = await listen(dynamicTargetProxy);
 const dynamicTargetProxyUrl = `http://127.0.0.1:${dynamicTargetProxyPort}`;
@@ -217,6 +224,18 @@ try {
     assert.equal(dynamicTargetResponse.status, 200, `${stationId} should use its saved Station Profile target without an environment allowlist`);
     assert.equal((await dynamicTargetResponse.json()).data[0].plateNumber, expectedPlate);
   }
+  for (const systemKey of ["sc-hs", "sc-ls", "imps"]) {
+    const result = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/search`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders("station-a") }, body: JSON.stringify({ stationId: "station-a", systemKey, roundId: "round-station-a", baseUrl: "http://untrusted.invalid", apiProfile: "legacy-v1", payload: { page: 1 } }) });
+    assert.equal(result.status, 200, `registered ${systemKey} target overrides client address`);
+  }
+  const rejectedSystem = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/search`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders("station-a") }, body: JSON.stringify({ stationId: "station-a", systemKey: "other", baseUrl, payload: {} }) });
+  assert.equal(rejectedSystem.status, 400, "unknown system must not fall back to legacy endpoint");
+  const wrongRound = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/search`, { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders("station-a") }, body: JSON.stringify({ stationId: "station-a", systemKey: "sc-hs", roundId: "round-other", baseUrl, payload: {} }) });
+  assert.equal(wrongRound.status, 400);
+  const impsImage = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/image?stationId=station-a&systemKey=imps&roundId=round-station-a&path=crop/imps.jpg`, { headers: authHeaders("station-a") });
+  assert.equal(impsImage.status, 200, "IMPS images use the configured proxy");
+  const deniedSystemImage = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/image?stationId=station-b&systemKey=sc-hs&path=crop/denied.jpg`, { headers: authHeaders("station-a-viewer") });
+  assert.equal(deniedSystemImage.status, 403);
   const dynamicImageResponse = await fetch(`${dynamicTargetProxyUrl}/api/vehicle/image?stationId=station-b&path=crop/station-b.jpg`, { headers: authHeaders() });
   assert.equal(dynamicImageResponse.status, 200, "images should use the saved Station Profile target without an environment allowlist");
   assert.equal(new URL(proxyRequests.at(-1).target).pathname, "/api/vehicle/image");

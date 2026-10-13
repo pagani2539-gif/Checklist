@@ -14,6 +14,9 @@ import { getCanonicalItemsForFormat } from "../src/domain/canonical-station-cata
 for (const format of ["SC", "IMPS"]) {
   const draft = createStationDraft(format);
   assert.equal(draft.stationFormat, format);
+  assert.match(draft.stationCode, /^ST-/);
+  assert.match(draft.id, /^station-/);
+  assert.equal(draft.stationCode, `ST-${draft.id.slice("station-".length).toUpperCase()}`);
   assert.deepEqual(draft.equipment, [], `${format} starts with zero Assets`);
   assert.deepEqual(draft.stationSystems, [], `${format} starts with zero Systems`);
   assert.deepEqual(draft.lanes, [], `${format} starts with zero Lanes`);
@@ -23,7 +26,7 @@ for (const format of ["SC", "IMPS"]) {
 
 const incomplete = validateStationDraft(createStationDraft("SC"), []);
 assert.equal(incomplete.valid, false);
-assert.ok(incomplete.errors.stationCode);
+assert.equal(incomplete.errors.stationCode, undefined, "a new draft receives a generated station code");
 assert.ok(incomplete.errors.stationName);
 assert.ok(incomplete.errors.province);
 
@@ -38,6 +41,7 @@ assert.equal(validateStationDraft(validDraft, []).valid, true, "an empty identit
 assert.ok(validateStationDraft(validDraft, [{ stationCode: "sc-001" }]).errors.stationCode, "station code is unique case-insensitively");
 
 const profile = createStationProfileFromDraft(validDraft);
+assert.equal(profile.id, validDraft.id, "the generated internal ID stays stable when the draft is saved");
 assert.equal(profile.province, "ระนอง");
 assert.equal(profile.direction, "both");
 assert.equal(getStationReadiness(profile).ready, false);

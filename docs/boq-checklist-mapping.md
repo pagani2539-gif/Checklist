@@ -45,6 +45,16 @@ numbers. The v2 change is presentation-only: Item IDs, Evidence Slot IDs,
 TOR/source codes, Snapshot contents and WIM Parent/Lane relationships remain
 unchanged.
 
+These format-qualified groups are for Checklist and Report presentation; they
+are not the main categories of the Station Profile register. The current
+runtime tree is `main category → Scope → System → Equipment` for both SC and
+IMPS. Station creation and Station Profile use the same category/Scope order.
+Checklist keeps the existing queue and item IDs while using the same main-
+category order; Scope/System are not extra queue levels. See
+[the source-based SC/IMPS map](../.scratch/sc-imps-grouping-audit/map.md) for
+the per-Scope item mapping. Do not read `.01/.02` as parent-child levels in
+the Station Profile tree.
+
 The Ranong construction BOQ and station TOR use conflicting speed wording for
 the legacy row `sc-vms-low`. Both source references are retained and the
 mismatch is flagged by `sourceScopeConflict`; the presentation group follows
@@ -99,7 +109,7 @@ parent relationship.
 | WIM Sorting System | WIM Sensor; WIM Loop | Each sensor/loop is bound to its installed WIM System and Lane through `parentSystemId`. |
 | WIM Control System | WIM Control Computer | Keep the controller computer separate from the sensor/loop sorting branch and the cabinet electronics branch. |
 | WIM Electronics System | WIM Electronics Cabinet; AC/DC Power Supply; WIM Network Equipment; WIM Controller; Phase Protection; Sub Breaker; Switching DC Power Supply; Transformer AC 24VAC | Catalog ownership is the Electronics System. Physical sub-equipment can reference its cabinet through `parentAssetId`; this relation is currently optional in station setup. |
-| License Plate Recognition Control System | LPR Camera | One LPR System controls every installed LPR Camera in its explicit scope: High/Low Speed or 3D in SC; ImPS or 3D in IMPS. The former LPR Control System Equipment Asset is legacy-only. |
+| License Plate Recognition Control System | LPR Camera | Use a separate System record for each installed LPR Scope: High Speed, Low Speed, or 3D in SC; ImPS or 3D in IMPS. Attach each LPR Camera to the System record with the matching Scope through `parentSystemId`. The former LPR Control System Equipment Asset is legacy-only. |
 | 3D Truck Dimension Management System | 3D Laser Scanner; 3D Truck Dimension Controller | Keep this as the parent for dimension measurement equipment. The 3D LPR branch stays under License Plate Recognition Control System. |
 | Image Processing Management System | Image Processor; Fixed CCTV Camera assigned to Image Processing | New records use `Image Processing` scope. Existing `ImPS` scope remains readable for compatibility. |
 | CCTV Camera System | Fixed CCTV Camera; PTZ CCTV Camera; Network Video Recorder; Camera Joystick (SC) | A Fixed CCTV Camera used by Image Processing is placed there by its explicit scope; it must appear only in that operational branch. |
@@ -136,9 +146,10 @@ Profile scope is confirmed.
 
 When Low Speed LPR equipment is installed, create the
 `License Plate Recognition Control System` with Low Speed scope and attach the
-`LPR Camera` to that system. The same System controls every LPR Camera in the
-station's active LPR scopes. Apply the same installed-scope rule to the CCTV
-Camera System when its PTZ, Fixed Camera, or NVR records are present.
+`LPR Camera` to that Low Speed System record. A different active LPR Scope
+gets its own System record; one LPR System record must not own cameras from
+multiple Scopes. Apply the same installed-scope rule to the CCTV Camera System
+when its PTZ, Fixed Camera, or NVR records are present.
 
 ### IMPS catalog
 
@@ -159,11 +170,12 @@ canonical format catalog. A Fixed CCTV Camera can be placed in `IMPS-01` or
 placed in `IMPS-03` when it is the 3D input or in `IMPS-04` for the regular
 IMPS LPR workflow; the same physical catalog type must not be duplicated.
 
-When an LPR system serves the 3D workflow, create a `License Plate Recognition
-Control System` System record with scope `3D` under `SC-03` or `IMPS-03`. Its
-physical `LPR Camera` is a child of that LPR System. `3D Truck Dimension Management System` remains the parent of the
-3D Laser Scanner and 3D Truck Dimension Controller; do not attach the LPR
-equipment to both system parents.
+When an LPR system serves the 3D workflow, create a separate `License Plate
+Recognition Control System` System record with scope `3D` under `SC-03` or
+`IMPS-03`. Its physical `LPR Camera` is a child of that LPR System. `3D Truck
+Dimension Management System` remains the parent of the 3D Laser Scanner and
+3D Truck Dimension Controller; do not attach the LPR equipment to both system
+parents.
 
 For image processing, use the operational scope `Image Processing` for both
 `Image Processing Management System`, its `Image Processor`, and a Fixed CCTV

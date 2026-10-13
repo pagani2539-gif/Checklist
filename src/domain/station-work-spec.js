@@ -13,12 +13,12 @@ const SCOPE_SYSTEM_PURPOSES = Object.freeze({
 const GROUP_WORK_SPEC_NOTES = Object.freeze({
   "SC-01": Object.freeze({
     scope: "High Speed",
-    title: "ขอบเขตซอฟต์แวร์ WIM · High Speed",
-    summary: "ใช้ซอฟต์แวร์ชุดเดียวกับขอบเขตอื่น แต่ลงทะเบียน System ของ High Speed แยก เพื่อให้รู้ว่าระบบข้อมูล รายงาน และการแสดงผลชุดนี้ดูแลงานความเร็วสูง",
+    title: "ขอบเขตระบบและอุปกรณ์ · High Speed",
+    summary: "แยกทะเบียน System ของ High Speed ออกจาก Scope อื่น เพื่อให้ข้อมูลตรวจสอบ ผลอ่านป้ายทะเบียน และรายงานของแต่ละขอบเขตไม่ปะปนกัน",
     functions: Object.freeze([
-      "ควบคุมและจัดการข้อมูล WIM High Speed",
-      "จัดทำรายงานและแสดงผลข้อมูล WIM High Speed",
-      "เชื่อมข้อมูลป้ายทะเบียนและผลจำแนกประเภทรถกับขอบเขต High Speed",
+      "แยกข้อมูลตรวจสอบของ High Speed จากขอบเขตความเร็วอื่น",
+      "เชื่อมผลอ่านป้ายทะเบียนและผลจำแนกรถตาม Lane",
+      "แสดงผล ค้นหา และออกรายงานข้อมูล High Speed",
     ]),
     references: Object.freeze([
       "LPR: ผลอ่านและค้นหาป้ายทะเบียนตามช่องจราจร · 3.1",
@@ -29,12 +29,12 @@ const GROUP_WORK_SPEC_NOTES = Object.freeze({
   }),
   "SC-04": Object.freeze({
     scope: "Low Speed",
-    title: "ขอบเขตซอฟต์แวร์ WIM · Low Speed",
-    summary: "ใช้ซอฟต์แวร์ชุดเดียวกับ High Speed แต่ลงทะเบียน System ของ Low Speed แยก เพื่อไม่ให้ผลข้อมูลและรายงานของสองความเร็วปะปนกัน",
+    title: "ขอบเขตระบบและอุปกรณ์ · Low Speed",
+    summary: "แยกทะเบียน System ของ Low Speed ออกจาก Scope อื่น เพื่อให้ข้อมูลตรวจสอบ ผลอ่านป้ายทะเบียน และรายงานของแต่ละขอบเขตไม่ปะปนกัน",
     functions: Object.freeze([
-      "ควบคุมและจัดการข้อมูล WIM Low Speed",
-      "จัดทำรายงานและแสดงผลข้อมูล WIM Low Speed",
-      "เชื่อมข้อมูลป้ายทะเบียนและผลจำแนกประเภทรถกับขอบเขต Low Speed",
+      "แยกข้อมูลตรวจสอบของ Low Speed จากขอบเขตความเร็วอื่น",
+      "เชื่อมผลอ่านป้ายทะเบียนและผลจำแนกรถตาม Lane",
+      "แสดงผล ค้นหา และออกรายงานข้อมูล Low Speed",
     ]),
     references: Object.freeze([
       "LPR: ผลอ่านและค้นหาป้ายทะเบียนตามช่องจราจร · 3.1",

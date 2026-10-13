@@ -1,0 +1,85 @@
+@import "./monochrome-accents.css";
+
+/* Screen actions invert with the mode. Status colors and document palettes remain semantic. */
+@media screen {
+  :root {
+    --ops-action-foreground: #ffffff;
+    --ops-color-primary: #171717;
+    --ops-color-primary-hover: #333333;
+    --ops-color-link: #171717;
+    --ops-color-primary-soft: #f5f5f5;
+    --ops-color-primary-wash: #e5e5e5;
+    --ops-color-primary-border: #737373;
+    --ops-color-primary-shadow: rgba(0, 0, 0, .12);
+    --ops-color-cyan-accent: #737373;
+    --ops-color-navigation-active: #171717;
+    --ops-color-focus: #171717;
+    --ops-color-focus-ring: rgba(0, 0, 0, .25);
+  }
+  :root[data-theme="dark"] {
+    --ops-action-foreground: #171717;
+    --ops-color-primary: #f5f5f5;
+    --ops-color-primary-hover: #d4d4d4;
+    --ops-color-link: #f5f5f5;
+    --ops-color-primary-soft: #262626;
+    --ops-color-primary-wash: #333333;
+    --ops-color-primary-border: #a3a3a3;
+    --ops-color-primary-shadow: rgba(0, 0, 0, .2);
+    --ops-color-cyan-accent: #a3a3a3;
+    --ops-color-navigation-active: #f5f5f5;
+    --ops-color-focus: #f5f5f5;
+    --ops-color-focus-ring: rgba(255, 255, 255, .3);
+  }
+  :root[data-theme] :is(.ops-button-primary, .ops-main-nav a.is-active, .ops-theme-options button[aria-pressed="true"], .ops-vehicle-review-context-tabs a.is-active):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-color-primary) !important;
+    border-color: var(--ops-color-primary) !important;
+    color: var(--ops-action-foreground) !important;
+    box-shadow: none;
+  }
+  :root[data-theme] .ops-button-primary:hover:not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) { background: var(--ops-color-primary-hover) !important; }
+  :root[data-theme] .ops-button-primary :is(span, strong, .ops-icon):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) { color: inherit !important; }
+  :root[data-theme] :is(.ops-button-secondary, .ops-button-ghost):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) { background: var(--ops-card); border-color: var(--ops-line-strong); color: var(--ops-ink); }
+  :root[data-theme] .ops-theme-options button { border-color: var(--ops-line-strong); }
+  :root[data-theme] .ops-theme-options button:focus-visible { outline-color: var(--ops-color-focus); }
+  :root[data-theme] .ops-theme-options button:hover { border-color: var(--ops-ink); }
+  :root[data-theme] .ops-page a:not(.ops-button):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) { color: var(--ops-color-link); text-decoration: underline; text-underline-offset: 3px; }
+  :root[data-theme] .ops-sidebar :focus-visible { outline-color: var(--ops-color-focus) !important; }
+  :root[data-theme] .ops-brand-mark { background: var(--ops-color-primary); color: var(--ops-action-foreground); box-shadow: none; }
+  :root[data-theme] .ops-button:disabled { background: var(--ops-color-neutral-surface) !important; color: var(--ops-muted-soft) !important; border-color: var(--ops-line) !important; box-shadow: none; }
+  .ops-button-icon-only { min-width: 44px; min-height: 44px; padding: 8px; flex: 0 0 auto; }
+  .ops-search .ops-search-clear { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); background: transparent; border: 0; color: var(--ops-ink); }
+  .ops-search:has(.ops-search-clear) input { padding-right: 48px; }
+  .ops-search .ops-search-clear .ops-icon { position: static; transform: none; }
+}
+
+@media screen {
+ :root[data-theme] .ops-shell .ops-save-status-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 8px; border-radius: 50%; cursor: help; }
+ .ops-save-status-tooltip { position: absolute; top: calc(100% + 8px); right: 0; z-index: 100; width: max-content; max-width: min(240px, 80vw); padding: 8px 12px; border: 1px solid var(--ops-line); border-radius: 8px; background: var(--ops-card); color: var(--ops-ink); white-space: normal; visibility: hidden; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+ .ops-save-status-icon:is(:hover, :focus-visible) .ops-save-status-tooltip { visibility: visible; }
+}
+
+/* One result surface, consistent inset, and one border per status option. */
+@media screen {
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-check-item-focus { padding: 16px; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-group { gap: 12px; padding: 0; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-group legend { margin-bottom: 12px; line-height: 1.5; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-grid.ops-status-single-choice { gap: 10px; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice { border: 2px solid var(--ops-line); border-radius: 10px; overflow: visible; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice:has(.ops-choice-input:checked) { border-color: var(--ops-ink); }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice.status-normal:has(.ops-choice-input:checked) { border-color: var(--ops-success); }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice.status-damaged:has(.ops-choice-input:checked) { border-color: var(--ops-danger); }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice.status-waiting:has(.ops-choice-input:checked) { border-color: var(--ops-warning); }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-group .ops-status-choice-grid .ops-status-choice-body { display: grid; grid-template-columns: 26px minmax(0, 1fr); min-height: 72px; gap: 10px; padding: 12px; border: 0; border-radius: 8px; box-shadow: none !important; text-align: left; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-copy { gap: 4px; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-label,
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-description { text-align: left; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-icon { width: 26px; height: 26px; }
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-result-note { margin-top: 16px; gap: 8px; }
+ @media (max-width: 480px) {
+  :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-status-choice-grid.ops-status-single-choice { grid-template-columns: minmax(0, 1fr) !important; }
+ }
+}
+
+@media screen {
+ :root[data-theme] .ops-shell .checklist-page .ops-taskflow-main .ops-check-section-list { border: 0; box-shadow: none; border-radius: 0; background: transparent; padding: 0; }
+}

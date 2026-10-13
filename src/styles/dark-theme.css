@@ -1,0 +1,87 @@
+/* Only screen colors change. Print/PDF and document previews keep light tokens. */
+@import "./dark-theme-documents.css";
+
+@media screen {
+  .ops-shell { background: var(--ops-paper); }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ops-paper: #080808;
+    --ops-card: #171717;
+    --ops-surface: #171717;
+    --ops-ink: #f5f5f5;
+    --ops-ink-soft: #cccccc;
+    --ops-muted: #cccccc;
+    --ops-muted-soft: #a3a3a3;
+    --ops-line: #454545;
+    --ops-line-strong: #737373;
+    --ops-navy: #111111;
+    --ops-navy-soft: #222222;
+    --ops-color-primary-soft: #182338;
+    --ops-color-primary-wash: #223453;
+    --ops-color-primary-border: #5274a3;
+    --ops-color-link: #93c5fd;
+    --ops-color-cyan-accent: #93c5fd;
+    --ops-color-highlight-gradient: linear-gradient(#171717, #171717);
+    --ops-color-focus: #93c5fd;
+    --ops-color-focus-ring: rgba(147, 197, 253, .35);
+    --ops-color-navigation: #111111;
+    --ops-color-navigation-foreground: #f5f5f5;
+    --ops-color-navigation-muted: #cccccc;
+    --ops-color-navigation-hover: #262626;
+    --ops-sidebar-border: #454545;
+    --ops-color-neutral-surface: #222222;
+    --ops-color-closed-surface: #303030;
+    --ops-success: #86efac;
+    --ops-success-soft: #173c31;
+    --ops-warning: #fcd34d;
+    --ops-warning-soft: #40351c;
+    --ops-danger: #fca5a5;
+    --ops-danger-soft: #442830;
+    --ops-color-success-border: #3b7158;
+    --ops-color-warning-border: #826638;
+    --ops-color-warning-strong: #fdba74;
+    --ops-color-danger-border: #8b4a57;
+    --ops-color-warning-surface: #40351c;
+    --ops-color-attention: #fcd34d;
+    --ops-color-attention-border: #826638;
+    --ops-color-attention-surface: #40351c;
+    --ops-shadow: 0 2px 8px #0003, 0 12px 28px #0002;
+    --ops-shadow-raised: 0 18px 48px #0006;
+  }
+  :root[data-theme="dark"] .ops-topbar { background: linear-gradient(var(--ops-paper) 72%, transparent); }
+  :root[data-theme="dark"] :is(.ops-button-secondary, .ops-button-ghost, .ops-field input, .ops-field textarea, .ops-custom-select-trigger) { background-color: var(--ops-card); color: var(--ops-ink); }
+  :root[data-theme="dark"] .ops-page a:not(.ops-button):not(:where(.ops-print-report *, .contract-agreement-cover *)) { color: var(--ops-color-link); }
+  :root[data-theme="dark"] .ops-shell.is-sidebar-collapsed .ops-sidebar { background: var(--ops-color-navigation); }
+  :root[data-theme="dark"] input::placeholder,
+  :root[data-theme="dark"] textarea::placeholder { color: var(--ops-muted-soft); }
+  :root[data-theme="dark"] .local-auth-page { background: var(--ops-paper); }
+  :root[data-theme="dark"] .ops-coverage-summary:not(.is-warning):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) { background: var(--ops-card); }
+  :root:not([data-theme="dark"]) .local-auth-page { background: #ffffff; }
+  :root:not([data-theme="dark"]) .ops-topbar { background: linear-gradient(#ffffff 72%, transparent); }
+  :root:not([data-theme="dark"]) .ops-sidebar-toggle { border-color: var(--ops-line); }
+  .ops-sidebar .ops-main-nav a.is-active { color: #ffffff !important; }
+  :root:not([data-theme="dark"]) .ops-sidebar :focus-visible { outline-color: var(--ops-color-focus) !important; }
+  :root:not([data-theme="dark"]) :is(.ops-vehicle-image-comparison, .ops-vehicle-focus-image) { background-color: #fafafa; }
+
+  .ops-theme-preference { margin-top: auto; padding-top: 16px; color: inherit; }
+  .ops-theme-options { display: flex; gap: 4px; }
+  .ops-theme-options button { position: relative; display: flex; align-items: center; justify-content: center; flex: 1; min-width: 44px; min-height: 44px; padding: 6px; border: 1px solid #647894; border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .ops-theme-options button > .ops-icon { width: 20px; height: 20px; }
+  .ops-theme-tooltip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 30; padding: 5px 9px; border: 1px solid #737373; border-radius: 6px; background: #171717; color: #fff; font-size: 12px; white-space: nowrap; visibility: hidden; pointer-events: none; }
+  .ops-theme-options button:is(:hover, :focus-visible) .ops-theme-tooltip { visibility: visible; }
+  .ops-theme-options button[aria-pressed="true"] { background: #2563eb; border-color: #93c5fd; color: #fff; }
+  .ops-theme-options button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+  .ops-theme-options button:hover { border-color: #93c5fd; }
+  .local-auth-card .ops-theme-preference { color: var(--ops-ink); }
+}
+
+@media screen and (min-width: 981px) {
+  .ops-shell.is-sidebar-collapsed .ops-theme-options { flex-direction: column; }
+  .ops-shell.is-sidebar-collapsed .ops-theme-tooltip { bottom: auto; left: calc(100% + 8px); transform: none; }
+}
+@media screen and (max-width: 980px) {
+  .ops-sidebar .ops-theme-preference { order: -1; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 4px 8px; border-bottom: 1px solid var(--ops-sidebar-border); }
+  .ops-sidebar .ops-theme-options button { min-height: 44px; padding-inline: 10px; }
+  .ops-shell .ops-main { padding-bottom: calc(148px + env(safe-area-inset-bottom)); }
+}
+@media print { .ops-theme-preference { display: none !important; } }

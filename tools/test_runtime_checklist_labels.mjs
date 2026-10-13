@@ -60,13 +60,32 @@ const impsProfile = {
   id: "runtime-label-imps",
   stationFormat: "IMPS",
   stationTemplateId: "IMPS",
-  stationSystems: baseProfile.stationSystems.map((system) => system.id === "present-lpr-control"
-    ? { ...system, scope: "High Speed" }
-    : system),
+  lanes: [...baseProfile.lanes, { id: "imps-lane-lpr", laneNo: 1, scope: "ImPS", active: true }],
+  stationSystems: [
+    ...baseProfile.stationSystems.filter((system) => system.canonicalItemId !== "wim-sorting"),
+    {
+      id: "imps-wim-system-1",
+      canonicalItemId: "wim-sorting",
+      systemId: "wim-sorting",
+      scope: "ImPS",
+      laneId: "imps-lane-lpr",
+      quantity: 1,
+      active: true,
+    },
+    {
+      id: "imps-lpr-system-1",
+      canonicalItemId: "lpr-control",
+      systemId: "lpr-control",
+      scope: "ImPS",
+      laneId: "imps-lane-lpr",
+      quantity: 1,
+      active: true,
+    },
+  ],
   equipment: [
-    ...baseProfile.equipment.filter((asset) => asset.type !== "IMPS_DISPLAY_PROCESSING"),
+    ...baseProfile.equipment.filter((asset) => asset.type !== "IMPS_DISPLAY_PROCESSING" && asset.type !== "LPR_CAMERA"),
     makeEquipment("IMPS_DISPLAY_PROCESSING", 1, { id: "imps-dp-01", assetNo: "IMPS-DP-01" }),
-    makeEquipment("LPR_CAMERA", 1, { id: "imps-lpr-camera-01", assetNo: "IMPS-LPR-01" }),
+    makeEquipment("LPR_CAMERA", 1, { id: "imps-lpr-camera-01", assetNo: "IMPS-LPR-01", scope: "ImPS", laneId: "imps-lane-lpr", parentSystemId: "imps-lpr-system-1" }),
   ],
 };
 const impsRound = createInspectionRound(impsProfile);
@@ -87,16 +106,16 @@ assert.ok(impsSections.every((section) => section.code.startsWith("IMPS-") || se
 const lprAsset = impsProfile.equipment.find((asset) => asset.id === "imps-lpr-camera-01");
 assert.equal(getEquipmentLabel(lprAsset), "กล้องอ่านป้ายทะเบียน");
 assert.equal(getEquipmentEnglishLabel(lprAsset), "LPR Camera");
-assert.equal(getEquipmentDisplayLabel(lprAsset), "LPR Camera · กล้องอ่านป้ายทะเบียน");
+assert.equal(getEquipmentDisplayLabel(lprAsset), "LPR Camera");
 assert.equal(getStationSystemLabel({ id: "present-lpr-control" }), "ระบบควบคุมการอ่านป้ายทะเบียน");
 assert.equal(getStationSystemEnglishLabel({ id: "present-lpr-control" }), "License Plate Recognition Control System");
-assert.equal(getStationSystemDisplayLabel({ id: "present-lpr-control" }), "License Plate Recognition Control System · ระบบควบคุมการอ่านป้ายทะเบียน");
-assert.ok(impsItems.some((item) => item.systemRecordId === "present-lpr-control"
-  && item.label.startsWith("License Plate Recognition Control System · ตรวจการทำงานของซอฟต์แวร์")));
+assert.equal(getStationSystemDisplayLabel({ id: "present-lpr-control" }), "License Plate Recognition Control System");
+assert.ok(impsItems.some((item) => item.systemRecordId === "imps-lpr-system-1"
+  && item.label.startsWith("ตรวจการทำงานของ License Plate Recognition Control System")));
 assert.ok(impsItems.some((item) => item.assetId === "imps-lpr-camera-01"
   && String(item.assetName || "").startsWith("LPR Camera ·")));
 assert.ok(impsItems.some((item) => item.sectionCode === "3.1"
-  && item.label.startsWith("License Plate Recognition Control System · ผลทดสอบการอ่านป้ายทะเบียนร่วมกับ WIM")));
+  && item.label.startsWith("License Plate Recognition Control System · ทดสอบการอ่านป้ายทะเบียนสำหรับระบบ IMPS")));
 assert.ok(MASTER_CHECKLIST_SECTIONS.find((section) => section.code === "3.1")?.items
   .some((item) => item.label.startsWith("License Plate Recognition Control System · ผลทดสอบการอ่านป้ายทะเบียนร่วมกับ WIM")));
 

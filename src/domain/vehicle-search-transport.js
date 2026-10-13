@@ -3,7 +3,6 @@ import {
   isOriginEndpoint,
   normalizeVehicleSearchBaseUrl,
   normalizeVehicleSearchEndpoint,
-  VEHICLE_SEARCH_DEFAULT_BASE_URL,
   VEHICLE_SEARCH_ENFORCE_STATION_TARGET,
 } from "./vehicle-search-config.js";
 import { vehicleRecordsFromPayload } from "./vehicle-search-response.js";
@@ -61,6 +60,8 @@ export class VehicleSearchError extends Error {
     signal,
     transport = "proxy",
     stationTargetId = "",
+    systemKey = "",
+    roundId = "",
     connectionTest = false,
   }) {
     const normalizedBaseUrl = normalizeVehicleSearchBaseUrl(baseUrl);
@@ -68,9 +69,9 @@ export class VehicleSearchError extends Error {
     const normalizedSearchUrl = normalizeVehicleSearchEndpoint(searchUrl);
     const connectionMode = normalizedSearchUrl && new URL(normalizedSearchUrl).searchParams.has("target") ? "proxy" : "direct";
     const proxyBody = apiProfile === VEHICLE_API_PROFILES.LEGACY_V1
-      ? { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(connectionTest ? { connectionTest: true } : {}), payload }
-      : { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(connectionTest ? { connectionTest: true } : {}), apiProfile, payload };
-    const candidates = transport === "direct-first"
+      ? { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(systemKey ? { systemKey } : {}), ...(roundId ? { roundId } : {}), ...(connectionTest ? { connectionTest: true } : {}), payload }
+      : { baseUrl: normalizedBaseUrl, searchUrl: normalizedSearchUrl, connectionMode, ...(stationTargetId ? { stationId: stationTargetId } : {}), ...(systemKey ? { systemKey } : {}), ...(roundId ? { roundId } : {}), ...(connectionTest ? { connectionTest: true } : {}), apiProfile, payload };
+    const candidates = apiProfile !== VEHICLE_API_PROFILES.IMPS_V2 && transport === "direct-first"
       ? [
         { endpoint: directEndpoint, body: payload, mode: "direct" },
         { endpoint, body: proxyBody, mode: "proxy" },
@@ -105,6 +106,8 @@ export class VehicleSearchError extends Error {
     expectedStationId,
     expectedStationName,
     stationProfileId,
+    systemKey = "",
+    roundId = "",
     signal,
     transport = "proxy",
   } = {}) {
@@ -121,7 +124,7 @@ export class VehicleSearchError extends Error {
       let response;
       let responseMode = "proxy";
       try {
-        const result = await requestVehicleSearch(fetchImpl, { baseUrl: normalizedBaseUrl, apiProfile, searchUrl: normalizedSearchUrl, endpoint, payload: buildVehicleSearchPayload(normalizedCriteria, { page, apiProfile }), signal, transport: VEHICLE_SEARCH_ENFORCE_STATION_TARGET ? "proxy" : transport, stationTargetId: stationProfileId || expectedStationId });
+        const result = await requestVehicleSearch(fetchImpl, { roundId, baseUrl: normalizedBaseUrl, apiProfile, searchUrl: normalizedSearchUrl, endpoint, payload: buildVehicleSearchPayload(normalizedCriteria, { page, apiProfile }), signal, systemKey, transport: apiProfile === VEHICLE_API_PROFILES.IMPS_V2 || VEHICLE_SEARCH_ENFORCE_STATION_TARGET ? "proxy" : transport, stationTargetId: stationProfileId || expectedStationId });
         response = result.response;
         responseMode = result.mode;
       } catch (error) {
@@ -131,7 +134,7 @@ export class VehicleSearchError extends Error {
       const payload = await responseJson(response);
       if (!response.ok) throw new VehicleSearchError(text(payload?.message || payload?.error) || `API ตอบกลับสถานะ ${response.status}`, { status: response.status });
       const recordCount = vehicleRecordsFromPayload(payload, resultPath).length;
-      const rows = normalizeVehicleSearchRows(payload, { resultPath, plateKeys, baseUrl: normalizedBaseUrl, apiProfile, directImages: responseMode === "direct" && !normalizedSearchUrl, searchUrl: normalizedSearchUrl, stationProfileId });
+      const rows = normalizeVehicleSearchRows(payload, { resultPath, plateKeys, baseUrl: normalizedBaseUrl, apiProfile, directImages: responseMode === "direct" && !normalizedSearchUrl, searchUrl: normalizedSearchUrl, stationProfileId, systemKey, roundId });
       if (recordCount > 0 && rows.length === 0) throw new VehicleSearchError("API ไม่พบฟิลด์ป้ายทะเบียนในผลลัพธ์", { status: response.status });
       allRows.push(...rows);
       rows.forEach((row) => {
@@ -169,6 +172,7 @@ export class VehicleSearchError extends Error {
     signal,
     date = new Date().toISOString().slice(0, 10),
     stationProfileId = "",
+    systemKey = "",
     transport = "proxy",
   } = {}) {
     if (typeof fetchImpl !== "function") throw new VehicleSearchError("เบราว์เซอร์นี้ไม่รองรับการเรียก API");
@@ -186,6 +190,7 @@ export class VehicleSearchError extends Error {
         signal,
         transport,
         stationTargetId: stationProfileId,
+        systemKey,
         connectionTest: true,
       })).response;
     } catch (error) {

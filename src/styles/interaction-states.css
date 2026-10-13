@@ -1,0 +1,105 @@
+/* Screen interaction states load after the generated theme adapters. */
+@media screen {
+  :root {
+    --ops-interaction-hover: #e9e9e9;
+    --ops-interaction-selected: #dedede;
+    --ops-interaction-border: #525252;
+    --ops-interaction-brightness: .92;
+  }
+  :root[data-theme="dark"] {
+    --ops-interaction-hover: #303030;
+    --ops-interaction-selected: #424242;
+    --ops-interaction-border: #b5b5b5;
+    --ops-interaction-brightness: 1.2;
+  }
+
+  /* Keyboard feedback is available without a mouse and does not move the layout. */
+  :root[data-theme] :where(button, a[href], input, select, textarea, summary, [tabindex="0"]):focus-visible:not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    outline: 2px solid var(--ops-color-focus);
+    outline-offset: 3px;
+  }
+
+  :root[data-theme] :is(.master-select-option.is-selected, .ops-custom-select-option[aria-selected="true"]):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-interaction-selected);
+    color: var(--ops-ink);
+    box-shadow: inset 3px 0 0 var(--ops-ink);
+  }
+  /* The selected navigation surface is inverted by the monochrome theme. */
+  :root[data-theme] .ops-sidebar .ops-main-nav a.is-active {
+    color: var(--ops-action-foreground) !important;
+  }
+  :root[data-theme] .ops-date-time-day.is-selected {
+    color: var(--ops-action-foreground) !important;
+  }
+  :root[data-theme] .ops-button-danger-ghost:not(:disabled):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    color: var(--ops-danger);
+  }
+}
+
+@media screen and (max-width: 980px) {
+  :root[data-theme] .ops-main-nav a { min-height: 68px; }
+}
+
+/* Touch screens keep their existing selected/pressed feedback without sticky hover. */
+@media screen and (hover: hover) and (pointer: fine) {
+  /* A fallback also covers local buttons without a shared variant class.
+     Filtering preserves result colors and selected backgrounds. */
+  :root[data-theme] :where(button, a[href], [role="button"], summary, .ops-status-choice:has(input:not(:disabled)), .ops-attachment-dropzone:has(input:not(:disabled))):hover:not(:disabled):not([aria-disabled="true"]):not(.annotation-color):not(:has(img, video, canvas)):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
+    filter: brightness(var(--ops-interaction-brightness));
+  }
+  :root[data-theme] :where(button, [role="button"]):hover:not(:disabled):not([aria-disabled="true"]):not(:focus-visible):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
+    outline: 1px solid var(--ops-interaction-border);
+    outline-offset: -2px;
+  }
+  /* Decision buttons use their result color, including the already saved choice. */
+  :root[data-theme] .ops-vehicle-review-actions > button:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--ops-interaction-hover);
+    border-color: var(--ops-interaction-border);
+  }
+  :root[data-theme] .ops-vehicle-review-actions > button.is-correct:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--ops-success-soft) 92%, var(--ops-success) 8%);
+    filter: none;
+    border-color: var(--ops-success);
+  }
+  :root[data-theme] .ops-vehicle-review-actions > button.is-incorrect:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--ops-danger-soft) 92%, var(--ops-danger) 8%);
+    filter: none;
+    border-color: var(--ops-danger);
+  }
+  :root[data-theme] .ops-vehicle-review-actions > button.is-unable-to-verify:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--ops-warning-soft) 92%, var(--ops-warning) 8%);
+    filter: none;
+    border-color: var(--ops-warning);
+  }
+  :root[data-theme] .ops-button-primary:hover:not(:disabled):not([aria-disabled="true"]):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-color-primary-hover) !important;
+  }
+  :root[data-theme] :is(.ops-button-secondary, .ops-button-ghost, .ops-sidebar-toggle, .master-select-trigger, .ops-custom-select-trigger, .vehicle-bulk-icon:not(.is-danger), .ops-vehicle-review-reason-option:not(.is-selected), .ops-vehicle-queue-status-filter button:not(.is-active), .ops-theme-options button:not([aria-pressed="true"]), .ops-date-time-trigger, .ops-date-time-nav, .ops-date-time-day:not(.is-selected), .ops-vehicle-focus-row-list button:not(.is-active), .ops-vehicle-focus-groups button:not(.is-active), .ops-task-queue-group-toggle, .sc-more, .sc-more-menu button, .sc-system-card-toggle, .sc-system-add, .sc-add-category-option, .sc-add-item-option, .sc-add-quantity-control button):hover:not(:disabled):not([aria-disabled="true"]):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-interaction-hover);
+    border-color: var(--ops-interaction-border);
+    color: var(--ops-ink);
+  }
+  :root[data-theme] :is(.master-select-option:not(.is-selected), .ops-custom-select-option:not([aria-selected="true"]), .ops-custom-select-option.is-highlighted:not([aria-selected="true"]), .ops-main-nav a:not(.is-active), .ops-vehicle-review-context-tabs a:not(.is-active)):hover:not(:disabled):not([aria-disabled="true"]):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-interaction-hover);
+    color: var(--ops-ink);
+  }
+  :root[data-theme] :is(.ops-button-danger-ghost, .ops-vehicle-queue-delete, .vehicle-bulk-icon.is-danger):hover:not(:disabled):not([aria-disabled="true"]):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-danger-soft);
+    border-color: var(--ops-danger);
+    color: var(--ops-danger);
+  }
+  :root[data-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea):hover:not(:disabled):not([readonly]):not(:focus):not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    border-color: var(--ops-interaction-border);
+  }
+  :root[data-theme] :is(.ops-round-card, .ops-station-directory-row):has(a[href], button:not(:disabled)):hover:not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    border-color: var(--ops-interaction-border);
+  }
+  :root[data-theme] summary:hover:not(:where(.ops-print-report *, .contract-agreement-cover *, .ops-vehicle-report *, [data-print-document] *)) {
+    background: var(--ops-interaction-hover);
+  }
+  :root[data-theme] .ops-config-toggle:hover:not(:disabled) {
+    background: var(--ops-color-primary-hover);
+    color: var(--ops-action-foreground);
+    filter: none;
+  }
+}

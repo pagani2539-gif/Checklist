@@ -5,8 +5,9 @@ const checklistPage = fs.readFileSync("src/app/pages/ChecklistPage.jsx", "utf8")
 
 assert.match(
   checklistPage,
-  /!isQuickFieldRound\s*&&\s*!isDemoRound\s*&&\s*<section className="ops-panel ops-round-context-panel"/s,
-  "demo checklist rounds must not render the obsolete no-contract work-context panel",
+  /\{isDemoRound\s*&&\s*<div className="ops-demo-banner"/s,
+  "demo rounds must display the current non-persisting fixture notice",
 );
+assert.doesNotMatch(checklistPage, /ops-round-context-panel/, "the retired round context panel must not return");
 
 console.log("demo checklist context regression contract passed");

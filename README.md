@@ -2,7 +2,7 @@
 
 เว็บ Checklist ภาษาไทยสำหรับตรวจอุปกรณ์ตามไฟล์แนบ BOQ 13 หมวด โดยใช้ `checklist-master-v5-system-mapped` เป็นแม่แบบปัจจุบันสำหรับรอบใหม่, `checklist-master-v4-asset-mapped` เป็นแม่แบบเดิม และ `checklist-master-v3-boq-evidence` เป็นแม่แบบประวัติเดิม ใช้นโยบายทำความสะอาดอุปกรณ์ `equipment-cleaning-v1`
 
-สถานะเอกสารอ้างอิงล่าสุด: 24 กันยายน 2569 ดูสรุปความต่างระหว่างเอกสารปัจจุบันกับรายงานตรวจย้อนหลังที่ [Document Status](docs/document-status.md)
+สถานะเอกสารอ้างอิงล่าสุด: 12 ตุลาคม 2569 ดูสรุปเอกสารปัจจุบันและหลักฐานย้อนหลังที่ [Document Status](docs/document-status.md)
 
 ระบบมีสองโหมดการทำงาน: `VITE_STORAGE_MODE=local` สำหรับ local-first ที่เก็บ state ใน `localStorage` และไฟล์ใน IndexedDB ของ browser เครื่องนั้น และ `VITE_STORAGE_MODE=server` สำหรับโหลด/บันทึกผ่าน `/api/v1/state` และ API ไฟล์แนบ โดย server ใช้ PostgreSQL และเลือก filesystem หรือ S3-compatible สำหรับไฟล์ได้. การติดตั้ง local/pilot ที่เลือกไว้ใช้บัญชีภายใน PostgreSQL ให้ผู้ดูแลสูงสุดสร้างผู้ใช้และกำหนด role/สถานี; OIDC ก็มี authentication flow รองรับเมื่อกำหนดค่า identity provider ขององค์กร แต่ไม่ใช่รูปแบบที่เลือกไว้ใน ADR 0005. การใช้บัญชีภายในไม่ต้องใช้ OIDC หรือ Docker สำหรับ login
 
@@ -24,7 +24,7 @@ node --env-file=.env server.mjs
 
 โหมด `CHECKLIST_AUTH_MODE=disabled` ใช้เฉพาะ development ที่ไม่เปิด Public; server ปฏิเสธการเริ่มต้นเมื่อ `NODE_ENV=production` หรือ `CHECKLIST_PUBLIC_MODE=true`. ระบบ Public ใช้บัญชีภายในที่เปิด login และ station scope เสมอ
 
-ก่อนส่ง artifact ให้รัน `node tools/run_all_tests.mjs` ซึ่งค้นหาและรัน API, PostgreSQL integration, local-account/OIDC flow, station authorization, Vehicle proxy, PDF และ regression ทั้งหมดแล้ว จากนั้นตั้ง `CHECKLIST_DIST_DIR` ให้ชี้ไปยัง artifact ใหม่ เช่น `./release/public`; ห้ามใช้ `dist` เก่าที่ไม่ทราบ provenance โดย PostgreSQL integration จะ skip หากไม่ได้ตั้ง `CHECKLIST_POSTGRES_TEST_DATABASE_URL`
+ระหว่างพัฒนาใช้ `npm.cmd run test:quick` สำหรับตรวจเร็ว หรือ `npm.cmd run test:feature -- vehicle` (เปลี่ยนเป็น `checklist`, `station`, `server`, `reports` หรือ `ui`) สำหรับตรวจเฉพาะส่วนที่แก้ ก่อนส่ง artifact ให้รัน `npm.cmd run test:all` บนฐานทดสอบ PostgreSQL ที่แยกจากข้อมูลใช้งานจริง; หากไม่ตั้ง test database ไฟล์ integration บางส่วนจะถูกแสดงเป็น skipped จึงยังนับเป็นการยืนยันชุดเต็มไม่ได้ ดูคำสั่งและรายการชุดใน [คู่มือทดสอบ](docs/testing.md) แล้วตั้ง `CHECKLIST_DIST_DIR` ให้ชี้ไปยัง artifact ใหม่ เช่น `./release/public`; ห้ามใช้ `dist` เก่าที่ไม่ทราบ provenance
 
 ระหว่างพัฒนาใช้ `npm.cmd run dev` แล้วเปิด URL ที่ Vite แสดง (โดยปกติ `http://127.0.0.1:5173`) ได้เช่นกัน ระบบจะอ่านค่าเดียวกันจาก `.env`
 
@@ -50,7 +50,7 @@ node --env-file=.env server.mjs
 - ค่าตัวเลข สถานะรายการตรวจ หมายเหตุ และหลักฐานแยกตามรายการ/ช่องหลักฐาน
 - แนบภาพถ่าย วิดีโอ PDF หรือข้อความ พร้อม Preview; local mode ใช้ IndexedDB แบบจัดเก็บภายในเครื่อง ส่วน server mode ส่งไฟล์ผ่าน API ไปยัง filesystem หรือ S3-compatible ตามที่ตั้งค่าไว้
 - สรุปความคืบหน้าและรายการที่ต้องติดตาม
-- บันทึกอัตโนมัติใน browser localStorage เมื่อใช้ local mode หรือผ่าน `/api/v1/state` เมื่อใช้ server mode; server mode มีคิว draft ชั่วคราวใน IndexedDB เมื่อ API ขัดข้อง
+- บันทึกอัตโนมัติใน browser localStorage เมื่อใช้ local mode หรือผ่าน `/api/v1/state` เมื่อใช้ server mode; หากบันทึกส่วนกลางไม่สำเร็จ ระบบจะยกเลิกการแก้ไขที่ยังไม่บันทึกและโหลดข้อมูลส่วนกลางล่าสุด โดยไม่เก็บหรือส่งซ้ำ browser draft หากโหลดข้อมูลไม่ได้จะระงับการเขียนจนกว่าจะโหลดข้อมูลได้
 - โหลดข้อมูลตัวอย่าง, ล้างข้อมูลของรอบปัจจุบัน และพิมพ์แบบตรวจ
 - แยกหน้าตามขั้นตอนด้วย Hash Route: ภาพรวม, สถานีและอุปกรณ์, รอบการตรวจ, Checklist, Vehicle API review และประวัติ/พิมพ์รายงาน
 - สร้างรอบการตรวจแบบชัดเจนพร้อมข้อมูล ณ วันที่เริ่มรอบการตรวจ (Snapshot) และปิดรอบเป็นแบบอ่านอย่างเดียว

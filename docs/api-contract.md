@@ -34,6 +34,8 @@ Base path: `/api/v1` · JSON ใช้ UTF-8 · ทุก response มี `X-Req
 
 ## Vehicle API proxy
 
+Attachment upload ส่ง `X-Station-Id` ตามกติกาสิทธิ์เดิม และรองรับ `X-Round-Id` กับ `X-Attachment-Kind` (`inspection/originals`, `vehicle-api/originals`, `vehicle-api/webp`). เมื่อส่งรอบ เซิร์ฟเวอร์ตรวจว่ารอบอยู่ในด่านนั้นและสร้างตำแหน่งไฟล์เอง หน้าจอเดิมที่ไม่ส่งรอบยังอัปโหลดได้ในโฟลเดอร์ `unassigned` ของด่าน การอ่านรูปยังใช้ attachment ID เดิม ทั้งไฟล์เก่าและไฟล์ในโฟลเดอร์ย่อย
+
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | POST | `/api/vehicle/search` | authenticated read role; station-scoped when enabled | ค้นข้อมูลจาก Vehicle API ที่ server resolve จาก Station Profile |

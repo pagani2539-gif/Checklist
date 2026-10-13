@@ -12,6 +12,7 @@ import {
 } from "./vehicle-search-config.js";
 import { DEFAULT_PLATE_KEYS, vehicleRecordsFromPayload } from "./vehicle-search-response.js";
 import { createVehicleSearchTransport, VehicleSearchError } from "./vehicle-search-transport.js";
+import { VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION, getVehicleSampleEligibilitySummary, normalizeVehicleSampleEligibility } from "./vehicle-sample-eligibility.js";
 
 export { getVehicleApiAdapter, VEHICLE_API_PROFILE_OPTIONS, VEHICLE_API_PROFILES } from "./vehicle-api-profiles.js";
 export {
@@ -53,22 +54,38 @@ export const VEHICLE_REVIEW_THRESHOLDS = Object.freeze({
 
 export const VEHICLE_REVIEW_REASON_OPTIONS = Object.freeze({
   plate: Object.freeze([
-    { value: "blurred-image", label: "ภาพเบลอ" },
-    { value: "dark-or-glare", label: "มืดหรือแสงสะท้อน" },
+    { value: "blurred-image", label: "ภาพป้ายเบลอ" },
+    { value: "dark-image", label: "ภาพมืดเกินไป" },
+    { value: "glare-image", label: "แสงสะท้อน / ภาพสว่างเกินไป" },
     { value: "plate-obscured", label: "ป้ายถูกบัง" },
     { value: "dirty-or-damaged", label: "ป้ายสกปรกหรือชำรุด" },
-    { value: "out-of-frame", label: "ป้ายอยู่นอกกรอบภาพ" },
-    { value: "missing-or-wrong-image", label: "ไม่มีภาพ / ภาพผิดคัน" },
-    { value: "api-missing-plate", label: "API ไม่ส่งค่าทะเบียน" },
-    { value: "ocr-error", label: "ระบบอ่านตัวอักษรผิด" },
+    { value: "out-of-frame", label: "ป้ายอยู่ไม่ครบในภาพ" },
+    { value: "missing-plate-image", label: "ไม่มีภาพป้ายให้ตรวจ" },
+    { value: "wrong-plate-image", label: "ภาพผิดคัน / ภาพสองกล้องไม่ตรงกัน" },
+    { value: "api-missing-plate", label: "ระบบไม่ส่งเลขทะเบียน" },
+    { value: "api-missing-province", label: "ระบบไม่ส่งจังหวัด" },
+    { value: "plate-number-read-error", label: "ระบบอ่านเลขทะเบียนผิด" },
+    { value: "province-read-error", label: "ระบบอ่านจังหวัดผิด" },
+    { value: "other-plate", label: "สาเหตุอื่น" },
+    { value: "dark-or-glare", label: "มืดหรือแสงสะท้อน", legacy: true },
+    { value: "missing-or-wrong-image", label: "ไม่มีภาพ / ภาพผิดคัน", legacy: true },
+    { value: "ocr-error", label: "ระบบอ่านตัวอักษรผิด", legacy: true },
   ]),
   classification: Object.freeze([
     { value: "unclear-image", label: "ภาพรถไม่ชัด" },
-    { value: "vehicle-obscured", label: "รถถูกบัง" },
-    { value: "axles-not-visible", label: "มองจำนวนเพลาไม่เห็น" },
-    { value: "class-mismatch", label: "ประเภทไม่ตรงกับข้อมูลในระบบ" },
-    { value: "missing-image", label: "ไม่มีภาพประกอบ" },
-    { value: "api-missing-class", label: "API ไม่มีประเภทหรือ Mapping ผิด" },
+    { value: "vehicle-obscured", label: "รถหรือสิ่งอื่นบัง" },
+    { value: "vehicle-out-of-frame", label: "รถอยู่ไม่ครบในภาพ" },
+    { value: "axles-not-visible", label: "มองเพลาหรือล้อไม่ครบ" },
+    { value: "lane-straddling", label: "รถคร่อมช่องทาง" },
+    { value: "lifted-axle", label: "รถยกเพลา / ล้อไม่สัมผัสพื้น" },
+    { value: "wrong-vehicle-image", label: "ภาพผิดคัน / ข้อมูลไม่ตรงกับรถในภาพ" },
+    { value: "missing-image", label: "ไม่มีภาพรถ" },
+    { value: "missing-class-data", label: "ระบบไม่ส่งประเภทรถ" },
+    { value: "class-code-mapping", label: "ระบบจับคู่รหัสประเภทผิด" },
+    { value: "class-error-unknown", label: "ระบบระบุประเภทผิด แต่ไม่ทราบสาเหตุ" },
+    { value: "other-classification", label: "สาเหตุอื่น" },
+    { value: "class-mismatch", label: "ประเภทไม่ตรงกับข้อมูลในระบบ", legacy: true },
+    { value: "api-missing-class", label: "API ไม่มีประเภทหรือ Mapping ผิด", legacy: true },
   ]),
 });
 
@@ -78,6 +95,16 @@ export const VEHICLE_REVIEW_CORRECTION_TARGET_OPTIONS = Object.freeze({
     { value: "province", label: "จังหวัด", buttonLabel: "ชื่อจังหวัด" },
   ]),
 });
+
+export const VEHICLE_PLATE_VERIFICATION_OPTIONS = Object.freeze([
+  { value: "province-unverified", label: "ยืนยันเลขทะเบียนได้ แต่ยืนยันจังหวัดไม่ได้" },
+  { value: "number-unverified", label: "ยืนยันจังหวัดได้ แต่ยืนยันเลขทะเบียนไม่ได้" },
+  { value: "both-unverified", label: "ยืนยันไม่ได้ทั้งเลขทะเบียนและจังหวัด" },
+]);
+
+export function getVehiclePlateVerificationLabel(detail) {
+  return VEHICLE_PLATE_VERIFICATION_OPTIONS.find((option) => option.value === detail?.verificationScope)?.label || "";
+}
 
 export const VEHICLE_REVIEW_CONTEXT_OPTIONS = Object.freeze([
   { key: VEHICLE_REVIEW_CONTEXTS.PLATE, itemId: VEHICLE_SEARCH_ITEM_ID, checklistNumber: "5.1.5", label: "เอกสารผลการจำแนกป้ายทะเบียน", description: "ตรวจเลขทะเบียนเทียบกับภาพป้ายทะเบียนจาก API", dimensions: ["plate"] },
@@ -190,6 +217,35 @@ export function createVehicleReviewState(fallbackCriteria = {}) {
   };
 }
 
+// Upgrade an editable single dataset without discarding its reviews or image references.
+export function prepareVehicleReviewDatasets(value, fallbackCriteria = {}, options = {}) {
+  if (isVehicleReviewScopeState(value)) return normalizeVehicleReviewState(value, fallbackCriteria, options);
+  const legacy = normalizeVehicleSearchState(value, fallbackCriteria, options);
+  const next = createVehicleReviewState(legacy.criteria.startAt ? legacy.criteria : fallbackCriteria);
+  next.classification = legacy;
+  const queriedScope = getVehicleReviewScopeForTimestamp(legacy.criteria.startAt) || "day";
+  for (const key of VEHICLE_REVIEW_SCOPE_KEYS) {
+    const rows = legacy.rows.filter(row => (getVehicleReviewScopeForTimestamp(row.occurredAt) || queriedScope) === key);
+    if (rows.length || (key === queriedScope && legacy.fetchedAt)) next.scopes[key] = { ...legacy, rows, scopeKey: key, pagination: { ...legacy.pagination, totalItems: rows.length } };
+  }
+  return next;
+}
+
+export function getVehicleClassificationDataset(value, fallbackCriteria = {}, options = {}) {
+  if (!isVehicleReviewScopeState(value)) return normalizeVehicleSearchState(value, fallbackCriteria, options);
+  if (value.classification) return normalizeVehicleSearchState(value.classification, fallbackCriteria, options);
+  const states = getVehicleReviewScopeEntries(value, fallbackCriteria, options).map(entry => entry.state).filter(state => state.fetchedAt);
+  const rows = states[0]?.rows || [];
+  return normalizeVehicleSearchState({ ...(states[0] || {}), rows, pagination: { ...(states[0]?.pagination || {}), totalItems: rows.length } }, fallbackCriteria, options);
+}
+
+// A read projection only. Stored night rows remain available in historical data.
+export function getDaytimeVehicleClassificationDataset(value, fallbackCriteria = {}, options = {}) {
+  const state = getVehicleClassificationDataset(value, fallbackCriteria, options);
+  const rows = state.rows.filter(row => getVehicleReviewScopeForTimestamp(row.occurredAt) !== "night");
+  return { ...state, rows, pagination: { ...state.pagination, totalItems: rows.length } };
+}
+
 export function normalizeVehicleReviewState(value, fallbackCriteria = {}, options = {}) {
   if (!isVehicleReviewScopeState(value)) return normalizeVehicleSearchState(value, fallbackCriteria, options);
   const source = value && typeof value === "object" ? value : {};
@@ -206,6 +262,8 @@ export function normalizeVehicleReviewState(value, fallbackCriteria = {}, option
     scopeVersion: text(source.scopeVersion) || VEHICLE_REVIEW_SCOPE_VERSION,
     policyVersion: text(source.policyVersion) || VEHICLE_REVIEW_SCOPE_POLICY_VERSION,
     scopes,
+    ...(source.independentContext ? { independentContext: source.independentContext } : {}),
+    ...(source.classification ? { classification: normalizeVehicleSearchState(source.classification, fallbackCriteria, options) } : {}),
   };
 }
 
@@ -243,7 +301,7 @@ export function setVehicleSearchEmptyResultAcknowledged(value, acknowledged = tr
 export function getVehicleReviewScopeEntries(value, fallbackCriteria = {}, options = {}) {
   if (!isVehicleReviewScopeState(value)) return [{ key: "all", label: "ทุกช่วงเวลา", state: normalizeVehicleSearchState(value, fallbackCriteria, options) }];
   const normalized = normalizeVehicleReviewState(value, fallbackCriteria, options);
-  return VEHICLE_REVIEW_SCOPE_OPTIONS.map((scope) => ({ ...scope, state: normalized.scopes[scope.key] }));
+  return VEHICLE_REVIEW_SCOPE_OPTIONS.filter(scope => value.independentContext !== "classification" || scope.key === "day").map((scope) => ({ ...scope, state: normalized.scopes[scope.key] }));
 }
 
 const VEHICLE_REVIEW_CONTEXT_BY_KEY = Object.fromEntries(VEHICLE_REVIEW_CONTEXT_OPTIONS.map((context) => [context.key, context]));
@@ -323,16 +381,25 @@ function dimensionSummary(rows, statusKey) {
     incorrect,
     unableToVerify,
     pending,
-    accuracy: reviewed ? Math.round((correct / reviewed) * 100) : null,
+    accuracy: total && (reviewed + unableToVerify) ? Number(((correct / total) * 100).toFixed(2)) : null,
+    accuracyExact: total && (reviewed + unableToVerify) ? (correct / total) * 100 : null,
     reviewedAccuracy: reviewed ? Math.round((correct / reviewed) * 100) : null,
+    reviewedAccuracyExact: reviewed ? (correct / reviewed) * 100 : null,
   };
 }
 
 export function getVehicleSearchReviewSummary(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "" } = {}) {
+  context ||= value?.independentContext || "";
+  if (context === "classification" && !value?.independentContext && isVehicleReviewScopeState(value)) return getVehicleSearchReviewSummary(getDaytimeVehicleClassificationDataset(value), { reviewVersion, context });
+  if (!context && isVehicleReviewScopeState(value) && value.classification) {
+    const plate = getVehicleSearchReviewSummary(value, { reviewVersion, context: "plate" });
+    const classification = getVehicleSearchReviewSummary(value.classification, { reviewVersion, context: "classification" });
+    return { ...plate, classification: classification.classification, dimensions: { ...plate.dimensions, ...classification.dimensions }, totalChecks: plate.totalChecks + classification.totalChecks, pendingChecks: plate.pendingChecks + classification.pendingChecks, unableToVerifyChecks: plate.unableToVerifyChecks + classification.unableToVerifyChecks, unresolvedChecks: plate.unresolvedChecks + classification.unresolvedChecks, completeRows: Math.min(plate.completeRows, classification.completeRows), complete: plate.complete && classification.complete };
+  }
   if (isVehicleReviewScopeState(value)) {
     return mergeVehicleSearchReviewSummaries(getVehicleReviewScopeEntries(value).map(({ state }) => getVehicleSearchReviewSummary(state, { reviewVersion, context })));
   }
-  const state = normalizeVehicleSearchState(value);
+  const state = context === "classification" ? getDaytimeVehicleClassificationDataset(value) : normalizeVehicleSearchState(value);
   const dimensions = reviewDimensionsForVersion(reviewVersion, context);
   const summary = Object.fromEntries(dimensions.map(({ key, statusKey }) => [key, dimensionSummary(state.rows, statusKey)]));
   const pendingChecks = dimensions.reduce((total, { key }) => total + summary[key].pending, 0);
@@ -371,8 +438,10 @@ function mergeVehicleSearchReviewSummaries(summaries) {
     }), { total: 0, reviewed: 0, decided: 0, correct: 0, incorrect: 0, unableToVerify: 0, pending: 0 });
     result[key] = {
       ...merged,
-      accuracy: merged.reviewed ? Math.round((merged.correct / merged.reviewed) * 100) : null,
+      accuracy: merged.total && merged.decided ? Number(((merged.correct / merged.total) * 100).toFixed(2)) : null,
+      accuracyExact: merged.total && merged.decided ? (merged.correct / merged.total) * 100 : null,
       reviewedAccuracy: merged.reviewed ? Math.round((merged.correct / merged.reviewed) * 100) : null,
+      reviewedAccuracyExact: merged.reviewed ? (merged.correct / merged.reviewed) * 100 : null,
     };
     return result;
   }, {});
@@ -393,18 +462,22 @@ function mergeVehicleSearchReviewSummaries(summaries) {
   };
 }
 
-export function getVehicleReviewState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "" } = {}) {
+export function getVehicleReviewState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "", systemKey = "", roundId = "" } = {}) {
+  context ||= value?.independentContext || "";
+  if (value?.systems) return getVehicleReviewState(value.systems?.[systemKey]?.[context] || createVehicleReviewState(), { reviewVersion, context });
+  if (context === "classification" && !value?.independentContext && isVehicleReviewScopeState(value)) return getVehicleReviewState(getDaytimeVehicleClassificationDataset(value), { reviewVersion, context });
   if (isVehicleReviewScopeState(value)) {
     const entries = getVehicleReviewScopeEntries(value);
-    const states = entries.map(({ state }) => getVehicleReviewState(state, { reviewVersion, context }));
+    const states = entries.map(({ state }) => getVehicleReviewState(state, { reviewVersion, context: !context && value.classification ? "plate" : context }));
+    if (!context && value.classification) states.push(getVehicleReviewState(value.classification, { reviewVersion, context: "classification" }));
     const summary = getVehicleSearchReviewSummary(value, { reviewVersion, context });
-    if (states.some((state) => state.key === "not-fetched")) return { key: "not-fetched", label: "ยังดึงข้อมูลกลางวัน/กลางคืนไม่ครบ", tone: "pending", summary };
+    if (states.some((state) => state.key === "not-fetched")) return { key: "not-fetched", label: value.independentContext === "classification" ? "ยังไม่ได้ดึงข้อมูลกลางวัน" : "ยังดึงข้อมูลกลางวัน/กลางคืนไม่ครบ", tone: "pending", summary };
     if (states.some((state) => state.key === "empty")) return { key: "empty", label: "ต้องยืนยันผลช่วงเวลาที่ไม่พบรถ", tone: "waiting", summary };
     if (states.some((state) => state.key === "reviewing")) return { key: "reviewing", label: `ข้อมูล API พร้อมตรวจ · คงเหลือ ${summary.unresolvedChecks} จุด`, tone: "waiting", summary };
     const outcome = getVehicleReviewOutcome(value, { reviewVersion, context });
     if (outcome.status === "failed") return { key: "failed", label: "ไม่ผ่านเกณฑ์", tone: "damaged", summary, outcome };
     if (outcome.status === "incomplete") return { key: "incomplete", label: "ยังไม่ครบเกณฑ์", tone: "waiting", summary, outcome };
-    return { key: "complete", label: "ตรวจกลางวันและกลางคืนครบแล้ว", tone: "normal", summary };
+    return { key: "complete", label: value.independentContext === "classification" ? "ตรวจคัดแยกประเภทรถกลางวันครบแล้ว" : "ตรวจกลางวันและกลางคืนครบแล้ว", tone: "normal", summary };
   }
   const state = normalizeVehicleSearchState(value);
   const summary = getVehicleSearchReviewSummary(state, { reviewVersion, context });
@@ -439,30 +512,42 @@ function durationMinutes(criteria = {}) {
 }
 
 function outcomeForState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "" } = {}) {
-  const state = normalizeVehicleSearchState(value);
+  const state = context === "classification" ? getDaytimeVehicleClassificationDataset(value) : normalizeVehicleSearchState(value);
   const summary = getVehicleSearchReviewSummary(state, { reviewVersion, context });
   const dimensions = getVehicleReviewDimensions(reviewVersion, context);
   const duration = durationMinutes(state.criteria);
   const enforcesVehicleApiRoundCriteria = reviewVersion === VEHICLE_API_REVIEW_VERSION;
-  const sampleQualified = !enforcesVehicleApiRoundCriteria || Boolean((duration !== null && duration >= 360) || summary.total >= 100);
+  const eligibilityPolicyVersion = state.sampleEligibilityPolicyVersion || state.sample?.eligibilityPolicyVersion || null;
+  const usesEvidenceEligibility = context !== "classification" && eligibilityPolicyVersion === VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION;
+  const eligibilitySummary = usesEvidenceEligibility ? getVehicleSampleEligibilitySummary(state.sourceRows || state.rows) : null;
+  const sampleLocked = Boolean(state.sample?.lockedAt && state.sample?.version === "vehicle-sample-v2" && state.sample?.eligibilityPolicyVersion === VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION);
+  const eligibleCount = usesEvidenceEligibility ? Number(state.sample?.eligibleCount ?? eligibilitySummary?.eligible ?? 0) : null;
+  const sampleQualified = usesEvidenceEligibility
+    ? Boolean(sampleLocked && eligibleCount >= 100 && summary.total >= 100)
+    : !enforcesVehicleApiRoundCriteria || Boolean((duration !== null && duration >= 360) || summary.total >= 100);
   const weightMissing = state.rows.filter((row) => row.grossWeight === null || row.grossWeight === undefined);
   const requiredWeight = enforcesVehicleApiRoundCriteria && !context;
   const reasons = [];
   if (!state.fetchedAt) reasons.push({ code: "not-fetched", label: "ยังไม่ได้ดึงข้อมูลจาก API" });
-  if (!sampleQualified) reasons.push({ code: "sample-threshold", label: "ยังไม่ครบ 6 ชั่วโมงหรือ 100 คัน" });
+  if (usesEvidenceEligibility && !sampleLocked) reasons.push({ code: "sample-not-locked", label: "ยังไม่ได้คัดข้อมูลต้นทางและล็อกชุดคะแนน" });
+  if (usesEvidenceEligibility && sampleLocked && eligibleCount < 100) reasons.push({ code: "insufficient-eligible-data", label: `ข้อมูลพร้อมคิดคะแนน ${eligibleCount} คัน · ไม่ครบ 100 คัน จึงสรุปว่าผ่านไม่ได้` });
+  if (!usesEvidenceEligibility && !sampleQualified) reasons.push({ code: "sample-threshold", label: "ยังไม่ครบ 6 ชั่วโมงหรือ 100 คัน" });
   if (!summary.total) reasons.push({ code: "no-sample", label: "ยังไม่มีรถสำหรับคำนวณผล" });
   if (summary.pendingChecks) reasons.push({ code: "pending-review", label: `ยังไม่ได้ตรวจ ${summary.pendingChecks} จุด` });
   if (summary.unableToVerifyChecks) reasons.push({ code: "unable-to-verify", label: `ตรวจไม่ได้ ${summary.unableToVerifyChecks} จุด` });
   if (requiredWeight && weightMissing.length) reasons.push({ code: "missing-weight", label: `ไม่มีน้ำหนักรวม ${weightMissing.length} คัน` });
-  if (summary.unresolvedChecks === 0) {
+  if (summary.pendingChecks === 0) {
     dimensions.forEach(({ key }) => {
       const dimensionSummaryValue = summary.dimensions?.[key];
       const threshold = VEHICLE_REVIEW_THRESHOLDS[key];
       if (!dimensionSummaryValue || threshold === undefined || dimensionSummaryValue.accuracy === null) return;
-      if (dimensionSummaryValue.accuracy < threshold) reasons.push({ code: `${key}-threshold`, label: `${key === "plate" ? "ทะเบียน" : "การคัดแยกประเภทรถ"} ต่ำกว่า ${threshold}%` });
+      // Preserve v1 locked-sample decisions; v2 review uses exact accuracy at the threshold.
+      const usesExactThreshold = reviewVersion === VEHICLE_API_REVIEW_VERSION && state.sample?.version !== "vehicle-sample-v1";
+      const accuracyForThreshold = usesExactThreshold ? dimensionSummaryValue.accuracyExact : Math.round(dimensionSummaryValue.accuracyExact);
+      if (accuracyForThreshold < threshold) reasons.push({ code: `${key}-threshold`, label: `${key === "plate" ? "ทะเบียน" : "การคัดแยกประเภทรถ"} ต่ำกว่า ${threshold}%` });
     });
   }
-  const status = !state.fetchedAt || !sampleQualified || !summary.total || summary.unresolvedChecks > 0
+  const status = !state.fetchedAt || !sampleQualified || !summary.total || summary.pendingChecks > 0
     ? "incomplete"
     : reasons.some((reason) => ["missing-weight", "plate-threshold", "classification-threshold"].includes(reason.code))
       ? "failed"
@@ -473,7 +558,8 @@ function outcomeForState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, co
     durationMinutes: duration,
     durationHours: duration === null ? null : Number((duration / 60).toFixed(2)),
     sampleQualified,
-    sampleBasis: summary.total >= 100 ? "count" : duration !== null && duration >= 360 ? "duration" : null,
+    sampleBasis: usesEvidenceEligibility ? (sampleQualified ? "eligible-count" : null) : summary.total >= 100 ? "count" : duration !== null && duration >= 360 ? "duration" : null,
+    ...(usesEvidenceEligibility ? { eligibilityPolicyVersion, eligibilitySummary, eligibleCount, sampleLocked, dataSufficient: eligibleCount >= 100 } : {}),
     weightComplete: weightMissing.length === 0,
     weightMissingCount: weightMissing.length,
     thresholds: { ...VEHICLE_REVIEW_THRESHOLDS },
@@ -483,12 +569,15 @@ function outcomeForState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, co
 }
 
 export function getVehicleReviewOutcome(value, options = {}) {
+  options = { ...options, context: options.context || value?.independentContext || "" };
+  if (options.context === "classification" && !value?.independentContext && isVehicleReviewScopeState(value)) return outcomeForState(getDaytimeVehicleClassificationDataset(value), options);
   if (!isVehicleReviewScopeState(value)) return outcomeForState(value, options);
   const scopes = getVehicleReviewScopeEntries(value).map(({ key, label, state }) => ({
     scope: key,
     scopeLabel: label,
-    ...outcomeForState(state, options),
+    ...outcomeForState(state, !options.context && value.classification ? { ...options, context: "plate" } : options),
   }));
+  if (!options.context && value.classification) scopes.push({ scope: "all", scopeLabel: "ชุดทดสอบคัดแยกประเภท", ...outcomeForState(value.classification, { ...options, context: "classification" }) });
   const status = scopes.some((scope) => scope.status === "incomplete")
     ? "incomplete"
     : scopes.some((scope) => scope.status === "failed")
@@ -522,16 +611,22 @@ function normalizeReviewDetail(value) {
     ? source.history.map((entry) => ({
       status: VEHICLE_REVIEW_STATUS_VALUES.has(entry?.status) ? entry.status : "pending",
       correctedValue: text(entry?.correctedValue) || null,
+      confirmedPlateNumber: text(entry?.confirmedPlateNumber) || null,
+      confirmedProvince: text(entry?.confirmedProvince) || null,
       correctionTarget: text(entry?.correctionTarget) || null,
+      verificationScope: text(entry?.verificationScope) || null,
       reasonCode: text(entry?.reasonCode) || null,
       note: text(entry?.note),
       reviewedAt: text(entry?.reviewedAt) || null,
       reviewedBy: text(entry?.reviewedBy) || null,
-    })).filter((entry) => entry.status !== "pending" || entry.reasonCode || entry.correctedValue || entry.correctionTarget || entry.note)
+    })).filter((entry) => entry.status !== "pending" || entry.reasonCode || entry.correctedValue || entry.confirmedPlateNumber || entry.confirmedProvince || entry.correctionTarget || entry.note)
     : [];
   return {
     correctedValue: text(source.correctedValue) || null,
+    confirmedPlateNumber: text(source.confirmedPlateNumber) || null,
+    confirmedProvince: text(source.confirmedProvince) || null,
     correctionTarget: text(source.correctionTarget) || null,
+    verificationScope: text(source.verificationScope) || null,
     reasonCode: text(source.reasonCode) || null,
     note: text(source.note),
     reviewedAt: text(source.reviewedAt) || null,
@@ -925,7 +1020,7 @@ function buildVehicleSearchConfiguredImageUrl(imagePath, searchUrl, apiProfile) 
   }
 }
 
-export function buildVehicleSearchImageUrl(imagePath, baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, { direct = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
+export function buildVehicleSearchImageUrl(imagePath, baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, { direct = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "", systemKey = "", roundId = "" } = {}) {
   const value = scalarPlate(imagePath).replace(/^\/+/, "");
   const normalizedBaseUrl = normalizeVehicleSearchBaseUrl(baseUrl);
   if (!normalizedBaseUrl || !/^(?:crop|lpr|overview)\/[A-Za-z0-9][A-Za-z0-9._~!$&'()*+,;=@%/-]*$/.test(value) || value.split("/").includes("..")) return "";
@@ -933,7 +1028,7 @@ export function buildVehicleSearchImageUrl(imagePath, baseUrl = VEHICLE_SEARCH_D
   // resolves the persisted Station Profile for Direct mode.
   if (stationId) {
     const profileQuery = apiProfile === VEHICLE_API_PROFILES.LEGACY_V1 ? "" : `&apiProfile=${encodeURIComponent(apiProfile)}`;
-    return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}&stationId=${encodeURIComponent(stationId)}&path=${encodeURIComponent(value)}`;
+    return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}&stationId=${encodeURIComponent(stationId)}${systemKey ? `&systemKey=${encodeURIComponent(systemKey)}` : ""}${roundId ? `&roundId=${encodeURIComponent(roundId)}` : ""}&path=${encodeURIComponent(value)}`;
   }
   const configuredImageUrl = buildVehicleSearchConfiguredImageUrl(value, searchUrl, apiProfile);
   if (configuredImageUrl) return configuredImageUrl;
@@ -942,7 +1037,18 @@ export function buildVehicleSearchImageUrl(imagePath, baseUrl = VEHICLE_SEARCH_D
   return `${VEHICLE_SEARCH_IMAGE_ENDPOINT}?baseUrl=${encodeURIComponent(normalizedBaseUrl)}${profileQuery}&path=${encodeURIComponent(value)}`;
 }
 
-function normalizeVehicleImageReference(imageUrl, baseUrl, { apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
+const normalizedVehicleImageReferences = new Map();
+
+function normalizeVehicleImageReference(imageUrl, baseUrl, { apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "", systemKey = "", roundId = "" } = {}) {
+  const key = JSON.stringify([imageUrl, baseUrl, apiProfile, searchUrl, stationId, systemKey, roundId]);
+  if (normalizedVehicleImageReferences.has(key)) return normalizedVehicleImageReferences.get(key);
+  const result = normalizeVehicleImageReferenceUncached(imageUrl, baseUrl, { apiProfile, searchUrl, stationId, systemKey, roundId });
+  normalizedVehicleImageReferences.set(key, result);
+  if (normalizedVehicleImageReferences.size > 2048) normalizedVehicleImageReferences.delete(normalizedVehicleImageReferences.keys().next().value);
+  return result;
+}
+
+function normalizeVehicleImageReferenceUncached(imageUrl, baseUrl, { apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "", systemKey = "", roundId = "" } = {}) {
   const value = text(imageUrl);
   if (!value) return "";
   if (/^(?:data:|blob:)/i.test(value)) return value;
@@ -954,6 +1060,8 @@ function normalizeVehicleImageReference(imageUrl, baseUrl, { apiProfile = VEHICL
         apiProfile: parsed.searchParams.get("apiProfile") || apiProfile,
         searchUrl,
         stationId: stationId || parsed.searchParams.get("stationId"),
+        systemKey: systemKey || parsed.searchParams.get("systemKey") || "",
+        roundId: roundId || parsed.searchParams.get("roundId") || "",
       }) || value;
     } catch {
       return value;
@@ -984,7 +1092,7 @@ function normalizeVehicleImageReference(imageUrl, baseUrl, { apiProfile = VEHICL
       return value;
     }
   }
-  return buildVehicleSearchImageUrl(value, baseUrl, { apiProfile, searchUrl, stationId }) || value;
+  return buildVehicleSearchImageUrl(value, baseUrl, { apiProfile, searchUrl, stationId, systemKey, roundId }) || value;
 }
 
 export function buildVehicleSearchDirectImageUrl(imageUrl, fallbackBaseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL) {
@@ -1016,21 +1124,21 @@ export function buildVehicleSearchDirectImageUrl(imageUrl, fallbackBaseUrl = VEH
   return "";
 }
 
-function imageUrlFromRecord(record, imageKeys, baseUrl, { directImages = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
+function imageUrlFromRecord(record, imageKeys, baseUrl, { directImages = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "", systemKey = "", roundId = "" } = {}) {
   const imagePath = imagePathFromRecord(record, imageKeys);
   if (/^(?:https?:|data:|blob:)/i.test(imagePath)) {
-    return normalizeVehicleImageReference(imagePath, baseUrl, { apiProfile, searchUrl, stationId });
+    return normalizeVehicleImageReference(imagePath, baseUrl, { apiProfile, searchUrl, stationId, systemKey, roundId });
   }
   return buildVehicleSearchImageUrl(imagePath, baseUrl, { direct: directImages, apiProfile, searchUrl, stationId });
 }
 
-function storedImageUrl(value, baseUrl, { direct = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "" } = {}) {
+function storedImageUrl(value, baseUrl, { direct = false, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationId = "", systemKey = "", roundId = "" } = {}) {
   const stored = text(value);
   if (!stored) return null;
   if (stored.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}?`)) {
-    return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId }) || stored;
+    return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId, systemKey, roundId }) || stored;
   }
-  if (/^(?:https?:|data:|blob:)/i.test(stored)) return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId }) || stored;
+  if (/^(?:https?:|data:|blob:)/i.test(stored)) return normalizeVehicleImageReference(stored, baseUrl, { apiProfile, searchUrl, stationId, systemKey, roundId }) || stored;
   return buildVehicleSearchImageUrl(stored, baseUrl, { direct, apiProfile, searchUrl, stationId }) || buildVehicleSearchDirectImageUrl(stored, baseUrl) || null;
 }
 
@@ -1054,6 +1162,8 @@ export function normalizeVehicleSearchRows(payload, {
   apiProfile = VEHICLE_API_PROFILES.LEGACY_V1,
   searchUrl = "",
   stationProfileId = "",
+  systemKey = "",
+  roundId = "",
 } = {}) {
   const records = vehicleRecordsFromPayload(payload, resultPath);
   const rows = [];
@@ -1069,11 +1179,11 @@ export function normalizeVehicleSearchRows(payload, {
     const plateImage = plateImagePath
       && !imageReferenceHasDirectory(plateImagePath, "lpr")
       && !imageReferenceHasDirectory(plateImagePath, "overview")
-      ? imageUrlFromRecord(record, imageKeys, baseUrl, { directImages, apiProfile, searchUrl, stationId: imageStationId }) || null
+      ? imageUrlFromRecord(record, imageKeys, baseUrl, { directImages, apiProfile, searchUrl, stationId: imageStationId, systemKey, roundId }) || null
       : null;
     const lprImagePath = lprPathFromRecord(record) || lprImagePathFromCropReference(plateImagePath);
-    const lprImage = storedImageUrl(lprImagePath, baseUrl, { direct: directImages, apiProfile, searchUrl, stationId: imageStationId });
-    const overviewImage = storedImageUrl(overviewPathFromRecord(record), baseUrl, { direct: directImages, apiProfile, searchUrl, stationId: imageStationId });
+    const lprImage = storedImageUrl(lprImagePath, baseUrl, { direct: directImages, apiProfile, searchUrl, stationId: imageStationId, systemKey, roundId });
+    const overviewImage = storedImageUrl(overviewPathFromRecord(record), baseUrl, { direct: directImages, apiProfile, searchUrl, stationId: imageStationId, systemKey, roundId });
     const integrityWarnings = getVehicleSearchIntegrityWarnings({ ...metadata, stationId: metadata.stationId, vehicleClassId: metadata.vehicleClassId, axleCount: metadata.axleCount });
     if (!plateNumber) addWarning(integrityWarnings, "missing-plate", "ไม่พบผลอ่านเลขทะเบียน");
     if (!plateImage && !lprImage && !overviewImage) addWarning(integrityWarnings, "missing-images", "ไม่พบ path ภาพ LPR ภาพป้าย หรือภาพรถสำหรับตรวจสอบ");
@@ -1083,6 +1193,8 @@ export function normalizeVehicleSearchRows(payload, {
       plateNumber: plateNumber || "ไม่พบผลอ่านป้าย",
       province: fieldFromRecord(record, DEFAULT_PROVINCE_KEYS) || null,
       stationProfileId: text(stationProfileId) || null,
+      ...(systemKey ? { systemKey: text(systemKey) } : {}),
+      ...(roundId ? { roundId: text(roundId) } : {}),
       plateImage,
       lprImage,
       overviewImage,
@@ -1105,7 +1217,7 @@ export function createEmptyVehicleSearchState(criteria = {}) {
   };
 }
 
-export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationProfileId = "" } = {}) {
+export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { baseUrl = VEHICLE_SEARCH_DEFAULT_BASE_URL, apiProfile = VEHICLE_API_PROFILES.LEGACY_V1, searchUrl = "", stationProfileId = "", systemKey = "", roundId = "" } = {}) {
   const source = value && typeof value === "object" ? value : {};
   const usedIds = new Map();
   const rows = Array.isArray(source.rows)
@@ -1121,13 +1233,13 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
       const legacyImagePath = storedImage.startsWith(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}/`)
         ? storedImage.slice(`${VEHICLE_SEARCH_IMAGE_ENDPOINT}/`.length)
         : "";
-      const plateImage = buildVehicleSearchImageUrl(legacyImagePath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId })
-        || normalizeVehicleImageReference(storedImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId })
+      const plateImage = buildVehicleSearchImageUrl(legacyImagePath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId, systemKey: row?.systemKey || systemKey, roundId: row?.roundId || roundId })
+        || normalizeVehicleImageReference(storedImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId, systemKey: row?.systemKey || systemKey, roundId: row?.roundId || roundId })
         || storedImage;
-      const explicitLprImage = storedImageUrl(row?.lprImage || row?.lprUrl || row?.lprImageUrl, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
+      const explicitLprImage = storedImageUrl(row?.lprImage || row?.lprUrl || row?.lprImageUrl, baseUrl, { apiProfile, searchUrl, stationId: storedStationId, systemKey: row?.systemKey || systemKey, roundId: row?.roundId || roundId });
       const inferredLprPath = lprImagePathFromCropReference(storedImage || plateImage);
-      const lprImage = explicitLprImage || storedImageUrl(inferredLprPath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
-      const overviewImage = storedImageUrl(row?.overviewImage || row?.overviewUrl || row?.vehicleImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId });
+      const lprImage = explicitLprImage || storedImageUrl(inferredLprPath, baseUrl, { apiProfile, searchUrl, stationId: storedStationId, systemKey: row?.systemKey || systemKey, roundId: row?.roundId || roundId });
+      const overviewImage = storedImageUrl(row?.overviewImage || row?.overviewUrl || row?.vehicleImage, baseUrl, { apiProfile, searchUrl, stationId: storedStationId, systemKey: row?.systemKey || systemKey, roundId: row?.roundId || roundId });
       const province = scalarPlate(row?.province || row?.provinceName || row?.plateProvince);
       const integrityWarnings = Array.isArray(row?.integrityWarnings) ? row.integrityWarnings.map((entry) => ({ code: text(entry?.code), message: text(entry?.message) })).filter((entry) => entry.code && entry.message) : getVehicleSearchIntegrityWarnings(row);
       if (!plateImage && !lprImage && !overviewImage) addWarning(integrityWarnings, "missing-images", "ไม่พบ path ภาพ LPR ภาพป้าย หรือภาพรถสำหรับตรวจสอบ");
@@ -1140,6 +1252,10 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
         lprImage,
         overviewImage,
         stationProfileId: text(row?.stationProfileId || stationProfileId) || null,
+        ...(row?.systemKey || systemKey ? { systemKey: text(row?.systemKey || systemKey) } : {}),
+        ...(row?.roundId || roundId ? { roundId: text(row?.roundId || roundId) } : {}),
+        ...(row?.vehicleReviewContext ? { vehicleReviewContext: text(row.vehicleReviewContext) } : {}),
+        ...(row?.vehicleReviewScope ? { vehicleReviewScope: text(row.vehicleReviewScope) } : {}),
         reviewStatus,
         classificationReviewStatus: VEHICLE_REVIEW_STATUS_VALUES.has(row?.classificationReviewStatus) ? row.classificationReviewStatus : "pending",
         axleReviewStatus: VEHICLE_REVIEW_STATUS_VALUES.has(row?.axleReviewStatus) ? row.axleReviewStatus : "pending",
@@ -1169,6 +1285,7 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
         integrityWarnings: plateNumber ? integrityWarnings : [...integrityWarnings, { code: "missing-plate", message: "ไม่พบผลอ่านเลขทะเบียน" }].filter((entry, index, entries) => entries.findIndex((candidate) => candidate.code === entry.code) === index),
         integrityReviewStatus: VEHICLE_REVIEW_STATUS_VALUES.has(row?.integrityReviewStatus) ? row.integrityReviewStatus : "pending",
         reviewDetails: normalizeReviewDetails(row?.reviewDetails),
+        ...(row?.sampleEligibility && typeof row.sampleEligibility === "object" ? { sampleEligibility: normalizeVehicleSampleEligibility(row.sampleEligibility) } : {}),
       };
     }).filter(Boolean)
     : [];
@@ -1184,6 +1301,9 @@ export function normalizeVehicleSearchState(value, fallbackCriteria = {}, { base
       pageSize: numberOrNull(source.pagination.pageSize) ?? VEHICLE_SEARCH_DEFAULT_PAGE_SIZE,
     } : { totalItems: rows.length, totalPages: rows.length ? 1 : 0, pageSize: VEHICLE_SEARCH_DEFAULT_PAGE_SIZE },
     sourceStation: source.sourceStation && typeof source.sourceStation === "object" ? { id: text(source.sourceStation.id) || null, name: text(source.sourceStation.name) || null } : null,
+    ...(source.sample?.lockedAt ? { sample: { version: text(source.sample.version), ...(source.sample.eligibilityPolicyVersion ? { eligibilityPolicyVersion: text(source.sample.eligibilityPolicyVersion) } : {}), ...(Number.isFinite(Number(source.sample.eligibleCount)) ? { eligibleCount: Number(source.sample.eligibleCount) } : {}), ...(Number.isFinite(Number(source.sample.excludedCount)) ? { excludedCount: Number(source.sample.excludedCount) } : {}), ...(source.sample.adjustedAt ? { adjustedAt: text(source.sample.adjustedAt), deletedRowCount: Number(source.sample.deletedRowCount) || 0 } : {}), method: text(source.sample.method), limit: Number(source.sample.limit) || 0, seed: text(source.sample.seed), lockedAt: text(source.sample.lockedAt), sourceCount: Number(source.sample.sourceCount) || rows.length, selectedIds: rows.map(row => row.id) } } : {}),
+    ...(source.sampleEligibilityPolicyVersion ? { sampleEligibilityPolicyVersion: text(source.sampleEligibilityPolicyVersion) } : {}),
+    ...(Array.isArray(source.sourceRows) ? { sourceRows: normalizeVehicleSearchState({ rows: source.sourceRows }, fallbackCriteria, { baseUrl, apiProfile, searchUrl, stationProfileId, systemKey, roundId }).rows } : {}),
     rows,
   };
 }
@@ -1218,11 +1338,11 @@ export function getVehicleReviewNavigation(value, { rowId = "", direction = "nex
   return rows[nextIndex];
 }
 
-export function getNextPendingVehicleId(value, { rowId = "", reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "" } = {}) {
+export function getNextPendingVehicleId(value, { rowId = "", reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "", includeUnableToVerify = false } = {}) {
   const rows = getVehicleReviewRows(value);
   if (!rows.length) return null;
   const dimensions = reviewDimensionsForVersion(reviewVersion, context);
-  const isPending = (row) => dimensions.some(({ statusKey }) => ["pending", "unable-to-verify"].includes(row[statusKey]));
+  const isPending = (row) => dimensions.some(({ statusKey }) => row[statusKey] === "pending" || (includeUnableToVerify && row[statusKey] === "unable-to-verify"));
   const currentIndex = rows.findIndex((row) => row.id === text(rowId));
   const ordered = currentIndex < 0 ? rows : [...rows.slice(currentIndex + 1), ...rows.slice(0, currentIndex + 1)];
   return ordered.find(isPending)?.id || null;
@@ -1281,30 +1401,32 @@ function reviewDetailKeyForDimension(dimension) {
 
 export function updateVehicleSearchDimensionReview(value, rowIdValue, dimension, reviewStatus, detailPatch = {}) {
   const state = normalizeVehicleSearchState(value);
-  if (!VEHICLE_REVIEW_STATUS_VALUES.has(reviewStatus) || reviewStatus === "pending") return state;
-  const statusKey = reviewStatusKeyForDimension(dimension);
-  if (!statusKey) return state;
   const targetId = text(rowIdValue);
+  return { ...state, rows: state.rows.map(row => row.id === targetId ? updateVehicleReviewRow(row, dimension, reviewStatus, detailPatch) : row) };
+}
+
+// A decision changes review fields only; image/source normalization belongs to ingestion.
+export function updateVehicleReviewRow(row, dimension, reviewStatus, detailPatch = {}) {
+  if (!VEHICLE_REVIEW_STATUS_VALUES.has(reviewStatus) || reviewStatus === "pending") return row;
+  const statusKey = reviewStatusKeyForDimension(dimension);
+  if (!statusKey) return row;
   const detailKey = reviewDetailKeyForDimension(dimension);
-  return {
-    ...state,
-    rows: state.rows.map((row) => {
-      if (row.id !== targetId) return row;
-      const currentDetail = normalizeReviewDetail(row.reviewDetails?.[detailKey]);
-      const nextDetail = normalizeReviewDetail({ ...currentDetail, ...detailPatch, reviewedAt: detailPatch.reviewedAt || new Date().toISOString() });
-      const historyEntry = {
-        status: reviewStatus,
-        correctedValue: nextDetail.correctedValue,
-        correctionTarget: nextDetail.correctionTarget,
-        reasonCode: nextDetail.reasonCode,
-        note: nextDetail.note,
-        reviewedAt: nextDetail.reviewedAt,
-        reviewedBy: nextDetail.reviewedBy,
-      };
-      const history = [...currentDetail.history, historyEntry].slice(-20);
-      return { ...row, [statusKey]: reviewStatus, reviewDetails: { ...normalizeReviewDetails(row.reviewDetails), [detailKey]: { ...nextDetail, history } } };
-    }),
+  const currentDetail = normalizeReviewDetail(row.reviewDetails?.[detailKey]);
+  const nextDetail = normalizeReviewDetail({ ...currentDetail, ...detailPatch, reviewedAt: detailPatch.reviewedAt || new Date().toISOString() });
+  const historyEntry = {
+    status: reviewStatus,
+    correctedValue: nextDetail.correctedValue,
+    confirmedPlateNumber: nextDetail.confirmedPlateNumber,
+    confirmedProvince: nextDetail.confirmedProvince,
+    correctionTarget: nextDetail.correctionTarget,
+    verificationScope: nextDetail.verificationScope,
+    reasonCode: nextDetail.reasonCode,
+    note: nextDetail.note,
+    reviewedAt: nextDetail.reviewedAt,
+    reviewedBy: nextDetail.reviewedBy,
   };
+  const history = [...currentDetail.history, historyEntry].slice(-20);
+  return { ...row, [statusKey]: reviewStatus, reviewDetails: { ...row.reviewDetails, [detailKey]: { ...nextDetail, history } } };
 }
 
 export function updateVehicleSearchReviewDetails(value, rowIdValue, dimension, detailPatch = {}) {
@@ -1369,11 +1491,15 @@ export function getVehicleSearchIssueRows(value, { reviewVersion = VEHICLE_API_R
           lane: row.lane,
           vehicleClassLabel: row.vehicleClassLabel,
           correctionTarget: getVehicleReviewDetail(row, key).correctionTarget,
+          verificationScope: getVehicleReviewDetail(row, key).verificationScope,
+          verificationScopeLabel: getVehiclePlateVerificationLabel(getVehicleReviewDetail(row, key)),
           correctionTargetLabel: (VEHICLE_REVIEW_CORRECTION_TARGET_OPTIONS[key] || []).find((option) => option.value === getVehicleReviewDetail(row, key).correctionTarget)?.label || null,
           reasonCode: getVehicleReviewDetail(row, key).reasonCode,
           reasonLabel: (VEHICLE_REVIEW_REASON_OPTIONS[key] || []).find((option) => option.value === getVehicleReviewDetail(row, key).reasonCode)?.label || null,
           note: getVehicleReviewDetail(row, key).note,
           correctedValue: getVehicleReviewDetail(row, key).correctedValue,
+          confirmedPlateNumber: getVehicleReviewDetail(row, key).confirmedPlateNumber,
+          confirmedProvince: getVehicleReviewDetail(row, key).confirmedProvince,
           evidenceAttachment: getVehicleReviewDetail(row, key).evidenceAttachment,
         });
       }
@@ -1419,4 +1545,10 @@ export async function searchVehicles(...args) {
 
 export async function testVehicleSearchConnection(...args) {
   return vehicleSearchTransport.testVehicleSearchConnection(...args);
+}
+
+// Work navigation uses the acknowledged decision, never the old pending row.
+export function getNextPendingVehicleAfterDecision(value, { rowId, dimension, reviewStatus, context }) {
+  const next = updateVehicleSearchDimensionReview(value, rowId, dimension, reviewStatus);
+  return getNextPendingVehicleId(next, { rowId, context, includeUnableToVerify: false });
 }

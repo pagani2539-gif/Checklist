@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcon as Icon } from "../icon-system.jsx";
 
-export function Button({ href, children, variant = "secondary", icon, type = "button", onClick, disabled = false, className = "", buttonRef }) {
-  const classes = `ops-button ops-button-${variant} ${className}`;
-  if (href) return <a className={classes} href={href}>{icon && <Icon name={icon} />}{children}</a>;
-  return <button ref={buttonRef} className={classes} type={type} onClick={onClick} disabled={disabled}>{icon && <Icon name={icon} />}{children}</button>;
+export function Button({ href, children, variant = "secondary", icon, iconOnly = false, type = "button", onClick, disabled = false, className = "", buttonRef, "aria-label": ariaLabel, title, ...rest }) {
+  const label = ariaLabel || (iconOnly && typeof children === "string" ? children : undefined);
+  const classes = `ops-button ops-button-${variant} ${iconOnly ? "ops-button-icon-only" : ""} ${className}`;
+  const content = <>{icon && <Icon name={icon} />}{!iconOnly && children}</>;
+  if (href) return <a {...rest} className={classes} href={href} aria-label={label} title={title || (iconOnly ? label : undefined)}>{content}</a>;
+  return <button {...rest} ref={buttonRef} className={classes} type={type} onClick={onClick} disabled={disabled} aria-label={label} title={title || (iconOnly ? label : undefined)}>{content}</button>;
 }
 
 export function ConfirmDialog({ request, onResolve }) {

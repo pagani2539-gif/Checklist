@@ -14,7 +14,7 @@ assert.match(appSource, /title=\{item\.label\}/, "compact navigation links shoul
 assert.doesNotMatch(appSource, /ops-sidebar-reveal/, "collapsed navigation should not render a floating reveal button");
 
 assert.match(foundationCss, /\.ops-shell\.is-sidebar-collapsed \.ops-sidebar \{ width: 88px;/, "collapsed desktop navigation should remain visible as an 88px rail");
-assert.match(foundationCss, /\.ops-shell\.is-sidebar-collapsed \.ops-main \{ width: calc\(100% - 88px\); margin-left: 88px;/, "main content should reserve space for the compact rail");
+assert.match(foundationCss, /\.ops-shell\.is-sidebar-collapsed \.ops-main \{[^}]*width: calc\(100% - 88px\);[^}]*margin-left: 88px;/s, "main content should reserve space for the compact rail");
 assert.match(foundationCss, /\.ops-shell\.is-sidebar-collapsed \.ops-nav-label-short \{ display: block; \}/, "compact navigation should show short labels");
 assert.match(foundationCss, /@media \(max-width: 980px\) \{\s+\.ops-shell \{ --ops-shell-sidebar-width: 0px; --ops-main-inline-gutter: 14px; \}\s+\.ops-sidebar-toggle \{ display: none; \}/, "mobile bottom navigation should keep the toggle hidden within the mobile shell rules");
 assert.match(foundationCss, /\.ops-shell\.is-sidebar-collapsed \.ops-main \{[^}]*padding-inline: 24px;/s, "compact desktop content should keep a small gutter beside the rail");
@@ -50,7 +50,25 @@ assert.match(redesignCss, /> \.ops-taskflow-layout > \.ops-task-queue-panel\s*\{
 assert.match(redesignCss, /> \.ops-taskflow-layout > \.ops-taskflow-main\s*\{[^}]*overflow:\s*hidden/s, "result panel should not grow the document");
 assert.match(redesignCss, /> \.ops-taskflow-layout > \.ops-evidence-drawer\s*\{[^}]*overflow-y:\s*auto/s, "evidence panel should scroll internally");
 assert.match(redesignCss, /\.ops-evidence-drawer \.ops-attachment-dropzone\s*\{[^}]*min-height:\s*132px/s, "evidence dropzone should stay compact");
-assert.match(redesignCss, /@media screen and \(max-width:\s*1279px\)[\s\S]*grid-template-areas:\s*"tabs"\s*"panel"/, "narrow workspaces should switch to full-width tabs");
+const compactLayoutIndex = workspaceLayoutCss.indexOf("/* Compact screens use one document scroll and a single content column.");
+assert.ok(compactLayoutIndex >= 0, "compact single-column policy should be defined in the shared layout file");
+const compactLayoutCss = workspaceLayoutCss.slice(compactLayoutIndex);
+assert.match(appSource, /matchMedia\?\.\("\(max-width: 1279px\)"\)/, "checklist should enter stacked mode through 1279px");
+assert.match(appSource, /data-stacked-workspace=\{isStackedWorkspace \? "true" : "false"\}/, "checklist should expose its responsive stack state to shared CSS");
+assert.doesNotMatch(workspaceLayoutCss, /data-mobile-stack/, "the old phone-only checklist stack hook should be removed");
+assert.doesNotMatch(compactLayoutCss, /grid-template-areas:\s*"tabs"\s*"panel"/, "compact checklists should not replace page content with responsive tabs");
+assert.match(compactLayoutCss, /\.checklist-page\[data-stacked-workspace="true"\] > \.ops-checklist-layout > :is\(\.ops-task-queue-panel, \.ops-taskflow-main, \.ops-evidence-drawer\)\s*\{[^}]*display: block !important/s, "compact checklist should show queue, result, and evidence as vertical page sections");
+assert.match(compactLayoutCss, /\.checklist-page\[data-stacked-workspace="true"\] > \.ops-checklist-context-header\s*\{[^}]*display: flex !important;[^}]*flex-direction: column !important/s, "compact checklist header should keep its status and actions in one column");
+assert.match(compactLayoutCss, /\.ops-shell\[data-page-layout="station-directory"\] \.ops-station-directory-list\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) !important/s, "station directory should show one station card per row through tablet widths");
+assert.match(compactLayoutCss, /\.ops-shell\[data-page-layout="station-directory"\] \.station-directory-filters\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) !important/s, "station filters should follow the same compact vertical flow");
+assert.match(compactLayoutCss, /\.ops-shell\[data-page-layout="station-workspace"\] :is\(\.sc-workspace, \.sc-metrics, \.station-profile-context-grid, \.station-profile-step-list\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\) !important/s, "station profile panels and metrics should stack on tablet and mobile");
+assert.match(compactLayoutCss, /\.ops-shell\[data-page-layout="station-workspace"\] \.sc-tabs\s*\{[^}]*flex-wrap: wrap;[^}]*white-space: normal;/s, "station profile navigation should wrap instead of requiring horizontal scrolling");
+assert.match(compactLayoutCss, /\.ops-shell:is\(\[data-page-layout="vehicle-review"\], \[data-page-layout="history-vehicle-review"\]\)[\s\S]*?\.ops-vehicle-focus-layout(?::not\([^)]*\))?\s*\{[^}]*display: flex !important;[^}]*flex-direction: column !important/s, "Vehicle API page and review panels should share the document column");
+assert.match(compactLayoutCss, /\.ops-vehicle-focus-layout > \[data-dock-panel\],[\s\S]*?overflow: visible !important/s, "Vehicle queue, evidence, and decision panels should not create nested scroll areas");
+assert.match(compactLayoutCss, /\.ops-vehicle-search-table-wrap\s*\{[^}]*overflow-x: visible !important/s, "on-screen Vehicle API reports should fit without an inner horizontal scroller");
+assert.match(compactLayoutCss, /\.ops-print-report \.ops-print-vehicle-evidence-row dl\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) !important/s, "compact on-screen report details should use one readable column");
+assert.match(workspaceLayoutCss, /@media screen and \(min-width: 1280px\)[\s\S]*?\.ops-vehicle-focus-layout(?::not\([^)]*\))?\s*\{[^}]*grid-template-columns:/, "the desktop Vehicle review grid should remain active from 1280px");
+assert.match(workspaceLayoutCss, /@media screen and \(min-width: 1280px\) and \(max-width: 1439px\)[\s\S]*?\.checklist-page:not\(\.is-report-previewing\) > \.ops-taskflow-layout\s*\{[^}]*grid-template-columns: minmax\(220px, \.85fr\) minmax\(350px, 1\.4fr\) minmax\(250px, \.95fr\)/, "the 1280px desktop checklist should keep three columns sized to the available content width");
 assert.match(redesignCss, /\.ops-task-queue-status-metric\s*\{[^}]*font-size:\s*var\(--ops-type-xs\)/s, "queue status metric should use the shared type scale");
 assert.match(redesignCss, /\.ops-task-queue-legend\s*\{[^}]*flex-wrap:\s*nowrap/s, "queue status legend should remain on one row");
 assert.match(redesignCss, /\.ops-task-queue-section-toggle\s*\{[^}]*align-items:\s*start;[^}]*text-align:\s*start/s, "category cards should share a left reading edge");

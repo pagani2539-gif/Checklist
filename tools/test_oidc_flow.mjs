@@ -6,13 +6,15 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { assertIsolatedTestDatabaseUrl } from "./database_url_test_support.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const connectionString = process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL || process.env.CHECKLIST_DATABASE_URL;
-if (!connectionString) {
-  console.log("OIDC flow smoke skipped (set CHECKLIST_POSTGRES_TEST_DATABASE_URL or CHECKLIST_DATABASE_URL for PostgreSQL integration coverage)");
+const configuredConnectionString = process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL;
+if (!configuredConnectionString) {
+  console.log("OIDC flow smoke skipped (set CHECKLIST_POSTGRES_TEST_DATABASE_URL for isolated PostgreSQL integration coverage)");
   process.exit(0);
 }
+const connectionString = assertIsolatedTestDatabaseUrl(configuredConnectionString);
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "checklist-oidc-test-"));
 const oidcPort = 4700 + Math.floor(Math.random() * 100);
 const appPort = 4600 + Math.floor(Math.random() * 100);

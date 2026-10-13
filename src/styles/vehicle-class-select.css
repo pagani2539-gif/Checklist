@@ -1,0 +1,49 @@
+.ops-vehicle-class-choice {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+.ops-vehicle-class-thumbnail {
+  display: flex;
+  flex: 0 0 136px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: 1px solid #dde1e5;
+  border-radius: 7px;
+  background: #f2f4f6;
+}
+.ops-vehicle-class-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ops-vehicle-class-copy { display: grid; min-width: 0; gap: 5px; }
+.ops-vehicle-class-label { white-space: normal; overflow-wrap: anywhere; }
+.ops-vehicle-class-copy small,
+.ops-vehicle-class-note,
+.ops-vehicle-class-detail {
+  color: var(--ops-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+}
+.ops-vehicle-class-field { display: grid; min-width: 0; gap: 6px; }
+.ops-vehicle-class-select .ops-custom-select-value { width: 100%; white-space: normal; }
+.ops-vehicle-class-menu .ops-custom-select-option-copy { width: 100%; }
+.ops-vehicle-class-menu .ops-custom-select-option { min-height: 40px; padding: 7px; }
+.ops-vehicle-class-menu .ops-custom-select-option:has(.ops-vehicle-class-choice) { min-height: 78px; }
+.ops-vehicle-class-menu .ops-custom-select-option > .ops-icon { flex-shrink: 0; }
+.ops-vehicle-class-choice.is-trigger .ops-vehicle-class-thumbnail { flex-basis: 76px; height: 34px; padding: 2px 3px; }
+.ops-vehicle-class-choice.is-trigger { gap: 9px; }
+@media (max-width: 480px) {
+  .ops-vehicle-class-thumbnail { flex-basis: 100px; height: 48px; padding: 3px; }
+  .ops-vehicle-class-choice { gap: 8px; }
+  .ops-vehicle-class-choice.is-trigger .ops-vehicle-class-thumbnail { flex-basis: 58px; height: 29px; }
+}

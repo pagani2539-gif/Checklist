@@ -1,0 +1,216 @@
+/* Shared plate workspace: day, night and read-only history use the same sizing rules.
+   Desktop panes own their scrolling; navigation has a separate stable grid row. */
+.ops-vehicle-connection-panel {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem;
+  padding: .65rem .8rem; flex: 0 0 auto; min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ops-vehicle-connection-panel p { margin: 0; min-width: 0; font-size: .85rem; }
+.ops-vehicle-connection-panel p:first-child { flex: 1 1 15rem; }
+.ops-vehicle-connection-panel p[role="status"] { flex-basis: 100%; }
+
+[data-vehicle-workspace="plate"] {
+  --review-gap: .65rem;
+  --review-padding: .65rem;
+  --review-queue-width: 19rem;
+  --review-decision-width: 22rem;
+  --review-control-size: 2.25rem;
+  container: plate-workspace / inline-size;
+}
+@media screen {
+  .ops-main:has(.ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"]) { overflow: hidden; }
+  .ops-vehicle-api-page:has([data-vehicle-workspace="plate"]),
+  .ops-vehicle-api-page .ops-vehicle-focus-panel:has([data-vehicle-workspace="plate"]) {
+    height: 100% !important; min-height: 0; flex: 1 1 0; overflow: hidden;
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] {
+    display: grid !important;
+    grid-template-columns: minmax(0, var(--review-queue-width)) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: auto; min-height: 0; flex: 1 1 0; overflow: hidden;
+    gap: var(--review-gap); align-items: stretch;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-queue {
+    display: flex; flex-direction: column; height: 100%; max-height: none;
+    overflow: hidden; min-width: 0; min-height: 0; gap: var(--review-gap);
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-inspector-body {
+    height: auto !important; min-height: 0; overflow: visible !important;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-review-dimension-list {
+    min-height: 0; height: 100% !important; overflow: hidden !important;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-review-dimension {
+    display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%; min-height: 0; overflow: hidden;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-review-dimension > fieldset {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  }
+  .ops-vehicle-decision-footer { display: flex; flex-wrap: wrap; gap: .4rem; padding-top: .5rem; }
+  .ops-vehicle-decision-footer > button { flex: 1; min-height: 2.75rem; }
+  .ops-vehicle-decision-footer > small { flex-basis: 100%; }
+  .ops-vehicle-form-steps { color: var(--ops-muted); line-height: 1.5; }
+  .ops-vehicle-queue-toggle { display: none; }
+  .ops-vehicle-session-toggle { display: none; }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions > button:first-of-type > * {
+    grid-column: 1 !important; grid-row: auto !important; width: auto; max-width: none;
+    white-space: normal !important; overflow: visible; text-overflow: clip;
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-focus-row-list {
+    display: grid; grid-auto-rows: max-content; align-content: start;
+    flex: 1 1 0; min-height: 0; height: auto !important; max-height: none;
+    overflow-y: auto; overflow-x: hidden; gap: var(--review-gap);
+    scrollbar-gutter: stable; overscroll-behavior: contain;
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: .35rem; min-width: 0;
+    border: 1px solid var(--ops-line); border-radius: .55rem;
+    background: var(--ops-card); padding: .3rem;
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions:has([aria-current="true"]) {
+    border-color: var(--ops-primary); background: var(--ops-primary-soft);
+    box-shadow: inset .15rem 0 var(--ops-primary);
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions > button:first-of-type {
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto;
+    width: 100%; height: auto; min-height: var(--review-control-size);
+    gap: .2rem; padding: .25rem; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; text-align: left; color: var(--ops-ink);
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions > button:first-of-type > * {
+    grid-column: 1; grid-row: auto; min-width: 0; max-width: none;
+    overflow: visible; text-overflow: clip; white-space: normal !important;
+    overflow-wrap: anywhere; line-height: var(--ops-leading-body);
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions small,
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions b,
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions em {
+    font-size: var(--ops-type-caption-sm); font-weight: var(--ops-weight-regular);
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions small,
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions b { color: var(--ops-muted); }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-row-current-label {
+    justify-self: start; width: max-content; color: var(--ops-color-primary-hover);
+    background: var(--ops-color-primary-soft); border: 1px solid var(--ops-color-primary-border);
+    border-radius: .4rem; padding: .1rem .35rem; font-size: var(--ops-type-micro) !important;
+    font-weight: 700 !important;
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions em {
+    justify-self: start; font-style: normal; color: var(--ops-muted);
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions em.is-done {
+    color: var(--ops-success); background: var(--ops-color-success-soft);
+    border-radius: .4rem; padding: .15rem .35rem;
+  }
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-row-delete {
+    position: static; transform: none; display: grid; place-items: center;
+    width: var(--review-control-size); height: var(--review-control-size);
+    min-width: var(--review-control-size); min-height: var(--review-control-size);
+    padding: 0; border: 1px solid var(--ops-line); border-radius: .4rem;
+    grid-template-columns: auto; grid-template-rows: auto;
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-main {
+    display: grid !important; height: 100%; min-height: 0; overflow: hidden;
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--review-decision-width));
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    gap: var(--review-gap); align-items: stretch;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-main-heading { grid-column: 1 / -1; }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-evidence-stack {
+    grid-column: 1; grid-row: 2; height: 100%; max-height: none;
+    overflow-y: auto; min-width: 0; min-height: 0;
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-inspector {
+    grid-column: 2; grid-row: 2; height: 100% !important;
+    display: grid !important; grid-template-rows: auto minmax(0, 1fr) auto;
+    max-height: 100%; overflow: hidden !important; min-width: 0; min-height: 0;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-navigation {
+    position: static !important; grid-column: 1 / -1; grid-row: 3;
+    display: flex !important; flex-wrap: wrap; width: auto; margin: 0;
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-images.is-plate-pair {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: var(--review-gap); align-items: start;
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-image-comparison {
+    display: flex; flex-direction: column; height: auto; min-height: 0;
+    min-width: 0; gap: var(--review-gap); padding: var(--review-padding);
+  }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-image {
+    display: flex; flex-direction: column; width: 100%; height: auto;
+    min-height: 0; max-height: none; aspect-ratio: auto;
+    padding: .4rem; gap: .35rem;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-review-image-media { flex: none; }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-image img {
+    position: static; display: block; width: auto; height: auto;
+    max-width: 100%; max-height: 20rem; object-fit: contain;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-review-image-action { position: static; flex: none; }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-plate-summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    height: auto; min-height: 0; position: static;
+  }
+  [data-vehicle-workspace="plate"] .ops-vehicle-focus-plate-summary strong {
+    white-space: normal; overflow-wrap: anywhere;
+  }
+  /* Collapse based on the workspace's available width, including the sidebar. */
+  @container plate-workspace (max-width: 58rem) {
+    .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-main {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto !important;
+    }
+    .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-inspector { grid-column: 1; grid-row: 3; }
+    [data-vehicle-workspace="plate"] .ops-vehicle-focus-navigation { grid-row: 4; }
+  }
+  @media (max-width: 1279px) {
+    .is-context-plate .ops-vehicle-session-toggle { display: block; }
+    .is-context-plate .ops-vehicle-test-controls[data-session-open="false"] > :is(.ops-vehicle-focus-criteria, .ops-vehicle-sample-settings) { display: none !important; }
+    .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-toggle { display: block; }
+    .ops-vehicle-focus-panel [data-vehicle-queue="review"][data-queue-open="false"] > :not(.ops-vehicle-queue-toggle) { display: none !important; }
+    [data-vehicle-workspace="plate"] :is(.ops-vehicle-focus-inspector-body, .ops-vehicle-review-dimension-list, .ops-vehicle-review-dimension) {
+      height: auto !important; max-height: none !important; overflow: visible !important;
+    }
+    [data-vehicle-workspace="plate"] .ops-vehicle-review-dimension > fieldset { overflow: visible; }
+    .ops-main:has([data-vehicle-workspace="plate"]) { overflow: visible; }
+    .ops-vehicle-api-page:has([data-vehicle-workspace="plate"]),
+    .ops-vehicle-api-page .ops-vehicle-focus-panel:has([data-vehicle-workspace="plate"]) {
+      height: auto !important; flex: none !important; overflow: visible;
+    }
+    .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] { display: flex !important; flex-direction: column; flex: none; overflow: visible; }
+    [data-vehicle-workspace="plate"] > * { width: 100%; box-sizing: border-box; }
+    .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel [data-vehicle-workspace="plate"] .ops-vehicle-focus-main {
+      height: auto; overflow: visible; grid-template-rows: auto auto auto auto !important;
+    }
+    [data-vehicle-workspace="plate"] :is(.ops-vehicle-focus-queue, .ops-vehicle-focus-row-list, .ops-vehicle-focus-evidence-stack, .ops-vehicle-focus-inspector) {
+      height: auto !important; max-height: none; flex: none; overflow: visible;
+    }
+  }
+}
+
+
+
+/* Both review contexts share queue cards; the evidence panes keep their own layout. */
+@media screen {
+  .ops-vehicle-focus-panel [data-vehicle-queue="review"] {
+    --review-gap: .65rem;
+    --review-control-size: 2.25rem;
+    gap: var(--review-gap);
+  }
+  @media (max-width: 1279px) {
+    .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-focus-row-list {
+      height: auto !important; max-height: none; flex: none; overflow: visible;
+    }
+  }
+}
+
+/* Keep the review queue at the same desktop width in both contexts. */
+@media screen and (min-width: 1280px) {
+  .ops-vehicle-api-page .ops-vehicle-focus-panel .ops-vehicle-focus-layout[data-vehicle-workspace="classification"] {
+    --review-queue-width: 19rem;
+    grid-template-columns: minmax(0, var(--review-queue-width)) minmax(0, 1fr) !important;
+  }
+}

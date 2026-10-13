@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { buildVehicleApiReportModel } from "../src/domain/vehicle-report.js";
 import { VEHICLE_API_REVIEW_LEGACY_VERSION, VEHICLE_API_REVIEW_VERSION } from "../src/domain/vehicle-search.js";
+import { VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION } from "../src/domain/vehicle-sample-eligibility.js";
 import { createUiVehicleDemoRound } from "../src/domain/demo-fixture.js";
 
 function makeRound(rows, overrides = {}) {
@@ -45,7 +46,7 @@ assert.equal(zeroData.summary.total, 0);
 assert.equal(zeroData.summary.accuracy, null);
 assert.equal(zeroData.outcome.status, "incomplete");
 assert.equal(zeroData.examples.every((example) => example.row === null), true);
-assert.equal(buildVehicleApiReportModel(makeRound([makeRow(0, { plateStatus: "unable-to-verify", reasonCode: "blurred-image" })])).summary.accuracy, null, "unable-to-verify alone does not produce a 0% accuracy score");
+assert.equal(buildVehicleApiReportModel(makeRound([makeRow(0, { plateStatus: "unable-to-verify", reasonCode: "blurred-image" })])).summary.accuracy, 0, "all unable results produce 0% against total");
 
 const sample666Rows = Array.from({ length: 666 }, (_, index) => makeRow(index, {
   plateStatus: index === 0 ? "correct" : "pending",
@@ -62,7 +63,7 @@ assert.deepEqual({
   recorded: partial.summary.recorded,
   pending: partial.summary.pending,
   accuracy: partial.summary.accuracy,
-}, { total: 666, correct: 1, incorrect: 0, unableToVerify: 0, reviewed: 1, recorded: 1, pending: 665, accuracy: 100 });
+}, { total: 666, correct: 1, incorrect: 0, unableToVerify: 0, reviewed: 1, recorded: 1, pending: 665, accuracy: 0.15 });
 assert.equal(partial.outcome.status, "incomplete");
 assert.equal(partial.outcome.label, "ยังสรุปผลรอบไม่ได้");
 assert.equal(partial.examples.find((example) => example.status === "correct")?.row.id, "vehicle-0");
@@ -80,7 +81,7 @@ assert.equal(reasonReport.summary.incorrect, 1);
 assert.equal(reasonReport.summary.unableToVerify, 2);
 assert.equal(reasonReport.summary.recorded, 4);
 assert.equal(reasonReport.summary.reviewed, 2);
-assert.equal(reasonReport.summary.accuracy, 50, "unable-to-verify results are excluded from the accuracy denominator");
+assert.equal(reasonReport.summary.accuracy, 25, "unable-to-verify results stay in total denominator");
 assert.deepEqual(reasonReport.reasons.map((reason) => [reason.status, reason.reasonCode, reason.count]).sort(), [
   ["incorrect", "ocr-error", 1],
   ["unable-to-verify", "blurred-image", 1],
@@ -100,7 +101,28 @@ assert.equal(complete.summary.recorded, 100);
 assert.equal(complete.summary.pending, 0);
 assert.equal(complete.outcome.status, "passed", "complete sample meeting the existing threshold passes");
 
-const classification = buildVehicleApiReportModel(makeRound([
+const exactBoundaryRows = Array.from({ length: 200 }, (_, index) => makeRow(index, { plateStatus: index < 159 ? "correct" : "incorrect", reasonCode: index < 159 ? null : "ocr-error", correctedValue: index < 159 ? null : "กข 9999" }));
+const exactBoundaryRound = makeRound(exactBoundaryRows, {
+  vehicleSearch: {
+    fetchedAt: "2026-09-08T06:01:00+07:00",
+    sampleEligibilityPolicyVersion: VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION,
+    rows: exactBoundaryRows,
+    sourceRows: exactBoundaryRows,
+    sample: { version: "vehicle-sample-v2", eligibilityPolicyVersion: VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION, sourceCount: 200, eligibleCount: 200, excludedCount: 0, limit: 100, seed: "exact", lockedAt: "2026-09-08T06:02:00+07:00" },
+  },
+});
+const exactBoundaryReport = buildVehicleApiReportModel(exactBoundaryRound, { context: "plate" });
+assert.equal(exactBoundaryReport.summary.accuracy, 79.5);
+assert.equal(exactBoundaryReport.summary.accuracyDisplay, "79.50");
+assert.equal(exactBoundaryReport.outcome.status, "failed", "v2 uses exact score for the 80% threshold");
+
+function makeClassificationRound(rows, overrides = {}) {
+  const round = makeRound(rows.map(row => ({ ...row, occurredAt: '2026-09-08T10:00:00+07:00' })), overrides);
+  round.vehicleSearch.criteria = { startAt: '2026-09-08T06:00:00+07:00', endAt: '2026-09-08T18:00:00+07:00' };
+  return round;
+}
+assert.equal(buildVehicleApiReportModel(makeRound([makeRow(0, { classificationStatus: 'correct' })]), { context: 'classification' }).summary.total, 0, 'night-only data is excluded from classification reports');
+const classification = buildVehicleApiReportModel(makeClassificationRound([
   makeRow(0, { classificationStatus: "correct" }),
   makeRow(1, { classificationStatus: "incorrect", reasonCode: "class-mismatch", correctedValue: "รถ 6 ล้อ" }),
 ]), { context: "classification" });
@@ -113,7 +135,7 @@ assert.equal(scopedReport.scope.key, "all");
 assert.equal(scopedReport.summary.total, 10);
 assert.equal(scopedReport.outcome.sampleQualified, true, "combined day/night report shows the existing qualifying period accurately");
 
-const oldRound = makeRound([makeRow(0), makeRow(1)], { snapshot: { vehicleReviewVersion: VEHICLE_API_REVIEW_LEGACY_VERSION, stationCode: "ST-01", stationName: "สถานีทดสอบ" } });
+const oldRound = makeClassificationRound([makeRow(0), makeRow(1)], { snapshot: { vehicleReviewVersion: VEHICLE_API_REVIEW_LEGACY_VERSION, stationCode: "ST-01", stationName: "สถานีทดสอบ" } });
 const unsupportedClassification = buildVehicleApiReportModel(oldRound, { context: "classification" });
 assert.equal(unsupportedClassification.contextSupported, false);
 assert.equal(unsupportedClassification.summary.total, 2);
@@ -121,7 +143,7 @@ assert.equal(unsupportedClassification.summary.pending, 2);
 assert.equal(unsupportedClassification.summary.threshold, null);
 assert.equal(unsupportedClassification.outcome.status, "incomplete");
 assert.equal(unsupportedClassification.outcome.label, "Snapshot นี้ไม่มีผลตรวจคัดประเภทรถ");
-const unversionedRound = makeRound([makeRow(0)], { snapshot: { stationCode: "ST-01", stationName: "สถานีทดสอบ" } });
+const unversionedRound = makeClassificationRound([makeRow(0)], { snapshot: { stationCode: "ST-01", stationName: "สถานีทดสอบ" } });
 assert.equal(buildVehicleApiReportModel(unversionedRound, { context: "classification" }).contextSupported, false, "unversioned historical Snapshots do not claim a new review dimension");
 
 console.log("vehicle report model checks passed (empty, 666 partial, reasons, complete, scopes, classification, legacy Snapshot)");

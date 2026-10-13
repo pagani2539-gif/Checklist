@@ -1,0 +1,137 @@
+.ops-vehicle-connection-dialog {
+  box-sizing: border-box; width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.25rem;
+  background: var(--ops-card); color: var(--ops-ink);
+  border: 1px solid var(--ops-line); border-radius: 12px;
+}
+.ops-vehicle-connection-dialog header, .ops-vehicle-connection-dialog footer {
+  display: flex; gap: .75rem; align-items: center; justify-content: space-between; flex-wrap: wrap;
+}
+.ops-vehicle-connection-dialog h2 { margin: 0; }
+.ops-vehicle-connection-dialog dd { margin: .4rem 0 1rem; overflow-wrap: anywhere; }
+.ops-vehicle-connection-dialog dt { font-weight: 700; }
+.ops-vehicle-api-page .ops-vehicle-review-header-actions {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;
+  gap: .4rem; min-width: 0;
+}
+.ops-vehicle-api-page .ops-vehicle-review-header-actions > * { min-width: 0; }
+.ops-vehicle-api-page .ops-vehicle-review-header-actions .ops-button { min-height: 36px; white-space: normal; width: auto; }
+.ops-vehicle-api-page .ops-vehicle-archive-progress { margin-left: auto; }
+.ops-vehicle-api-page .ops-vehicle-workbench-toolbar { border-radius: 8px; flex: none; }
+.ops-vehicle-api-page [data-photo-review="true"] .ops-vehicle-focus-heading { display: none !important; }
+.ops-vehicle-api-page .ops-vehicle-compact-session {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; min-width: 0; flex: none;
+}
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-selector {
+  border: 0; background: transparent; padding: 0; margin: 0; display: block;
+}
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-selector > strong { display: none; }
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-tabs { display: flex; gap: .4rem; }
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-tabs .ops-button {
+  min-height: 40px; padding: .3rem .65rem; display: flex; flex-direction: row; flex-wrap: wrap; gap: .4rem;
+}
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-tabs .ops-button span { display: none; }
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-photo-session-summary {
+  flex: 1 1 18rem; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent;
+}
+.ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-photo-session-summary > div { gap: .5rem; }
+.ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: .4rem; flex: none;
+}
+.ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics > div {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center;
+  align-items: center; gap: .15rem .5rem; padding: .3rem .55rem; min-height: 52px;
+}
+.ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics > div strong { font-size: 1rem; }
+.ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics > div small { grid-column: 1 / -1; margin: 0; }
+.ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics .is-review-outcome strong { white-space: normal; }
+.ops-vehicle-api-page .ops-vehicle-progress-track { grid-column: 1 / -1; height: 3px; margin: 0; }
+.ops-vehicle-api-page .ops-vehicle-focus-queue > .ops-vehicle-focus-pending-action {
+  width: 100%; margin: 0; min-height: 36px; padding: .3rem .5rem; flex: none;
+}
+.ops-vehicle-api-page .ops-vehicle-score-details { grid-column: 1 / -1; }
+.ops-vehicle-api-page #vehicle-photo-session-details > .ops-vehicle-search-provenance { grid-column: 1 / -1; }
+@media screen and (min-width: 1280px) {
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-main {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) 20rem !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    height: 100% !important; min-height: 0; overflow: hidden !important;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-evidence-stack {
+    grid-column: 1; grid-row: 2; height: 100% !important; min-height: 0; overflow: auto !important;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-image.is-overview {
+    height: 100% !important; min-height: 0; max-height: 100%;
+  }
+  /* Give the percentage-height image a sized parent below the evidence heading. */
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-images.is-classification {
+    display: flex; flex-direction: column; flex: 1 1 0; min-height: 0;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-inspector {
+    grid-column: 2; grid-row: 2; height: 100% !important; min-height: 0; overflow: auto !important;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-navigation {
+    grid-column: 1 / -1; grid-row: 3; min-height: 0;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-focus-queue {
+    display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden;
+  }
+  .ops-main:has(.ops-vehicle-api-page [data-vehicle-workspace]) { overflow: hidden; }
+  .ops-vehicle-api-page:has([data-vehicle-workspace]),
+  .ops-vehicle-api-page .ops-vehicle-focus-panel:has([data-vehicle-workspace]) {
+    display: flex; flex-direction: column; height: 100% !important;
+    min-height: 0; flex: 1 1 0 !important; overflow: hidden;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-panel { gap: .4rem; }
+  .ops-vehicle-api-page #vehicle-photo-session-details[data-session-open="true"] {
+    flex: 0 1 auto; min-height: 0; max-height: 40dvh; overflow: auto;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout[data-vehicle-workspace] {
+    height: auto !important; min-height: 0 !important; flex: 1 1 0 !important;
+    overflow: hidden; grid-template-rows: minmax(0, 1fr);
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout[data-vehicle-workspace] .ops-vehicle-focus-queue {
+    min-height: 0; height: 100%; overflow: hidden;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-layout[data-vehicle-workspace] .ops-vehicle-focus-main {
+    min-height: 0; height: 100%; overflow: hidden;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-inspector { min-height: 0; overflow: auto; }
+}
+@media (max-width: 1279px) {
+  .ops-vehicle-api-page .ops-vehicle-focus-panel { height: auto !important; flex: none !important; overflow: visible; }
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions .ops-vehicle-archive-progress { margin-left: 0; }
+  .ops-vehicle-api-page .ops-vehicle-search-metrics > div { min-width: 0; }
+}
+@media screen and (min-width: 1280px) and (max-width: 1439px) {
+  .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace] { --review-queue-width: 16rem; grid-template-columns: 16rem minmax(0, 1fr) !important; }
+  .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="plate"] .ops-vehicle-focus-main {
+    grid-template-columns: minmax(0, 1fr) 18rem !important;
+  }
+  .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-focus-inspector {
+    min-width: 0; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important;
+  }
+  .ops-vehicle-api-page.is-context-classification .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="classification"] .ops-vehicle-focus-main { grid-template-columns: minmax(0, 1fr) 18rem !important; }
+}
+@media (max-width: 767px) {
+  .ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-button { flex: 1 1 8rem; min-height: 44px; }
+  .ops-vehicle-api-page .ops-vehicle-review-header-actions > nav { flex: 1 1 auto; }
+  .ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-tabs .ops-button { min-height: 44px; }
+}
+
+/* Group controls by purpose; spacing must not depend on button element type. */
+.ops-vehicle-api-page .ops-vehicle-workbench-toolbar .ops-vehicle-review-header-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-start; gap: .5rem .75rem;
+}
+.ops-vehicle-api-page .ops-vehicle-review-setup-actions,
+.ops-vehicle-api-page .ops-vehicle-review-navigation-actions {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; min-width: 0;
+}
+.ops-vehicle-api-page .ops-vehicle-review-navigation-actions { margin-left: auto; }
+@media (max-width: 767px) {
+  .ops-vehicle-api-page .ops-vehicle-review-setup-actions,
+  .ops-vehicle-api-page .ops-vehicle-review-navigation-actions { flex: 1 1 100%; margin-left: 0; }
+  .ops-vehicle-api-page .ops-vehicle-review-setup-actions > .ops-button,
+  .ops-vehicle-api-page .ops-vehicle-review-navigation-actions > .ops-button { flex: 1 1 8rem; min-height: 44px; }
+}

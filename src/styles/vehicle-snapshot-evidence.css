@@ -1,0 +1,195 @@
+.snapshot-vehicle-page { padding: 24px; margin: 20px 0; color: #183653; border: 1px solid #cbdfee; border-radius: 12px; background: #fff; font-family: var(--ops-font-sans, sans-serif); }
+.snapshot-vehicle-heading { display: flex; gap: 20px; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid #296dab; }
+.snapshot-vehicle-heading h2 { margin: 5px 0 0; font-size: 24px; color: #153651; }
+.snapshot-vehicle-heading > div:last-child { display: grid; gap: 4px; text-align: right; }
+.snapshot-vehicle-heading span, .snapshot-vehicle-heading small { color: #5b7590; font-size: 12px; }
+.snapshot-vehicle-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 14px; font-size: 11px; }
+.snapshot-vehicle-table th, .snapshot-vehicle-table td { border: 1px solid #d7e3ed; padding: 5px; text-align: left; vertical-align: middle; overflow-wrap: anywhere; }
+.snapshot-vehicle-table th { background: #edf5fc; }
+.snapshot-vehicle-table > thead > tr > th:nth-child(1) { width: 22%; }
+.snapshot-vehicle-table > thead > tr > th:nth-child(2) { width: 34%; }
+.snapshot-vehicle-table small, .snapshot-vehicle-table strong { display: block; }
+.snapshot-evidence-images { display: flex; gap: 5px; }
+.snapshot-evidence-image { flex: 1; min-width: 0; margin: 0; background: #f3f7fb; text-align: center; border: 1px solid #dce6ef; border-radius: 5px; }
+.snapshot-evidence-image img { display: block; width: 100%; height: 80px; object-fit: contain; }
+.snapshot-evidence-image > span { display: grid; height: 80px; align-items: center; color: #6e7e8f; font-size: 10px; }
+.snapshot-evidence-image figcaption { font-size: 9px; color: #62788a; padding: 2px; }
+.snapshot-vehicle-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.snapshot-vehicle-card-grid article { min-width: 0; padding: 10px; background: #f7fafc; border: 1px solid #d3e2ee; border-radius: 8px; }
+.snapshot-vehicle-card-grid article header { display: grid; gap: 4px; margin-bottom: 8px; }
+.snapshot-vehicle-card-grid dl { display: grid; gap: 5px; margin: 8px 0; font-size: 12px; }
+.snapshot-vehicle-card-grid dt { color: #637a8f; }
+.snapshot-vehicle-card-grid dd { margin: 0; overflow-wrap: anywhere; }
+.snapshot-vehicle-note { font-size: 12px; overflow-wrap: anywhere; }
+.snapshot-vehicle-row-id { display: block; overflow-wrap: anywhere; color: #61758a; font-size: 9px; }
+.snapshot-vehicle-footnote { margin-top: 16px; padding-top: 8px; border-top: 1px solid #dce7ef; font-size: 10px; color: #637c90; }
+.snapshot-vehicle-empty { text-align: center; padding: 20px; color: #647b8f; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-page { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; height: 100%; padding: 2cqw; margin: 0; border-radius: 0; container-type: inline-size; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-heading { padding-bottom: .8cqw; flex: 0 0 auto; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-heading h2 { font-size: 2.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-heading span, .ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-heading small { font-size: .9cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-heading strong { font-size: 1.3cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); flex: 1; min-height: 0; gap: .8cqw; margin-top: 1cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-vehicle-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-card-grid article { min-height: 0; padding: .6cqw; overflow: hidden; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-card-grid article header strong { font-size: .95cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-card-grid article header small { font-size: .6cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-evidence-images img, .ops-print-report[data-report-mode="presentation"] .snapshot-evidence-image > span { height: 6cqw; font-size: .6cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-evidence-image figcaption { font-size: .5cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-card-grid dl { font-size: .75cqw; gap: .3cqw; margin: .5cqw 0; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-note { font-size: .75cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-evidence .snapshot-vehicle-note { display: none; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-row-id { font-size: .45cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-evidence-images img { height: 19cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-vehicle-card-grid article header strong { font-size: 1.5cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-vehicle-card-grid dl, .ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-vehicle-note { font-size: 1.05cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-footnote { flex: 0 0 auto; font-size: .7cqw; margin-top: .6cqw; padding-top: .4cqw; }
+@media print {
+  .snapshot-vehicle-page { break-before: page; break-inside: avoid; padding: 0; border: none; border-radius: 0; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .snapshot-vehicle-table { font-size: 8px; }
+  .snapshot-vehicle-table td, .snapshot-vehicle-table th { padding: 3px; }
+  .snapshot-vehicle-table .snapshot-evidence-image img, .snapshot-vehicle-table .snapshot-evidence-image > span { height: 48px; }
+  .snapshot-vehicle-table .snapshot-evidence-image figcaption { font-size: 7px; }
+  .snapshot-vehicle-heading h2 { font-size: 20px; }
+}
+
+.ops-vehicle-period-tabs { display:flex; gap:10px; margin:12px 0; flex-wrap:wrap; }
+.ops-vehicle-period-tabs button { display:grid; text-align:left; gap:4px; height:auto; padding:10px 16px; }
+.ops-vehicle-period-tabs span { font-size:12px; font-weight:var(--ops-weight-regular); }
+.ops-vehicle-sample-settings { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 14px; margin:8px 0; background:#eef5ff; border:1px solid #c8dcf5; border-radius:10px; font-size:12px; color:#23476a; }
+.ops-vehicle-sample-settings label { display:flex; gap:8px; align-items:center; font-weight:var(--ops-weight-semibold); }
+.ops-vehicle-sample-settings select { padding:6px 10px; border:1px solid #acc7e8; border-radius:6px; background:white; }
+.snapshot-image-readiness { padding:12px 16px; margin:10px 0; border:1px solid #b7d4eb; background:#eef7ff; color:#173c5c; position:sticky; top:0; z-index:4; }
+.snapshot-image-readiness button { margin-left:12px; }
+.snapshot-plate-province { display:block; font-weight:var(--ops-weight-bold); color:#225f91; font-size:15px; }
+.snapshot-plate-comparison { width:100%; border-collapse:collapse; margin:6px 0; font-size:11px; }
+.snapshot-plate-comparison td,.snapshot-plate-comparison th { padding:3px; text-align:left; border-bottom:1px solid #d9e5ef; overflow-wrap:anywhere; }
+.snapshot-plate-comparison thead th { font-size:.85em; color:#516d85; }
+.snapshot-plate-comparison { table-layout:fixed; }
+.snapshot-plate-comparison tbody th { white-space:nowrap; }
+.snapshot-plate-comparison tbody tr:first-child td { white-space:normal; }
+.snapshot-vehicle-table .snapshot-plate-province { font-size:12px; margin:4px 0; }
+.snapshot-plate-comparison .is-different td { background:#fff1f1; color:#a32938; font-weight:var(--ops-weight-bold); }
+.snapshot-card-reason { margin:3px 0; font-size:11px; }
+.ops-print-report[data-report-mode="presentation"] .is-plate .snapshot-vehicle-card-grid article header strong { font-size:1.15cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-plate-province { font-size:1cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-plate-comparison { font-size:.75cqw; margin:.3cqw 0; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-plate-comparison td,.ops-print-report[data-report-mode="presentation"] .snapshot-plate-comparison th { padding:.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-card-reason { font-size:.7cqw; margin:.2cqw 0; }
+.ops-print-report[data-report-mode="presentation"] .is-plate.is-evidence .snapshot-evidence-image img,.ops-print-report[data-report-mode="presentation"] .is-plate.is-evidence .snapshot-evidence-image > span { height:5cqw; }
+.ops-print-report[data-report-mode="presentation"] .is-detail .snapshot-plate-comparison { font-size:1.2cqw; }
+@media print { .snapshot-image-readiness { display:none !important; } .snapshot-plate-comparison { font-size:8px; } }
+.vehicle-test-report-page > .ops-print-report { display:block; margin-top:20px; }
+@media print { .vehicle-test-report-page { padding:0 !important; } .vehicle-test-report-page .no-print { display:none !important; } }
+.snapshot-vehicle-page { position:relative; isolation:isolate; }
+.vehicle-report-geometry { position:absolute; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none; opacity:.65; }
+.snapshot-vehicle-heading,.snapshot-vehicle-footnote { position:relative; background:#fff; }
+.snapshot-vehicle-table,.snapshot-vehicle-card-grid article { background:#fff; }
+.vehicle-period-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:clamp(12px,1.5vw,30px); margin:20px 0 0; }
+.vehicle-period-summary.is-single { grid-template-columns:minmax(0,1fr); max-width:1000px; margin:20px auto 0; width:100%; }
+.vehicle-period-analysis { --period-accent:#d58b00; --period-border:#f3d88e; --period-surface:#fffaf0; box-sizing:border-box; container-type:inline-size; min-width:0; height:100%; padding:clamp(12px,1.25vw,24px); color:#162b4d; border:1px solid var(--period-border); border-radius:16px; background:var(--period-surface); }
+.vehicle-period-analysis.is-night { --period-accent:#123f7d; --period-border:#bfd3f4; --period-surface:#f1f6ff; }
+.vehicle-period-analysis.is-unknown { --period-accent:#536579; --period-border:#d1dbe5; --period-surface:#f7f9fb; }
+.vehicle-period-summary.is-classification { max-width:1280px; }
+.vehicle-period-analysis.is-classification { --period-accent:#155b8d; --period-border:#c6dceb; --period-surface:#f4f9fc; }
+.vehicle-summary-heading { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); align-items:center; gap:clamp(8px,1cqw,16px); min-height:clamp(90px,13cqw,170px); }
+.vehicle-summary-period { display:flex; align-items:center; justify-content:center; gap:clamp(8px,1.4cqw,20px); min-width:0; min-height:70%; padding-right:clamp(8px,1.4cqw,20px); border-right:1px solid var(--period-border); color:var(--period-accent); }
+.vehicle-summary-period.is-classification { justify-content:flex-start; }
+.vehicle-summary-period .ops-icon { flex:0 0 auto; width:clamp(44px,10cqw,104px); height:clamp(44px,10cqw,104px); }
+.vehicle-summary-period.is-classification .ops-icon { width:clamp(56px,8cqw,92px); height:clamp(56px,8cqw,92px); }
+.vehicle-summary-period-copy { display:grid; gap:0; min-width:0; }
+.vehicle-summary-period-copy > span { color:inherit; font-size:clamp(18px,3.3cqw,34px); line-height:1.15; font-weight:var(--ops-weight-extrabold); text-align:left; overflow-wrap:anywhere; }
+.vehicle-summary-period [data-icon-name="sun-filled"] { fill:currentColor; stroke:none; }
+.vehicle-summary-period [data-icon-name="moon-stars"] path:first-child { fill:currentColor; stroke:none; }
+.vehicle-summary-period [data-icon-name="moon-stars"] path:nth-child(2) { fill:currentColor; stroke:currentColor; }
+.vehicle-summary-period [data-icon-name="moon-stars"] path:nth-child(3) { fill:none; stroke:currentColor; stroke-width:2; }
+.vehicle-summary-period > span { color:inherit; font-size:clamp(18px,4cqw,38px); line-height:1.15; font-weight:var(--ops-weight-extrabold); text-align:center; overflow-wrap:anywhere; }
+.vehicle-summary-score { display:grid; align-content:center; min-width:0; }
+.vehicle-summary-score > span { color:#21395e; font-size:clamp(12px,1.6cqw,17px); line-height:1.3; }
+.vehicle-summary-score.is-classification > span { font-weight:var(--ops-weight-semibold); }
+.vehicle-summary-score > strong { color:var(--period-accent); font-size:clamp(34px,10cqw,100px); line-height:.98; letter-spacing:-.055em; font-weight:var(--ops-weight-extrabold); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.vehicle-summary-score > p { margin:4px 0 0; color:#1a3155; font-size:clamp(12px,2.3cqw,22px); line-height:1.3; }
+.vehicle-sample-caption { min-height:1.5em; margin:8px 0 10px; color:#526782; font-size:clamp(10px,1.4cqw,15px); line-height:1.5; text-align:center; }
+.vehicle-count-chart { min-width:0; }
+.vehicle-count-row,.vehicle-count-axis { display:grid; grid-template-columns:minmax(90px,.9fr) minmax(70px,2.2fr) minmax(120px,1.4fr); gap:clamp(5px,.8cqw,10px); align-items:center; }
+.vehicle-count-row { margin:clamp(7px,.9cqw,12px) 0; color:#1a3155; font-size:clamp(10px,1.35cqw,16px); line-height:1.25; }
+.vehicle-count-row > span { font-weight:var(--ops-weight-semibold); overflow-wrap:anywhere; }
+.vehicle-count-track { height:clamp(15px,2.2cqw,28px); overflow:hidden; border-radius:5px; background:#e3e8ef; }
+.vehicle-count-bar { width:0; height:100%; border-radius:inherit; background:#16a36a; }
+.vehicle-count-value { color:#172d50; font-size:clamp(10px,1.3cqw,16px); line-height:1.25; font-weight:var(--ops-weight-bold); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.vehicle-count-axis { color:#425976; font-size:clamp(9px,1cqw,12px); }
+.vehicle-count-axis > div { display:flex; justify-content:space-between; border-top:1px solid #aeb9c7; padding-top:4px; }
+.vehicle-count-axis > div > span { min-width:0; padding-top:3px; border-left:1px solid #c3ccd6; text-align:center; transform:translateX(-1px); }
+.vehicle-count-axis > div > span:first-child { border-left:0; }
+.vehicle-count-axis > div > span:last-child { border-right:1px solid #c3ccd6; }
+.vehicle-count-unit { margin:7px 0 0; color:#526782; font-size:clamp(10px,1.1cqw,14px); line-height:1.4; text-align:center; }
+.vehicle-accuracy-caption { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px clamp(8px,1cqw,14px); margin-top:10px; padding:8px 10px; border:1px solid var(--period-border); border-left:4px solid var(--period-accent); border-radius:8px; background:rgb(255 255 255 / 68%); color:#344a67; font-size:clamp(10px,1.1cqw,13px); line-height:1.4; }
+.vehicle-accuracy-caption strong { color:var(--period-accent); font-size:clamp(11px,1.25cqw,14px); }
+.vehicle-accuracy-caption small { flex-basis:100%; color:#60738b; font-size:clamp(9px,.95cqw,11px); }
+.ops-print-report[data-report-mode="standard"] .vehicle-count-row,.ops-print-report[data-report-mode="standard"] .vehicle-count-axis { grid-template-columns:minmax(72px,.8fr) minmax(28px,1.4fr) minmax(88px,1fr); gap:5px; }
+.ops-print-report[data-report-mode="standard"] .vehicle-count-row,.ops-print-report[data-report-mode="standard"] .vehicle-count-value { font-size:9px; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-period-summary { flex:1; min-height:0; margin-top:1cqw; gap:1.3cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-period-summary.is-single { max-width:100%; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-period-analysis { padding:1.2cqw; border-radius:1cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-heading { min-height:13cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-period .ops-icon { width:10cqw; height:10cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-period.is-classification .ops-icon { width:7cqw; height:7cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-period > span { font-size:4cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-period-copy > span { font-size:3.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > span { font-size:1.5cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > strong { font-size:9.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > p { font-size:2.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-sample-caption { margin:.4cqw 0 .6cqw; font-size:1.5cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-row,.ops-print-report[data-report-mode="presentation"] .vehicle-count-axis { grid-template-columns:minmax(8cqw,.9fr) minmax(7cqw,2.2fr) minmax(12cqw,1.4fr); gap:.8cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-row { margin:.65cqw 0; font-size:1.7cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-track { height:2.2cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-value { font-size:1.6cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-axis { font-size:1.4cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-unit { margin:.4cqw 0 0; font-size:1.4cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption { gap:.3cqw .8cqw; margin-top:.7cqw; padding:.6cqw .8cqw; font-size:1.1cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption strong { font-size:1.25cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption small { font-size:.95cqw; }
+@media print { .vehicle-report-geometry { opacity:.5; } .vehicle-period-analysis,.vehicle-count-bar { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] > .snapshot-vehicle-page { height:auto; aspect-ratio:16 / 9; margin:20px 0; }
+.snapshot-reason-summary { position: relative; margin-top: 18px; background: #fff; font-size: 13px; }
+.snapshot-reason-summary table { width: 100%; border-collapse: collapse; }
+.snapshot-reason-summary th, .snapshot-reason-summary td { padding: 10px; border: 1px solid #d7e3ed; text-align: left; overflow-wrap: anywhere; }
+.snapshot-reason-summary th { background: #edf5fc; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-reason-summary { font-size: 1.05cqw; margin-top: 1cqw; }
+.ops-print-report[data-report-mode="presentation"] .snapshot-reason-summary th, .ops-print-report[data-report-mode="presentation"] .snapshot-reason-summary td { padding: .65cqw; }
+
+/* Keep standalone exports independent of the application viewport. */
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] { width:186mm; max-width:none; margin-inline:auto; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-page { box-sizing:border-box; width:186mm; padding:12px; margin:16px 0; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table { font-size:11px; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-heading { gap:10px; padding-bottom:10px; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-heading h2 { font-size:19px; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table .snapshot-evidence-image img { height:64px; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] { width:320mm; max-width:none; margin-inline:auto; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-page { width:320mm; height:180mm; }
+@media print {
+ .vehicle-test-report-page .ops-print-report { margin:0; }
+ .vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-page { margin:0; padding:0; }
+ .vehicle-test-report-page .snapshot-vehicle-page:first-of-type { break-before:auto; }
+}
+
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table { table-layout:fixed; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table th:nth-child(1) { width:18%; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table th:nth-child(2) { width:23%; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table th:nth-child(3) { width:41%; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .snapshot-vehicle-table th:nth-child(4) { width:18%; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .vehicle-class-example.is-compact strong { font-size:10px; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .vehicle-class-example.is-compact figure { flex-basis:65px; }
+
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .is-detail .snapshot-vehicle-card-grid { grid-template-columns:1fr; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="standard"] .is-detail .snapshot-evidence-image img { height:220px; }
+
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-example.is-compact figure { flex-basis:4cqw; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-example.is-compact img { height:2cqw; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-example.is-compact strong { font-size:.65cqw; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-example.is-compact small { font-size:.55cqw; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-example figcaption { font-size:.45cqw; }
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence .vehicle-class-confirmation-status,
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence article > p { font-size:.65cqw; margin:3px 0; }
+
+.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .is-evidence:is([data-snapshot-result="incorrect"],[data-snapshot-result="unable-to-verify"]) .snapshot-vehicle-card-grid { grid-template-rows:minmax(0,1fr); }

@@ -1,0 +1,44 @@
+import { Breadcrumb } from "../PagePrimitives.jsx";
+import { Button } from "../controls/ActionControls.jsx";
+import { CHECKLIST_POLICY_VERSION } from "../../domain/master-checklist.js";
+import { CLEANING_POLICY_VERSION } from "../../domain/master-checklist.js";
+import { EQUIPMENT_ORDER_VERSION } from "../../domain/ordering.js";
+import { EVIDENCE_CHECKLIST_SECTIONS } from "../../domain/master-checklist.js";
+import { EmptyState } from "../PagePrimitives.jsx";
+import { AppIcon as Icon } from "../icon-system.jsx";
+import { PageHeader } from "../PagePrimitives.jsx";
+import { STATION_DRAFT_TEMPLATE_VERSION } from "../../domain/master-checklist.js";
+import { WIM_SORTING_SYSTEM_CANONICAL_ID } from "../../domain/master-checklist.js";
+import { createId } from "../../domain/master-checklist.js";
+import { getActivePhysicalEquipment } from "../../domain/master-checklist.js";
+import { getCanonicalItemsForFormat } from "../../domain/canonical-station-catalog.js";
+import { getEquipmentDisplayLabel } from "../../domain/master-checklist.js";
+import { getEquipmentGroupsForRegister } from "../../domain/master-checklist.js";
+import { getEquipmentIconName } from "../icon-system.jsx";
+import { getEquipmentType } from "../../domain/master-checklist.js";
+import { getItemsForSnapshot } from "../../domain/master-checklist.js";
+import { getNewRoundChecklistItems } from "../../domain/master-checklist.js";
+import { getNextEquipmentIndex } from "../../domain/master-checklist.js";
+import { synchronizeGeneratedAssetNos } from "../../domain/master-checklist.js";
+import { getStationChecklistItems } from "../../domain/master-checklist.js";
+import { getStationChecklistSections } from "../../domain/master-checklist.js";
+import { getWimSortingSystemById } from "../../domain/master-checklist.js";
+import { getWimSortingSystemInstances } from "../../domain/master-checklist.js";
+import { getWimElectronicsHierarchyIssue } from "../../domain/wim-electronics.js";
+import { isWimElectronicsSubEquipmentType } from "../../domain/wim-electronics.js";
+import { isWimSortingSystemRecord } from "../../domain/master-checklist.js";
+import { makeEquipment } from "../../domain/master-checklist.js";
+import { makeEquipmentFromCatalogItem } from "../../domain/master-checklist.js";
+import { makeLane } from "../../domain/master-checklist.js";
+import { navigate } from "../navigation.js";
+import { normalizeItemCatalog } from "../../domain/master-checklist.js";
+import { setStationChecklistItemEnabled } from "../../domain/master-checklist.js";
+import { useMemo } from "react";
+import { validateEquipmentDraft } from "../../domain/master-checklist.js";
+import { EquipmentCatalogAddPanel, EquipmentRow, LaneAssignmentStep, StationProfileRedesigned, StationSystemsSummary, StationTorSummary, getCatalogItemDisplayLabel, getEquipmentTypeDisplayLabel, isWimEquipment } from "../page-runtime-station.jsx";
+import { StationSelect, StatusBadge, belongsToStation, profileFor } from "../page-runtime-components.jsx";
+
+export function createRuntime() {
+  const base = { Breadcrumb, Button, CHECKLIST_POLICY_VERSION, CLEANING_POLICY_VERSION, EQUIPMENT_ORDER_VERSION, EVIDENCE_CHECKLIST_SECTIONS, EmptyState, EquipmentCatalogAddPanel, EquipmentRow, Icon, LaneAssignmentStep, PageHeader, STATION_DRAFT_TEMPLATE_VERSION, StationProfileRedesigned, StationSelect, StationSystemsSummary, StationTorSummary, StatusBadge, WIM_SORTING_SYSTEM_CANONICAL_ID, belongsToStation, createId, getActivePhysicalEquipment, getCanonicalItemsForFormat, getCatalogItemDisplayLabel, getEquipmentDisplayLabel, getEquipmentGroupsForRegister, getEquipmentIconName, getEquipmentType, getEquipmentTypeDisplayLabel, getItemsForSnapshot, getNewRoundChecklistItems, getNextEquipmentIndex, synchronizeGeneratedAssetNos, getStationChecklistItems, getStationChecklistSections, getWimSortingSystemById, getWimSortingSystemInstances, getWimElectronicsHierarchyIssue, isWimElectronicsSubEquipmentType, isWimEquipment, isWimSortingSystemRecord, makeEquipment, makeEquipmentFromCatalogItem, makeLane, navigate, normalizeItemCatalog, profileFor, setStationChecklistItemEnabled, useMemo, validateEquipmentDraft };
+  return base;
+}

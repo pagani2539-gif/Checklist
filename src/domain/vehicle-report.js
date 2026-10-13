@@ -1,6 +1,10 @@
+import { isSystemVehicleRound, projectVehicleRound } from "./vehicle-review-systems.js";
+import { getRoundVehicleSearchConfig } from './round-vehicle-connection.js';
 import {
   getVehicleReviewContextByKey,
+  getDaytimeVehicleClassificationDataset,
   getVehicleReviewDetail,
+  getVehiclePlateVerificationLabel,
   getVehicleReviewOutcome,
   getVehicleReviewRows,
   getVehicleReviewScopeEntries,
@@ -51,7 +55,8 @@ function getExampleOptions(rows, statusKey, status, dimensionKey) {
     const imageUrl = dimensionKey === "plate"
       ? row.plateImage || row.lprImage || ""
       : row.overviewImage || "";
-    return { status, row, detail, reasonLabel, imageUrl };
+    const verificationLabel = dimensionKey === "plate" && status === "unable-to-verify" ? getVehiclePlateVerificationLabel(detail) : "";
+    return { status, row, detail, reasonLabel: [reasonLabel, verificationLabel].filter(Boolean).join(" · "), imageUrl };
   });
 }
 
@@ -76,7 +81,12 @@ function buildReasonSummary(issues) {
  * Build a report view model from a round's saved Vehicle API review data.
  * The model is derived at read time and does not modify the round or Snapshot.
  */
-export function buildVehicleApiReportModel(round, { context = "plate", scope = "all" } = {}) {
+export function buildVehicleApiReportModel(round, { context = "plate", scope = "all", systemKey = "" } = {}) {
+  if (isSystemVehicleRound(round) && !round.snapshot.vehicleReviewSystemKey) {
+    const projected = projectVehicleRound(round, systemKey || round.snapshot.vehicleReviewSystems[0]?.key, context);
+    if (!projected) throw new Error("ไม่มีงานตรวจรถของระบบนี้");
+    round = projected;
+  }
   const contextOption = getVehicleReviewContextByKey(context) || getVehicleReviewContextByKey("plate");
   const contextKey = contextOption.key;
   const snapshot = round?.snapshot || {};
@@ -85,8 +95,8 @@ export function buildVehicleApiReportModel(round, { context = "plate", scope = "
     dateTo: round?.meta?.inspectionDate,
     stationCode: snapshot.stationCode,
   };
-  const config = snapshot.vehicleSearchConfig || {};
-  const vehicleSearch = round?.vehicleSearch;
+  const config = getRoundVehicleSearchConfig(round);
+  const vehicleSearch = contextKey === "classification" && !round?.vehicleSearch?.independentContext ? getDaytimeVehicleClassificationDataset(round?.vehicleSearch, fallbackCriteria, { baseUrl: config.baseUrl, apiProfile: config.apiProfile }) : round?.vehicleSearch;
   const allEntries = getVehicleReviewScopeEntries(vehicleSearch, fallbackCriteria, {
     baseUrl: config.baseUrl,
     apiProfile: config.apiProfile,
@@ -139,6 +149,7 @@ export function buildVehicleApiReportModel(round, { context = "plate", scope = "
   const total = dimensionSummary.total || 0;
   const reviewed = dimensionSummary.reviewed || 0;
   const recorded = dimensionSummary.decided || 0;
+  const usesEvidenceEligibility = contextKey === "plate" && entries.some((entry) => entry.state?.sampleEligibilityPolicyVersion === "plate-evidence-v2" || entry.state?.sample?.eligibilityPolicyVersion === "plate-evidence-v2");
   const threshold = contextSupported ? VEHICLE_REVIEW_THRESHOLDS[contextKey] ?? null : null;
   const statusLabel = !contextSupported
     ? "Snapshot นี้ไม่มีผลตรวจคัดประเภทรถ"
@@ -172,7 +183,8 @@ export function buildVehicleApiReportModel(round, { context = "plate", scope = "
       pending: dimensionSummary.pending || 0,
       reviewed,
       recorded,
-      accuracy: reviewed ? Math.round((dimensionSummary.correct / reviewed) * 100) : null,
+      accuracy: total && recorded ? Number(((dimensionSummary.correct / total) * 100).toFixed(2)) : null,
+      accuracyDisplay: total && recorded ? ((dimensionSummary.correct / total) * 100).toFixed(2) : null,
       completionPercent: total ? Math.round((recorded / total) * 100) : null,
       threshold,
     },

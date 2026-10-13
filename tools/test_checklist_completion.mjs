@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import { getChecklistCompletion, canUseNotInstalled } from '../src/domain/checklist-completion.js';
+import { createUiDemoRound } from '../src/domain/demo-fixture.js';
+import { getInspectionProgressModel, getCloseReadiness } from '../src/domain/master-checklist.js';
+import { isEvidenceSlotComplete } from '../src/domain/evidence-checklist.js';
+
+const items = [{ id: 'a', assetId: 'one', assetNo: 'ONE', evidenceSlots: [{ id: 'photo', required: true }] }, { id: 'b', assetId: 'one', evidenceSlots: [] }, { id: 'staff', evidenceSlots: [] }];
+const complete = (slot, value) => value?.status === 'complete';
+let result = getChecklistCompletion(items, { a: { status: 'normal' }, b: { status: 'normal' }, staff: { status: 'normal' } }, complete);
+assert.equal(result.assetComplete, 0, 'a completed result alone does not complete an asset missing proof');
+assert.equal(result.pendingItems[0].reason, 'หลักฐานยังไม่ครบ');
+result = getChecklistCompletion(items, { a: { status: 'normal', evidence: { photo: { status: 'complete' } } }, b: { status: 'normal' }, staff: { status: 'normal' } }, complete);
+assert.equal(result.assetComplete, 1);
+result = getChecklistCompletion(items, { a: { status: 'na' }, b: { status: 'not-installed', note: 'not installed' }, staff: { status: 'normal' } }, complete);
+assert.equal(result.pendingItems[0].reason, 'ยังไม่ระบุเหตุผลที่ข้าม');
+assert.equal(result.assetComplete, 0);
+result = getChecklistCompletion(items, { a: { status: 'na', note: 'outside scope' }, b: { status: 'not-installed', note: 'not installed' }, staff: { status: 'normal' } }, complete);
+assert.equal(result.assetComplete, 0, 'fully skipped assets must not be labelled inspected');
+assert.equal(result.assetSkipped, 1);
+assert.equal(canUseNotInstalled(items[2]), false);
+const round = createUiDemoRound();
+const model = getInspectionProgressModel(round);
+assert.equal(getInspectionProgressModel({ ...round, inspectionItems: {} }).done, 0, 'missing status is not an inspected item');
+const id = model.applicableItems[0].id;
+round.inspectionItems[id] = { ...round.inspectionItems[id], status: 'na', note: '' };
+assert.equal(getCloseReadiness(round).blockers.some(entry => entry.itemId === id && entry.type === 'item-note'), false,
+  'the active close flow does not require a reason for bypass statuses');
+const readiness = getCloseReadiness(round);
+assert.equal(new Set(readiness.blockers.map(entry => entry.id)).size, readiness.blockers.length, 'day/night and multiple row warnings need unique display keys');
+assert.ok(getChecklistCompletion(model.applicableItems, round.inspectionItems, isEvidenceSlotComplete).pendingItems.some(entry => entry.item.id === id));
+console.log('Checklist completion: result, evidence, bypass reason and close-readiness passed');

@@ -35,8 +35,8 @@ async function authorizeVehicleRequest(request, stationId, options) {
   return user;
 }
 
-function isRateLimited(request) {
-  const key = String(request.socket?.remoteAddress || "unknown");
+function isRateLimited(request, operation = "search") {
+  const key = `${operation}:${String(request.socket?.remoteAddress || "unknown")}`;
   const current = rateBuckets.get(key) || { startedAt: Date.now(), count: 0 };
   if (Date.now() - current.startedAt >= 60_000) {
     current.startedAt = Date.now();
@@ -44,7 +44,7 @@ function isRateLimited(request) {
   }
   current.count += 1;
   rateBuckets.set(key, current);
-  return current.count > 60;
+  return current.count > (operation === "image" ? 600 : 60);
 }
 function normalizeAllowedOrigins(value) {
   return new Set(
@@ -185,16 +185,17 @@ async function resolveStationTarget(source, allowedOrigins, options, user) {
     return parseTargetConfiguration(source, allowedOrigins, { trusted: true });
   }
 
-  if (!options.enforceStationTarget) return parseTargetConfiguration(source, allowedOrigins);
+  if (!options.enforceStationTarget && !source?.systemKey) return parseTargetConfiguration(source, allowedOrigins);
   if (!stationId) throw new Error("ต้องระบุ Station Profile ที่มีปลายทาง Vehicle API ใน allowlist");
 
-  const profileTarget = await options.resolveStationTarget?.(stationId);
+  const profileTarget = await options.resolveStationTarget?.(stationId, String(source?.systemKey || ""), String(source?.roundId || ""));
   if (profileTarget && (typeof profileTarget === "string" || profileTarget.baseUrl)) {
     // A persisted Station Profile is the allowlist entry for its own API.
     // The client cannot override this target on normal searches.
     return parseTargetConfiguration(profileTarget, allowedOrigins, { trusted: true });
   }
 
+  if (source?.systemKey) throw new Error("ระบบนี้ไม่มีปลายทางที่ได้รับอนุญาต");
   const configured = options.stationTargets[stationId];
   if (!configured) throw new Error("ต้องระบุ Station Profile ที่มีปลายทาง Vehicle API ใน allowlist");
   return parseTargetConfiguration(configured, allowedOrigins);
@@ -221,10 +222,12 @@ async function proxyVehicleSearch(request, response, allowedOrigins, options) {
     return;
   }
   let target;
-  const apiProfile = source?.apiProfile === VEHICLE_API_PROFILES.IMPS_V2 ? VEHICLE_API_PROFILES.IMPS_V2 : VEHICLE_API_PROFILES.LEGACY_V1;
+  let apiProfile = source?.apiProfile === VEHICLE_API_PROFILES.IMPS_V2 ? VEHICLE_API_PROFILES.IMPS_V2 : VEHICLE_API_PROFILES.LEGACY_V1;
   const payload = source?.payload;
   try {
     target = await resolveStationTarget(source, allowedOrigins, options, user);
+    if (source?.systemKey === "imps" && target.connectionMode !== "proxy") throw new Error("IMPS ต้องใช้ปลายทางผ่าน proxy");
+    if (source?.systemKey) apiProfile = source.systemKey === "imps" ? VEHICLE_API_PROFILES.IMPS_V2 : VEHICLE_API_PROFILES.LEGACY_V1;
   } catch (error) {
     writeJson(response, error.statusCode || 400, { message: error.message });
     return;
@@ -268,13 +271,16 @@ async function proxyVehicleImage(request, response, requestUrl, allowedOrigins, 
   const imagePath = parsedRequestUrl.searchParams.get("path") || "";
   const baseUrlValue = parsedRequestUrl.searchParams.get("baseUrl") || "";
   const stationId = parsedRequestUrl.searchParams.get("stationId") || "";
-  const apiProfile = parsedRequestUrl.searchParams.get("apiProfile") === VEHICLE_API_PROFILES.IMPS_V2 ? VEHICLE_API_PROFILES.IMPS_V2 : VEHICLE_API_PROFILES.LEGACY_V1;
+  const systemKey = parsedRequestUrl.searchParams.get("systemKey") || "";
+  const roundId = parsedRequestUrl.searchParams.get("roundId") || "";
+  const apiProfile = (systemKey ? systemKey === "imps" : parsedRequestUrl.searchParams.get("apiProfile") === VEHICLE_API_PROFILES.IMPS_V2) ? VEHICLE_API_PROFILES.IMPS_V2 : VEHICLE_API_PROFILES.LEGACY_V1;
   let target;
   try {
     const user = await authorizeVehicleRequest(request, stationId, options);
-    target = options.enforceStationTarget
-      ? await resolveStationTarget({ stationId }, allowedOrigins, options, user)
+    target = options.enforceStationTarget || systemKey
+      ? await resolveStationTarget({ stationId, systemKey, roundId }, allowedOrigins, options, user)
       : parseTargetConfiguration({ baseUrl: baseUrlValue }, allowedOrigins);
+    if (systemKey === "imps" && target.connectionMode !== "proxy") throw new Error("IMPS ต้องใช้ปลายทางผ่าน proxy");
   } catch (error) {
     const statusCode = error.statusCode || 400;
     const message = statusCode === 401 ? "Authentication required"
@@ -338,7 +344,7 @@ async function proxyVehicleImage(request, response, requestUrl, allowedOrigins, 
     const proxyReturnedImage = result
       && result.upstream.ok
       && isImageResponse(result.upstream.headers.get("content-type"), result.imageBody, request.method);
-    if (target.connectionMode === "proxy" && !proxyReturnedImage) {
+    if (target.connectionMode === "proxy" && systemKey !== "imps" && !proxyReturnedImage) {
       console.warn(JSON.stringify({
         event: "vehicle.image.proxy_response_unusable",
         stationId,
@@ -391,7 +397,7 @@ export function handleVehicleSearchProxyRequest(request, response, options = {})
     resolveStationTarget: options.resolveStationTarget,
   };
   const requestPath = new URL(requestUrl, "http://localhost").pathname;
-  if ((requestPath === "/api/vehicle/search" || requestPath === "/api/vehicle/image") && isRateLimited(request)) {
+  if ((requestPath === "/api/vehicle/search" || requestPath === "/api/vehicle/image") && isRateLimited(request, requestPath.endsWith("/image") ? "image" : "search")) {
     response.setHeader("Retry-After", "60");
     writeJson(response, 429, { message: "Too many requests" });
     return true;

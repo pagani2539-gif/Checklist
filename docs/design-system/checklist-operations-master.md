@@ -1,7 +1,7 @@
 # Checklist Operations Hub — Design System Master
 
 สถานะ: อนุมัติสำหรับ active React/Vite UI
-เอกสารฉบับนี้เป็นสรุปการใช้งานภาษาไทยของระบบปัจจุบัน และทบทวนล่าสุดเมื่อ 2026-09-26
+เอกสารฉบับนี้เป็นสรุปการใช้งานภาษาไทยของระบบปัจจุบัน และทบทวนล่าสุดเมื่อ 2026-10-04
 
 ## แหล่งอ้างอิงหลัก
 
@@ -19,33 +19,35 @@
 
 ## Visual direction
 
-Field Operations Light: พื้นที่ทำงานสีขาว/เทาอ่อนสำหรับช่างหน้างาน อ่านง่ายกลางแจ้งและพิมพ์รายงานได้สะอาด ใช้ deep ink เป็นข้อความ, Electric Blue เป็น action หลัก และใช้สีเขียว/amber/red ตามความหมายของสถานะ ไม่มี visual effect ที่แย่งความสนใจจากสถานะตรวจ
+Checklist Sky Blue: พื้นที่ทำงานสีขาวอมฟ้า การ์ดสีขาว แถบนำทางน้ำเงินเข้ม และไล่เฉดฟ้าขาวเฉพาะปุ่มหลัก เมนูที่เลือก แผงสรุป และแถบหัวหน้าที่ติดขอบจอ เพื่อให้ได้อารมณ์ตามภาพอ้างอิงและยังอ่านงานภาคสนามง่าย ใช้สีเขียว/amber/red ตามความหมายของสถานะ ส่วนสีและแม่แบบรายงานของแต่ละบริษัทรวมถึง PDF และงานพิมพ์คงเดิม
 
 ## Tokens
 
 | Token | Value | ใช้กับ |
 |---|---|---|
-| `--ops-ink` | `#152238` | heading, primary text |
-| `--ops-ink-soft` | `#30415A` | secondary text |
-| `--ops-muted` | `#63738A` | supporting text |
-| `--ops-navy` | `#FFFFFF` | white desktop rail และ mobile navigation |
-| `--ops-sidebar-active` | `#EFF6FF` | active navigation surface |
-| `--ops-sidebar-surface` | `#F8FAFC` | sidebar status surface |
-| `--ops-sidebar-border` | `#E5EAF1` | sidebar divider |
-| `--ops-sidebar-accent` | `#2563EB` | active navigation indicator และ brand mark |
-| `--ops-sidebar-accent-hover` | `#1D4ED8` | accent hover |
-| `--ops-sidebar-muted` | `#63738A` | ข้อความและไอคอนรองบน sidebar |
-| `--ops-sidebar-success` | `#0F9F80` | storage/saved status |
-| `--ops-blue` | `#2563EB` | primary action และ link |
-| `--ops-blue-hover` | `#1D4ED8` | hover/pressed action |
-| `--ops-focus` | `#2563EB` | focus ring ที่มองเห็นได้ |
-| `--ops-warning` | `#B45309` | warning/attention |
-| `--ops-success` | `#047857` | ปกติ/บันทึกสำเร็จ |
-| `--ops-danger` | `#B91C1C` | ชำรุด/ทำลายข้อมูล |
-| `--ops-paper` | `#F7F9FC` | page background |
-| `--ops-card` | `#FFFFFF` | surface |
-| `--ops-line` | `#E5EAF1` | border/divider |
-| `--ops-line-strong` | `#CCD5E1` | emphasized border |
+| `--ops-ink` / `--ops-color-text-primary` | `#263840` | ข้อความหลัก |
+| `--ops-ink-soft` | `#405761` | ข้อความรอง |
+| `--ops-muted` | `#637982` | ข้อความประกอบ |
+| `--ops-paper` / `--ops-color-background` | `#F8FCFE` | พื้นหน้าแอป |
+| `--ops-card` | `#FFFFFF` | การ์ดและแผง |
+| `--ops-color-primary` | `#087EA4` | ปุ่มหลัก ลิงก์ และความคืบหน้า |
+| `--ops-color-primary-hover` | `#075F7E` | hover/pressed และขอบโฟกัส |
+| `--ops-color-primary-soft` | `#EDFFFF` | พื้นเลือกและจุดเน้นอ่อน |
+| `--ops-color-primary-gradient` | `#087EA4 → #075F7E` | ปุ่มหลักและเมนูที่เลือก |
+| `--ops-color-highlight-gradient` | `#FFFFFF → #F2FFFF → #D6FFFF` | แผงสรุปและจุดเน้นอ่อน |
+| `--ops-color-cyan-accent` | `#00FFFF` | เส้นเน้นของรายการที่เลือกและขอบล่างปุ่มหลัก |
+| `--ops-color-navigation` | `#16465C` | พื้นแถบเมนู |
+| `--ops-color-navigation-active` | `#087EA4` | รายการเมนูที่เลือก |
+| `--ops-color-navigation-foreground` | `#FFFFFF` | ข้อความและไอคอนบนแถบเมนู |
+| `--ops-color-border` | `#D7E4E9` | เส้นแบ่งและขอบ |
+| `--ops-focus-ring` | `rgba(8, 126, 164, 0.24)` | วงโฟกัสแป้นพิมพ์ |
+| `--ops-blue*` | alias ของ token ฟ้าน้ำเงิน | รองรับสไตล์เดิม |
+| `--ops-success` | `#047857` | สำเร็จ/ปกติ |
+| `--ops-warning` | `#B45309` | รอตรวจ/ต้องติดตาม |
+| `--ops-danger` | `#B91C1C` | เสียหาย/ลบข้อมูล |
+
+`.ops-print-report` คงชุดสีน้ำเงินและสีกลางของรายงานไว้เพื่อรักษาแบรนด์บริษัท, PDF และงานพิมพ์
+ใช้ `#00FFFF` เฉพาะเส้นเน้นขนาดเล็ก และใช้สีที่เจือจางลงในพื้นไล่เฉด เพื่อคงความอ่านง่ายของข้อความและปุ่ม
 
 ใช้ bundled local `Noto Sans Thai` เป็น font หลักทั้งไทย/อังกฤษ และใช้ `ui-monospace` เฉพาะรหัสสถานี/รหัสรอบ/Asset No./Serial Number เพื่อให้หน้าตาเหมือนกันทุกเครื่องโดยไม่พึ่ง runtime external font
 
@@ -90,5 +92,8 @@ Field Operations Light: พื้นที่ทำงานสีขาว/เ�
 - สถานะ, อ่านอย่างเดียว, disabled และ empty state แยกความหมายชัด
 - print ซ่อน navigation/filter/control
 - localStorage migration และ Snapshot isolation ต้องผ่านก่อน cutover
-- Station Structure และ Equipment Register ใช้ relationship tree กลางเดียวกัน: Station Group → หมวดความสัมพันธ์ → `.01 Equipment` / `.02 Systems & Software`; BOQ/TOR เป็นข้อมูลอ้างอิงรอง และไม่เปลี่ยน Item ID หรือ Snapshot เดิม
+- หน้าสร้างสถานี ทะเบียนอุปกรณ์ และหน้า Checklist ใช้ลำดับจุดติดตั้งจาก `station-workpoint-layout.js`; IMPS วาง LPR for 3D ถัดจาก 3D Dimension. จุดติดตั้งกำหนด Scope ให้อัตโนมัติ ส่วนหน้าสร้างสถานีและทะเบียนแสดง System → Equipment; เพิ่มใต้ System ใช้แม่ตัวที่กด และอุปกรณ์ Electronics ใช้ Cabinet ที่ผูก System นั้น. ทางเพิ่มทั่วไปต้องเลือกความสัมพันธ์แม่ก่อน โดยไม่เลือก Scope ซ้ำ; รายการเก่าที่ไม่มี System แม่หรือจับคู่ได้ไม่ชัดยังแสดงใน “ยังไม่ผูก System”
+- หน้าสร้างสถานีใช้ลำดับหมวดและ Scope เดียวกัน ส่วนหน้า Checklist ใช้ลำดับหมวดหลักเดียวกัน แต่คงคิวตรวจ รหัส Checklist และการเลื่อนไปข้อถัดไปตามกติกาเดิม; ไม่เพิ่มชั้น Scope/System ในคิว
+- ดู[ผัง SC/IMPS รายข้อ](../../.scratch/sc-imps-grouping-audit/map.md) สำหรับลำดับและตำแหน่งของแต่ละรายการ
+- รหัส .01 Equipment และ .02 Systems & Software ยังคงเป็นรหัสแสดงผล Checklist/Report ตาม ADR 0003 ไม่ใช่ชั้นของ relationship tree; BOQ/TOR เป็นข้อมูลอ้างอิงรอง และห้ามเปลี่ยน Item ID หรือ Snapshot เดิม
 - server mode ต้องตรวจ station scope, 401/403, immutable close และ attachment access ก่อน Public deployment

@@ -62,7 +62,7 @@ export const CANONICAL_STATION_ITEMS = Object.freeze([
   // sub-equipment remain separate Asset rows owned by this System.
   item("wim-electronics-system", "ระบบอิเล็กทรอนิกส์ WIM", "WIM Electronics System", "WIM", "system", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ระบบ", ["2.3"], ["WIM ELECTRONICS", "WIM ELECTRONICS SYSTEM"]),
   item("wim-electronics", "ตู้ควบคุมอิเล็กทรอนิกส์ WIM", "WIM Electronics Cabinet", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ตู้", ["2.3"], ["WIM ELECTRONICS", "WIM ELECTRONICS CABINET"], "CONTROL_CABINET"),
-  item("wim-ac-dc-power-supply", "อุปกรณ์แปลงไฟ AC/DC", "AC/DC Power Supply", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ชุด", ["2.3"], ["AC/DC POWER SUPPLY"], "WIM_AC_DC_POWER_SUPPLY"),
+  item("wim-ac-dc-power-supply", "อุปกรณ์แปลงไฟ AC/DC", "AC/DC Power Supply", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ชุด", ["2.3"], ["AC/DC POWER SUPPLY"], "WIM_AC_DC_POWER_SUPPLY", { legacyOnly: true }),
   item("wim-network-equipment", "อุปกรณ์เชื่อมต่อเครือข่าย WIM", "WIM Network Equipment", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ชุด", ["2.3"], ["NETWORK EQUIPMENT"], "WIM_NETWORK_EQUIPMENT"),
   item("wim-controller", "ตัวควบคุม WIM", "WIM Controller", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ชุด", ["2.3"], ["WIM CONTROLLER"], "WIM_CONTROLLER"),
   item("wim-phase-protection", "อุปกรณ์ป้องกันเฟส", "Phase Protection", "WIM", "asset", FORMATS.BOTH, [...SCOPES.imps, ...SCOPES.speed], "ชุด", ["2.3"], ["PHASE PROTECTION"], "WIM_PHASE_PROTECTION"),
@@ -111,7 +111,9 @@ export function getCanonicalItemsForFormat(format) {
   // Legacy-only identities remain available to Snapshot/history decoders but
   // are excluded from new station catalogs. WIM Control/Electronics are
   // current selectable Systems, while the old LPR control Asset stays hidden.
-  return CANONICAL_STATION_ITEMS.filter((entry) => !entry.legacyOnly && entry.allowedFormats.includes(normalized));
+  return CANONICAL_STATION_ITEMS.filter((entry) => !entry.legacyOnly
+    && !/^wim-(high|low)-(data-control|reporting|display)$/.test(entry.id)
+    && entry.allowedFormats.includes(normalized));
 }
 
 export function getCanonicalItem(id) {

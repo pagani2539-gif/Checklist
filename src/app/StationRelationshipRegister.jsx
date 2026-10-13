@@ -1,7 +1,7 @@
+import { sortElectronicsByCabinet, electronicsTypeOrder } from "../domain/wim-electronics-order.js";
 import { AppIcon as Icon } from "./icon-system.jsx";
 import { Button } from "./controls/ActionControls.jsx";
-
-const HIDDEN_SYSTEM_CATEGORY_IDS = new Set(["wim-control", "wim-electronics"]);
+import { groupEquipmentBySubcategory } from "../domain/equipment-subcategories.js";
 
 function statusMeta(status) {
   if (status === "inactive") return { label: "ปิดใช้งาน", className: "is-inactive" };
@@ -11,14 +11,7 @@ function statusMeta(status) {
 }
 
 function sameScope(left, right) {
-  return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
-}
-
-function scopeForGroup(format, code) {
-  if (format === "IMPS") return "ImPS";
-  if (code === "01") return "High Speed";
-  if (code === "04") return "Low Speed";
-  return "";
+  return String(left || "").trim().toLocaleLowerCase() === String(right || "").trim().toLocaleLowerCase();
 }
 
 export default function StationRelationshipRegister({
@@ -46,7 +39,6 @@ export default function StationRelationshipRegister({
   assetStatusFor,
   systemStatusFor,
   getRelationshipPath,
-  getGroupSecondaryLabel,
   getSystemSecondaryLabel,
   getAssetSecondaryLabel,
   alwaysExpanded = false,
@@ -55,126 +47,150 @@ export default function StationRelationshipRegister({
   onEditLane,
   onDeleteLane,
   renderLaneEditor,
+  showMissingRows = false,
 }) {
-  const categoryIsActive = (categoryId) => activeCategoryKey === categoryId
-    || (activeCategoryKey === "wim" && ["wim-sorting", "wim-control", "wim-electronics", "wim-data-control"].includes(categoryId))
-    || (activeCategoryKey === "data-control" && ["wim-data-control", "data", "display-processing"].includes(categoryId));
+  const renderEquipmentSubcategories = (systemCanonicalId, items, renderItem) => groupEquipmentBySubcategory(
+    systemCanonicalId,
+    items,
+    (item) => item?.equipmentType || item?.type,
+  ).map(({ subcategory, items: groupedItems }) => <div className="ops-equipment-subcategory" key={subcategory.id} role="group" aria-label={`${subcategory.titleEn} · ${subcategory.titleTh}`}>
+    <header className="ops-equipment-subcategory-heading"><strong>{subcategory.titleEn}</strong><small>{subcategory.titleTh}</small></header>
+    <div className="ops-equipment-subcategory-items">{groupedItems.map(renderItem)}</div>
+  </div>);
 
-  const renderSystemRecord = (system, category, group) => {
+  const renderSystemRecord = (system, category) => {
     const definition = systemDefinitionsById?.get(system.canonicalItemId);
     const isWimInstance = isWimSortingSystemRecord(system);
+    const isLprInstance = String(system.canonicalItemId || system.systemId || "") === "lpr-control";
     const meta = statusMeta(systemStatusFor ? systemStatusFor(system) : "ready");
     const label = getSystemDisplayLabel(system);
     const secondaryLabel = getSystemSecondaryLabel?.(system);
     const lane = activeLanes.find((entry) => entry.id === system.laneId);
-    const path = getRelationshipPath({ format: group.format, groupCode: group.code, categoryId: category.id, kind: "system" });
+    const path = getRelationshipPath({ format: category.format, categoryId: category.id, scope: system.scope, kind: "system" });
     const isEditing = editingId === system.id && editingKind === "system";
     return <div className={`sc-relation-entry ${selectedKind === "system" && selectedId === system.id ? "is-selected" : ""}`} key={system.id} id={`sc-system-row-${system.id}`}>
       <div className="sc-relation-record is-system">
         <span className="sc-relation-record-kind">SYSTEM</span>
         <span className="sc-relation-record-copy"><strong>{isWimInstance ? `${label} #${system.instanceNo || "?"}` : label}</strong>{secondaryLabel && secondaryLabel !== label && <small className="sc-relation-name-th">{secondaryLabel}</small>}<small>{path} · {definition?.category || system.sourceRefs?.join(", ") || "Canonical System"}</small></span>
         <span className="sc-relation-record-meta">{system.quantity ?? 0} {system.unit || system.referenceUnit || definition?.defaultUnit || "ระบบ"}</span>
-        <span className="sc-relation-record-meta">{isWimInstance ? (lane ? `Lane ${lane.laneNo}` : "ยังไม่ผูก Lane") : system.scope || "ทุกช่อง"}</span>
+        <span className="sc-relation-record-meta">{isWimInstance || isLprInstance ? (lane ? `Lane ${lane.laneNo} · ${system.scope || "ไม่ระบุ Scope"}` : "ยังไม่ผูก Lane") : system.scope || "ทุกช่อง"}</span>
         <span className={`sc-status ${meta.className}`}><i />{meta.label}</span>
-        <span className="sc-relation-record-actions">{(onEdit || onSelect) && <Button variant="secondary" onClick={() => onEdit ? onEdit(system, "system", category.id) : onSelect(system.id, "system", category.id)} aria-label={`แก้ไข ${label}`}>แก้ไข</Button>}{onDelete && <Button variant="danger-ghost" onClick={() => onDelete(system, "system")} aria-label={`ลบ ${label}`}>ลบ</Button>}</span>
+        <span className="sc-relation-record-actions">{(onEdit || onSelect) && <Button variant="secondary" onClick={() => onEdit ? onEdit(system, "system", category.id) : onSelect(system.id, "system", category.id, system.scope)} aria-label={`แก้ไข ${label}`}>แก้ไข</Button>}{onDelete && <Button variant="danger-ghost" onClick={() => onDelete(system, "system")} aria-label={`ลบ ${label}`}>ลบ</Button>}</span>
       </div>
       {isEditing && renderInlineEditor?.(system, "system")}
     </div>;
   };
 
-  const renderAssetRecord = (asset, category, group) => {
-    const parent = getWimSortingSystemById(stationSystems, asset.parentSystemId);
-    const lane = parent ? activeLanes.find((entry) => entry.id === parent.laneId) : activeLanes.find((entry) => entry.id === asset.laneId);
+  const renderAssetRecord = (entry, category, scope) => {
+    const asset = entry.record || entry;
+    const parent = entry.parentSystem || getWimSortingSystemById(stationSystems, asset.parentSystemId);
+    const lane = parent ? activeLanes.find((candidate) => candidate.id === parent.laneId) : activeLanes.find((candidate) => candidate.id === asset.laneId);
     const meta = statusMeta(assetStatusFor ? assetStatusFor(asset) : (asset.active === false ? "inactive" : "ready"));
-    const path = getRelationshipPath({ format: group.format, groupCode: group.code, categoryId: category.id, kind: "asset" });
+    const path = getRelationshipPath({ format: category.format, categoryId: category.id, scope: scope.scope, kind: "asset" });
     const isEditing = editingId === asset.id && editingKind === "asset";
-    const scope = parent?.scope || asset.scope || "—";
     const label = getAssetDisplayLabel(asset);
     const secondaryLabel = getAssetSecondaryLabel?.(asset);
+    const relationHint = entry.association === "catalog-scope-inferred" ? " · จัดใต้ System จากชนิดและ Scope (ไม่บันทึกความสัมพันธ์เพิ่ม)" : "";
+    const scopeLabel = parent?.scope || asset.scope || scope.scope || "ไม่ระบุ Scope";
     return <div className={`sc-relation-entry ${selectedKind === "asset" && selectedId === asset.id ? "is-selected" : ""} ${asset.active === false ? "is-inactive" : ""}`} key={asset.id} id={`sc-asset-row-${asset.id}`}>
       <div className="sc-relation-record is-asset">
-        <span className="sc-relation-record-kind">ASSET</span>
-        <span className="sc-relation-record-copy"><strong>{label}{isWimEquipment(asset) && parent ? ` · WIM Sorting System #${parent.instanceNo || "?"}` : ""}</strong>{secondaryLabel && secondaryLabel !== label && <small className="sc-relation-name-th">{secondaryLabel}</small>}<small>{path} · {asset.location || "ยังไม่ระบุตำแหน่ง"}</small></span>
+        <span className="sc-relation-record-kind">EQUIPMENT</span>
+        <span className="sc-relation-record-copy"><strong>{label}{isWimEquipment(asset) && parent ? ` · WIM Sorting System #${parent.instanceNo || "?"}` : asset.type === "LPR_CAMERA" && parent ? " · LPR System" : ""}</strong>{secondaryLabel && secondaryLabel !== label && <small className="sc-relation-name-th">{secondaryLabel}</small>}<small>{path} · {asset.location || "ยังไม่ระบุตำแหน่ง"}{relationHint}</small></span>
         <span className="sc-relation-record-meta"><strong className="ops-code">{asset.assetNo || "ยังไม่มี Asset No."}</strong></span>
-        <span className="sc-relation-record-meta">{scope}{isWimEquipment(asset) ? ` · ${lane ? `Lane ${lane.laneNo}` : "ยังไม่ผูก Lane"}` : ""}</span>
+        <span className="sc-relation-record-meta">{scopeLabel}{isWimEquipment(asset) || asset.type === "LPR_CAMERA" ? ` · ${lane ? `Lane ${lane.laneNo}` : "ยังไม่ผูก Lane"}` : ""}</span>
         <span className={`sc-status ${meta.className}`}><i />{meta.label}</span>
-        <span className="sc-relation-record-actions">{(onEdit || onSelect) && <Button variant="secondary" onClick={() => onEdit ? onEdit(asset, "asset", category.id) : onSelect(asset.id, "asset", category.id)} aria-label={`แก้ไข ${getAssetDisplayLabel(asset)}`}>แก้ไข</Button>}{onDelete && <Button variant="danger-ghost" onClick={() => onDelete(asset, "asset")} aria-label={`ลบ ${getAssetDisplayLabel(asset)}`}>ลบ</Button>}</span>
+        <span className="sc-relation-record-actions">{(onEdit || onSelect) && <Button variant="secondary" onClick={() => onEdit ? onEdit(asset, "asset", category.id) : onSelect(asset.id, "asset", category.id, scope.scope)} aria-label={`แก้ไข ${label}`}>แก้ไข</Button>}{onDelete && <Button variant="danger-ghost" onClick={() => onDelete(asset, "asset")} aria-label={`ลบ ${label}`}>ลบ</Button>}</span>
       </div>
       {isEditing && renderInlineEditor?.(asset, "asset")}
     </div>;
   };
 
-  const visibleTree = tree;
-  if (!visibleTree.length) return <div className="sc-relationship-empty"><Icon name="info" pixelSize={18} /><strong>ยังไม่มีหมวดในรูปแบบสถานีนี้</strong><span>ตรวจสอบรูปแบบสถานีและผังรายการมาตรฐาน</span></div>;
+  const renderEquipmentOption = (option, category, scope, parentSystem = null, disabledByMissingParent = false, hideRecords = false) => {
+    const existingEntries = parentSystem?.equipment || [];
+    const records = existingEntries.filter((entry) => {
+      const asset = entry.record || entry;
+      return String(asset.type || "").toUpperCase() === String(option.equipmentType || "").toUpperCase();
+    });
+    const canAddWimEquipment = !["WIM_SENSOR", "WIM_LOOP"].includes(String(option.equipmentType || "").toUpperCase())
+      || (parentSystem && activeLanes.some((lane) => lane.id === parentSystem.record?.laneId || lane.id === parentSystem.laneId));
+    const isLprCamera = String(option.equipmentType || "").toUpperCase() === "LPR_CAMERA";
+    const lprParent = parentSystem?.record || null;
+    const lprLane = isLprCamera && String(lprParent?.canonicalItemId || lprParent?.systemId || "") === "lpr-control"
+      ? activeLanes.find((lane) => lane.id === lprParent.laneId)
+      : null;
+    const canAddLprCamera = !isLprCamera || Boolean(lprLane && records.length === 0);
+    return <div className="sc-relationship-choice" key={`${option.id}-${parentSystem?.id || parentSystem?.record?.id || "unowned"}`}>
+      <div className="sc-relationship-choice-header"><span className="sc-relation-record-copy"><strong>{option.nameEn || option.nameTh}</strong>{option.nameTh && option.nameTh !== option.nameEn && <small className="sc-relation-name-th">{option.nameTh}</small>}<small>{scope.scope} · BOQ/TOR {option.sourceRefs?.join(", ") || "รายการมาตรฐาน"}</small></span><span className="sc-relationship-choice-count">{isLprCamera ? `${records.length}/1 กล้อง` : `ติดตั้ง ${records.length}`}</span><Button onClick={() => onAdd?.(category.id, "asset", { ...option, ...(parentSystem?.record?.id || parentSystem?.id ? { parentId: parentSystem.record?.id || parentSystem.id } : {}) }, option.groupCode)} variant="secondary" icon="plus" disabled={disabledByMissingParent || !canAddWimEquipment || !canAddLprCamera}>{isLprCamera ? "เพิ่มกล้อง" : "เพิ่ม"}</Button></div>
+      {disabledByMissingParent && <small className="sc-relationship-add-requirement">เพิ่ม System แม่ใน Scope นี้ก่อน จึงจะเพิ่ม Equipment ได้</small>}
+      {!canAddWimEquipment && <small className="sc-relationship-add-requirement">เพิ่ม Lane และ WIM Sorting System ใน Scope นี้ก่อน เพื่อผูก Sensor/Loop ให้ถูกช่อง</small>}
+      {isLprCamera && !lprLane && <small className="sc-relationship-add-requirement">เพิ่มหรือผูก LPR System กับ Lane ใน Scope นี้ก่อน</small>}
+      {isLprCamera && records.length > 0 && <small className="sc-relationship-add-requirement">System นี้มีกล้องแล้ว 1 ตัว</small>}
+      {!hideRecords && records.map((entry) => renderAssetRecord(entry, category, scope))}
+    </div>;
+  };
+
+  if (!tree.length) return <div className="sc-relationship-empty"><Icon name="info" pixelSize={18} /><strong>ไม่พบรายการที่แสดงได้</strong><span>หากกำลังค้นหาหรือกรอง ให้ล้างคำค้นหาและตัวกรอง หากยังไม่มีรายการ ให้เพิ่มระบบหรืออุปกรณ์ติดตั้งจริง</span></div>;
 
   return <div id="sc-relationship-tree" className={`sc-relationship-tree ${alwaysExpanded ? "is-single-group-view" : ""}`} aria-label="ผังความสัมพันธ์ระบบและอุปกรณ์">
-    {visibleTree.map((group) => {
+    {tree.map((group) => {
+      const category = group.categories?.[0] || group;
       const expanded = alwaysExpanded || expandedGroupId === group.groupId;
-      const groupSecondaryLabel = getGroupSecondaryLabel?.(group);
-      const groupHeadingContents = <><span className="sc-system-chevron" aria-hidden="true">›</span><span className="ops-config-section-code">{group.groupId}</span><span className="sc-relationship-work-copy"><strong>{group.title}</strong>{groupSecondaryLabel && <small className="sc-relationship-name-th">{groupSecondaryLabel}</small>}<small>{group.sourceRefs?.length ? `อ้างอิง ${group.sourceRefs.join(", ")}` : "กลุ่มความสัมพันธ์ของสถานี"}</small></span><span className="sc-relationship-work-count">{group.systemCount} System · {group.assetCount} Asset</span></>;
+      const groupHeading = <><span className="sc-system-chevron" aria-hidden="true">›</span><span className="sc-relationship-work-copy"><strong>{group.title || category.label}</strong><small className="sc-relationship-name-th">{group.description || category.description}</small><small>{category.sourceRefs?.length ? `อ้างอิง BOQ/TOR ${category.sourceRefs.join(", ")}` : "จุดติดตั้งของสถานี"}</small></span><span className="sc-relationship-work-count">{category.systemCount} System · {category.assetCount} Equipment</span></>;
       return <article className={`sc-relationship-work-group ${expanded ? "is-expanded" : ""}`} id={`sc-work-group-${group.groupId}`} key={group.groupId}>
         <div className="sc-relationship-work-heading">
           {alwaysExpanded
-            ? <div className="sc-relationship-work-toggle is-static" role="heading" aria-level="3">{groupHeadingContents}</div>
-            : <button type="button" className="sc-relationship-work-toggle" aria-expanded={expanded} onClick={() => onToggleGroup(group.groupId)}>{groupHeadingContents}</button>}
-          <span className="sc-relationship-work-status">{group.hasData ? "ติดตั้งแล้ว" : "ตามผัง · ยังไม่ติดตั้ง"}</span>
+            ? <div className="sc-relationship-work-toggle is-static" role="heading" aria-level="3">{groupHeading}</div>
+            : <button type="button" className="sc-relationship-work-toggle" aria-expanded={expanded} onClick={() => onToggleGroup?.(group.groupId)}>{groupHeading}</button>}
+          <span className="sc-relationship-work-status">{category.hasData ? "ติดตั้งแล้ว" : "ตามผัง · ยังไม่ติดตั้ง"}</span>
         </div>
         {(expanded || alwaysExpanded) && <div className="sc-relationship-work-body">
-          {group.categories.map((category) => {
-            const active = categoryIsActive(category.id);
-            const matchedAssets = new Set();
-            const matchedSystems = new Set();
-            const equipmentChoices = (category.equipmentOptions || []).map((option) => {
-              const records = category.assets.filter((asset) => {
-                const parent = getWimSortingSystemById(stationSystems, asset.parentSystemId);
-                const scope = parent?.scope || asset.scope || "";
-                const typeMatches = String(asset.type || "").toUpperCase() === String(option.equipmentType || "").toUpperCase();
-                const scopeMatches = sameScope(scope, option.scope);
-                if (typeMatches && scopeMatches) matchedAssets.add(asset.id);
-                return typeMatches && scopeMatches;
-              });
-              return { option, records };
+          {category.scopes.filter((scope) => showMissingRows || scope.hasData).map((scope) => {
+            const systemIds = new Set(scope.systems.map((node) => node.canonicalItemId));
+            const systemRows = scope.systems.map((node) => {
+              const system = node.record;
+              const option = scope.systemOptions.find((candidate) => candidate.canonicalItemId === node.canonicalItemId);
+              const equipmentOptions = node.equipmentOptions?.length ? node.equipmentOptions : (option?.equipmentOptions || []);
+              const renderedAssets = new Set();
+              return <section className="sc-relationship-parent" key={system.id} data-parent-system-id={system.id}>
+                {renderSystemRecord(system, category)}
+                <div className="sc-relationship-children" aria-label={`Equipment ใต้ ${getSystemDisplayLabel(system)}`}>
+                  {node.canonicalItemId === "wim-electronics-system" ? <>
+                    {sortElectronicsByCabinet(node.equipment, entry => entry.record || entry).map(entry => {
+                      const asset = entry.record || entry;
+                      const cabinet = node.equipment.map(value => value.record || value).find(value => value.id === asset.parentAssetId && value.type === "CONTROL_CABINET");
+                      return <div key={asset.id} className="sc-electronics-asset" data-cabinet-id={cabinet?.id || (asset.type === "CONTROL_CABINET" ? asset.id : "unassigned")}>
+                        {asset.type === "CONTROL_CABINET" ? <h4>{asset.assetNo || "Cabinet"}</h4> : <small>{cabinet ? `ตู้ ${cabinet.assetNo || cabinet.id}` : "ยังไม่ระบุตู้"}</small>}
+                        {renderAssetRecord(entry, category, scope)}
+                      </div>;
+                    })}
+                    <div className="sc-electronics-add-options" aria-label="เพิ่มอุปกรณ์ WIM Electronics">
+                      {[...equipmentOptions].sort((a, b) => electronicsTypeOrder(a.equipmentType) - electronicsTypeOrder(b.equipmentType)).map(option => renderEquipmentOption(option, category, scope, node, false, true))}
+                    </div>
+                  </> : <>
+                  {renderEquipmentSubcategories(system.canonicalItemId || system.systemId, equipmentOptions, (equipmentOption) => {
+                    const entries = node.equipment.filter((entry) => String((entry.record || entry).type || "").toUpperCase() === String(equipmentOption.equipmentType || "").toUpperCase());
+                    entries.forEach((entry) => renderedAssets.add((entry.record || entry).id));
+                    return renderEquipmentOption({ ...equipmentOption, id: `${equipmentOption.id}::${system.id}` }, category, scope, node);
+                  })}
+                  {renderEquipmentSubcategories(system.canonicalItemId || system.systemId, node.equipment.filter((entry) => !renderedAssets.has((entry.record || entry).id)), (entry) => renderAssetRecord(entry, category, scope))}
+                  </>}
+                  {!equipmentOptions.length && !node.equipment.length && <div className="sc-relationship-kind-empty">System นี้ยังไม่มี Equipment</div>}
+                </div>
+              </section>;
             });
-            const canAddWimEquipment = (option) => {
-              const requiresParent = category.id === "wim-sorting"
-                && ["WIM_SENSOR", "WIM_LOOP"].includes(String(option.equipmentType || "").toUpperCase());
-              if (!requiresParent) return true;
-              return stationSystems.some((system) => isWimSortingSystemRecord(system)
-                && system.active !== false
-                && sameScope(system.scope, option.scope)
-                && activeLanes.some((lane) => lane.id === system.laneId));
-            };
-            const systemChoices = (category.systemOptions || []).map((option) => {
-              const records = category.systems.filter((system) => system.canonicalItemId === option.canonicalItemId && sameScope(system.scope, option.scope));
-              records.forEach((system) => matchedSystems.add(system.id));
-              return { option, records };
-            });
-            const otherAssets = category.assets.filter((asset) => !matchedAssets.has(asset.id));
-            const otherSystems = category.systems.filter((system) => !matchedSystems.has(system.id));
-            const hasEquipment = equipmentChoices.length > 0 || category.assets.length > 0;
-            const hasSystems = systemChoices.length > 0 || category.systems.length > 0;
-            const scopedLanes = category.id !== "wim-sorting" ? [] : activeLanes.filter((lane) => {
-              const parent = stationSystems.find((system) => isWimSortingSystemRecord(system) && system.laneId === lane.id);
-              const laneScope = lane.scope || parent?.scope || (group.format === "IMPS" ? "ImPS" : group.code === "04" ? "Low Speed" : "High Speed");
-              const expectedScope = scopeForGroup(group.format, group.code);
-              return !expectedScope || sameScope(laneScope, expectedScope);
-            });
-            return <section className={`sc-relationship-category ops-station-category-card ${active ? "is-active" : ""} ${!category.hasData ? "is-empty" : ""}`} data-station-category={category.id} key={`${group.groupId}-${category.id}`}>
-              <header className="sc-relationship-category-heading"><span className="sc-system-card-icon"><Icon name="system" pixelSize={18} /></span><div><strong className="ops-station-category-title">{category.label}</strong><small className="ops-station-category-meta">{category.description}</small></div><span className="sc-relationship-category-count">{category.systemCount} System · {category.assetCount} Asset</span><div className="sc-relationship-category-actions">{category.id === "wim-sorting" && <Button onClick={() => onAddLane?.(group.code)} variant="secondary" icon="plus">เพิ่ม Lane</Button>}</div></header>
-              {category.id === "wim-sorting" && <section className="sc-lane-register" aria-label={`โครงสร้าง Lane ${category.label}`}><div className="sc-lane-register-heading"><strong>Lane และ WIM Parent</strong><span>{scopedLanes.length} Lane</span></div>{scopedLanes.length ? scopedLanes.map((lane) => <div className="sc-lane-register-entry" key={lane.id}><span className="sc-lane-register-icon"><Icon name="lane" size="small" /></span><span className="sc-lane-register-copy"><strong>Lane {lane.laneNo} · {lane.label || "ช่องจราจร"}</strong><small>{lane.direction || "ยังไม่ระบุทิศทาง"} · {stationSystems.some((system) => isWimSortingSystemRecord(system) && system.laneId === lane.id) ? "มี WIM Sorting System" : "ยังไม่มี WIM Sorting System"}</small></span><span className="sc-relation-record-actions"><Button variant="secondary" onClick={() => onEditLane?.(lane.id)}>แก้ไข Lane</Button><Button variant="danger-ghost" onClick={() => onDeleteLane?.(lane.id)}>ลบ Lane</Button></span>{editingLaneId === lane.id && renderLaneEditor?.(lane)}</div>) : <div className="sc-relationship-kind-empty">ยังไม่มี Lane ในขอบเขตนี้</div>}</section>}
-              <div className="sc-relationship-kinds">
-                {hasEquipment && <section className="sc-relationship-kind" aria-label={`${category.label} Equipment`}><div className="sc-relationship-kind-heading"><span>.01</span><span className="sc-relationship-kind-title"><strong>Equipment</strong><small>อุปกรณ์</small></span><small>{category.assetCount} รายการจริง</small></div>
-                  {equipmentChoices.map(({ option, records }) => { const canAdd = canAddWimEquipment(option); return <div className="sc-relationship-choice" key={option.id}><div className="sc-relationship-choice-header"><span className="sc-relation-record-copy"><strong>{option.nameEn || option.nameTh}</strong>{option.nameTh && option.nameTh !== option.nameEn && <small className="sc-relation-name-th">{option.nameTh}</small>}<small>{option.scope || "ทุกช่อง"} · {option.sourceRefs?.join(", ") || "รายการมาตรฐาน"}</small></span><span className="sc-relationship-choice-count">ติดตั้ง {records.length}</span><Button onClick={() => onAdd(category.id, "asset", option, group.code)} variant="secondary" icon="plus" disabled={!canAdd}>เพิ่ม</Button></div>{!canAdd && <small className="sc-relationship-add-requirement">เพิ่ม Lane และ WIM Sorting System ใน Scope นี้ก่อน เพื่อผูก Sensor/Loop ให้ถูกช่อง</small>}{records.map((asset) => renderAssetRecord(asset, category, group))}</div>; })}
-                  {otherAssets.length > 0 && <div className="sc-relationship-unmapped"><strong>{category.id === "unmapped" ? "รายการนอกผังหรือยังไม่จัดหมวด" : "รายการเดิมที่ไม่ตรงตัวเลือกมาตรฐาน"}</strong><small>{category.id === "unmapped" ? "แสดงข้อมูลจริงไว้ให้ตรวจและแก้หมวดหรือขอบเขตได้" : "ยังแสดงข้อมูลจริงไว้เพื่อไม่ให้รายการสูญหาย"}</small>{otherAssets.map((asset) => renderAssetRecord(asset, category, group))}</div>}
-                  {!equipmentChoices.length && !category.assets.length && <div className="sc-relationship-kind-empty">หมวดนี้ไม่มี Equipment ตามรายการมาตรฐาน</div>}
-                </section>}
-                {hasSystems && <section className="sc-relationship-kind" aria-label={`${category.label} Systems and Software`}><div className="sc-relationship-kind-heading"><span>.02</span><span className="sc-relationship-kind-title"><strong>Systems &amp; Software</strong><small>ระบบและซอฟต์แวร์</small></span><small>{category.systemCount} ระบบจริง</small></div>
-                  {systemChoices.map(({ option, records }) => <div className="sc-relationship-choice" key={option.id}><div className="sc-relationship-choice-header"><span className="sc-relation-record-copy"><strong>{option.nameEn || option.nameTh}</strong>{option.nameTh && option.nameTh !== option.nameEn && <small className="sc-relation-name-th">{option.nameTh}</small>}<small>{option.scope || "ทุกช่อง"} · {option.sourceRefs?.join(", ") || "รายการมาตรฐาน"}</small></span><span className="sc-relationship-choice-count">{records.length ? `${records.length} ระบบติดตั้ง` : "ยังไม่ติดตั้ง"}</span><Button onClick={() => onAdd(category.id, "system", option, group.code)} variant="secondary" icon="plus" disabled={category.id !== "wim-sorting" && records.length > 0}>{category.id === "wim-sorting" ? "เพิ่มระบบ / Lane" : records.length ? "ติดตั้งแล้ว" : "เพิ่ม"}</Button></div>{records.map((system) => renderSystemRecord(system, category, group))}</div>)}
-                  {category.id === "unmapped" && otherSystems.length > 0 && <div className="sc-relationship-unmapped"><strong>ระบบนอกผังหรือยังไม่จัดหมวด</strong><small>แสดงข้อมูลจริงไว้ให้ตรวจและแก้หมวดหรือขอบเขตได้</small>{otherSystems.map((system) => renderSystemRecord(system, category, group))}</div>}
-                  {category.id !== "unmapped" && otherSystems.map((system) => renderSystemRecord(system, category, group))}
-                  {!systemChoices.length && !category.systems.length && !HIDDEN_SYSTEM_CATEGORY_IDS.has(category.id) && <div className="sc-relationship-kind-empty">หมวดนี้ไม่มี Systems &amp; Software ตามรายการมาตรฐาน</div>}
-                </section>}
-                {!hasEquipment && !hasSystems && <div className="sc-relationship-kind-empty">หมวดนี้ไม่มีรายการตามรูปแบบสถานี</div>}
+
+            const uninstalledOptions = showMissingRows ? scope.systemOptions.filter((option) => !systemIds.has(option.canonicalItemId)) : [];
+            return <section className={`sc-relationship-scope ${scope.hasData ? "has-data" : "is-empty"}`} data-station-scope={scope.scope} key={scope.id}>
+              <header className="sc-relationship-scope-heading"><span className="sc-system-card-icon"><Icon name="pin" pixelSize={16} /></span><div><strong>Scope · {scope.scope}</strong><small>{scope.systemCount} System · {scope.assetCount} Equipment</small></div></header>
+              {category.id === "wim" && <section className="sc-lane-register" aria-label={`Lane ใน Scope ${scope.scope}`}><div className="sc-lane-register-heading"><strong>Lane ของ WIM</strong><span>{activeLanes.filter((lane) => sameScope(lane.scope || stationSystems.find((system) => system.laneId === lane.id)?.scope, scope.scope)).length} Lane</span></div>{activeLanes.filter((lane) => sameScope(lane.scope || stationSystems.find((system) => system.laneId === lane.id)?.scope, scope.scope)).length ? activeLanes.filter((lane) => sameScope(lane.scope || stationSystems.find((system) => system.laneId === lane.id)?.scope, scope.scope)).map((lane) => <div className="sc-lane-register-entry" key={lane.id}><span className="sc-lane-register-icon"><Icon name="lane" size="small" /></span><span className="sc-lane-register-copy"><strong>Lane {lane.laneNo} · {lane.label || "ช่องจราจร"}</strong><small>{lane.direction || "ยังไม่ระบุทิศทาง"} · {stationSystems.some((system) => isWimSortingSystemRecord(system) && system.laneId === lane.id) ? "มี WIM Sorting System" : "ยังไม่มี WIM Sorting System"}</small></span><span className="sc-relation-record-actions">{onEditLane && <Button variant="secondary" onClick={() => onEditLane(lane.id)}>แก้ไข Lane</Button>}{onDeleteLane && <Button variant="danger-ghost" onClick={() => onDeleteLane(lane.id)}>ลบ Lane</Button>}</span>{editingLaneId === lane.id && renderLaneEditor?.(lane)}</div>) : <div className="sc-relationship-kind-empty">ยังไม่มี Lane ใน Scope นี้</div>}</section>}
+              <div className="sc-relationship-scope-content">
+                {systemRows}
+                {uninstalledOptions.map((option) => <section className="sc-relationship-parent is-template" key={option.id}>
+                  <div className="sc-relationship-choice"><div className="sc-relationship-choice-header"><span className="sc-relation-record-copy"><strong>{option.nameEn || option.nameTh}</strong>{option.nameTh && option.nameTh !== option.nameEn && <small className="sc-relation-name-th">{option.nameTh}</small>}<small>{scope.scope} · System · BOQ/TOR {option.sourceRefs?.join(", ") || "รายการมาตรฐาน"}</small></span><span className="sc-relationship-choice-count">ยังไม่ติดตั้ง</span><Button onClick={() => onAdd?.(category.id, "system", option, option.groupCode)} variant="secondary" icon="plus">เพิ่ม System</Button></div></div>
+                  <div className="sc-relationship-children">{renderEquipmentSubcategories(option.canonicalItemId || option.id, option.equipmentOptions || [], (childOption) => renderEquipmentOption(childOption, category, scope, null, true))}</div>
+                </section>)}
+                {scope.unlinkedAssets.length > 0 && <section className="sc-relationship-unlinked" aria-label={`Equipment ยังไม่ผูก System ใน Scope ${scope.scope}`}><header><strong>ยังไม่ผูก System</strong><small>แสดงไว้ครบ ไม่ได้เติมหรือแก้ความสัมพันธ์ในข้อมูลสถานี</small></header>{scope.unlinkedAssets.map((entry) => renderAssetRecord(entry, category, scope))}</section>}
+                {!systemRows.length && !uninstalledOptions.length && !scope.unlinkedAssets.length && <div className="sc-relationship-kind-empty">Scope นี้ยังไม่มี System หรือ Equipment</div>}
               </div>
             </section>;
           })}

@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { saveServerOperations } from '../src/domain/server-storage.js';
+const operations=[{type:'set',path:['referenceData','test'],exists:false,value:'saved'}];
+let calls=[];
+globalThis.fetch=async(url,options)=>{calls.push({url,options});if(calls.length===1)throw TypeError('response lost');return{ok:true,json:async()=>({version:4,operationId:'transport-request'})};};
+assert.equal((await saveServerOperations(operations,'transport-request')).version,4);
+assert.equal(calls.length,2);assert.equal(calls[0].options.method,'PATCH');assert.equal(calls[0].options.body,calls[1].options.body,'unknown response retries the same operation');assert.equal(JSON.parse(calls[0].options.body).state,undefined);
+calls=[];globalThis.fetch=async()=>{calls.push(1);return{ok:false,status:409,json:async()=>({message:'conflict'}),headers:{get:()=>null}};};
+await assert.rejects(()=>saveServerOperations(operations,'transport-request'),error=>error.status===409);assert.equal(calls.length,1);
+globalThis.fetch=async()=>({ok:true,json:async()=>({version:4,operationId:'wrong-request'})});
+await assert.rejects(()=>saveServerOperations(operations,'transport-request'),error=>error.status===502);
+delete globalThis.fetch;
+console.log('compact transport, unknown-response replay, conflict handling and exact acknowledgement passed');

@@ -105,14 +105,16 @@ const orderedScSystems = sortCanonicalSystemDefinitions(
   "SC",
   (item) => item.id.includes("low") || item.id === "vms-control" ? "Low Speed" : "High Speed",
 );
-assert.deepEqual(orderedScSystems.slice(0, 7).map((item) => item.id), [
+assert.deepEqual(orderedScSystems.map((item) => item.id), [
   "wim-sorting",
   "wim-control",
   "wim-electronics-system",
-  "wim-high-data-control",
-  "wim-high-reporting",
-  "wim-high-display",
   "lpr-control",
+  "cctv-system",
+  "dimension-management",
+  "vms-control",
+  "data-management",
+  "station-display",
 ]);
 assert.ok(orderedScSystems.indexOf(orderedScSystems.find((item) => item.id === "wim-sorting")) < orderedScSystems.length - 1,
   "WIM Sorting is ordered with WIM systems, not appended after every other system");

@@ -154,7 +154,7 @@ assert.ok(reopenedOldItems.filter((item) => item.systemRecordId?.startsWith("wim
 assert.equal(wimItems.length, 13, "new WIM checklist rows follow actual parent-linked Sensor/Loop counts");
 assert.deepEqual(new Set(wimItems.map((item) => item.laneId)), new Set(["lane-1", "lane-2"]));
 assert.equal(wimItems.some((item) => item.laneId === "lane-3"), false, "a physical Lane without WIM stays out of WIM rows");
-assert.ok(wimItems.every((item) => item.label.includes("WIM Sorting System #")));
+assert.ok(wimItems.every((item) => item.label.includes(`ช่องจราจร ${item.laneNo}`)));
 assert.equal(items.filter((item) => item.sectionCode === "3.1" && item.laneId).length, 0,
   "lane topology without an installed same-scope LPR System does not create LPR checks");
 
@@ -176,6 +176,13 @@ const mixedScopeProfile = normalizeStationProfile({
     system("wim-high", "lane-1", 1, "High Speed"),
     system("wim-low", "lane-2", 2, "Low Speed"),
   ],
+  vehicleSearchConfig: {
+    systems: {
+      "sc-hs": { baseUrl: "https://hs.fixture.invalid" },
+      "sc-ls": { baseUrl: "https://ls.fixture.invalid" },
+      imps: { baseUrl: "https://imps.fixture.invalid", searchUrl: "https://imps.fixture.invalid/search" },
+    },
+  },
   lanes,
   equipment: [
     makeEquipment("WIM_SENSOR", 21, { id: "sensor-high", assetNo: "SENSOR-HIGH", parentSystemId: "wim-high", laneId: "lane-1", scope: "High Speed" }),
@@ -204,11 +211,14 @@ const scopeOrderingProfile = normalizeStationProfile({
     system("wim-order-high", "lane-1", 1, "High Speed"),
   ],
 });
-const orderedWimSystems = getItemsForSnapshot(createInspectionRound(scopeOrderingProfile).snapshot)
+// This profile intentionally spans SC and IMPS only to exercise the shared
+// WIM display ordering. It is not a valid new SC round, so test snapshot row
+// ordering directly instead of invoking the round-readiness guard.
+const orderedWimSystems = getItemsForSnapshot(createSnapshot(scopeOrderingProfile))
   .filter((item) => item.sectionCode === "2.1" && item.systemRecordId);
 assert.deepEqual(orderedWimSystems.map((item) => item.scope), ["High Speed", "Low Speed", "ImPS"],
   "new WIM system evidence follows High Speed, Low Speed, then ImPS order");
-assert.ok(orderedWimSystems[0].label.includes("Lane 1"), "WIM system evidence displays the actual Lane number");
+assert.ok(orderedWimSystems[0].label.includes("ช่องจราจร 1"), "WIM system evidence displays the actual Lane number");
 
 const duplicateLane = normalizeStationProfile({
   ...profile,

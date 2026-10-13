@@ -1,3 +1,4 @@
+import "../../styles/contracts.css";
 import ContractWorkReportCover from "../ContractWorkReportCover.jsx";
 
 function buildModel({ contract, workPackage, station, regions, report }) {

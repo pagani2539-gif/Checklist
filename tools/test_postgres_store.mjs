@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { createPostgresStore } from "../server/postgres-store.mjs";
+import { assertIsolatedTestDatabaseUrl } from "./database_url_test_support.mjs";
 
 const connectionString = process.env.CHECKLIST_POSTGRES_TEST_DATABASE_URL;
 if (!connectionString) {
   console.log("test_postgres_store: skipped (set CHECKLIST_POSTGRES_TEST_DATABASE_URL for integration coverage)");
   process.exit(0);
 }
+const isolatedConnectionString = assertIsolatedTestDatabaseUrl(connectionString);
 
-const store = await createPostgresStore({ connectionString });
+const store = await createPostgresStore({ connectionString: isolatedConnectionString });
 try {
   const initial = await store.getState();
   const runId = Date.now().toString(36);

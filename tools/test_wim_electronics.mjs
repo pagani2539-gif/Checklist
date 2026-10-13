@@ -64,7 +64,7 @@ assert.equal(electronicsItems.some((item) => item.id === "2.3.ac-dc-01"), false,
 assert.equal(electronicsItems.some((item) => item.label.includes("12VDC")), true);
 assert.equal(electronicsItems.some((item) => item.label.includes("48VDC")), true);
 assert.equal(electronicsItems.some((item) => item.label.includes("24VDC")), false, "unselected DC output must not create a checklist item");
-assert.equal(electronicsItems.some((item) => item.label.includes("Transformer AC 24VAC")), true);
+assert.equal(electronicsItems.some((item) => item.label.includes("หม้อแปลงไฟ AC 24VAC")), true);
 assert.equal(electronicsItems.filter((item) => item.assetId === controller.id && item.label.includes("Cal Factor")).length, 1);
 assert.equal(new Set(electronicsItems.map((item) => item.id)).size, electronicsItems.length);
 
@@ -80,17 +80,18 @@ const defaultRound = createInspectionRound(createDefaultStationProfile());
 const defaultElectronicsItems = getItemsForSnapshot(defaultRound.snapshot).filter((item) => item.sectionCode === "2.3"
   && !item.isEquipmentCleaning && !item.isAreaCleaning);
 assert.deepEqual(defaultElectronicsItems.map((item) => item.label), [
-  "WIM Electronics Cabinet · ภาพรวมตู้ควบคุมอิเล็กทรอนิกส์ WIM · CAB-GEN-01",
-  "WIM Electronics Cabinet · อุปกรณ์ควบคุมไฟฟ้าภายในตู้ · CAB-GEN-01",
-  "WIM Electronics Cabinet · ไฟฟ้าหลักขาเข้า · CAB-GEN-01",
-  "WIM Electronics Cabinet · กระแสไฟฟ้าหลัก · CAB-GEN-01",
-  "WIM Electronics System · ตรวจการทำงานของซอฟต์แวร์",
+  "ตรวจตำแหน่งตู้ควบคุมอิเล็กทรอนิกส์ WIM · CAB-GEN-01",
+  "ตรวจสายไฟ จุดต่อส่วนกลาง และสายดินของตู้ · CAB-GEN-01",
+  "วัดแรงดันไฟฟ้าหลักขาเข้า · CAB-GEN-01",
+  "วัดกระแสไฟฟ้าหลัก · CAB-GEN-01",
+  "ตรวจการทำงานของระบบอิเล็กทรอนิกส์ WIM · ทั้งสถานี",
 ]);
 assert.equal(defaultElectronicsItems.some((item) => /AC\/DC|Network|WIM Controller|Sub Breaker|Transformer|Switching DC/.test(item.label)), false,
   "a cabinet without registered WIM sub-equipment must not receive phantom child checks");
 const historicalWimSnapshot = {
   ...defaultRound.snapshot,
   checklistPolicyVersion: PREVIOUS_CURRENT_CHECKLIST_POLICY_VERSION,
+  checklistWordingVersion: null,
   stationSystems: [
     ...(defaultRound.snapshot.stationSystems || []),
     { id: "present-wim-control", canonicalItemId: "wim-control", active: true, quantity: 1 },

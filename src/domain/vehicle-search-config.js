@@ -242,5 +242,8 @@ export function createVehicleSearchConfig(value = {}, fallbackBaseUrl = VEHICLE_
     stationName: text(source.stationName) || null,
   };
   if (connection.searchUrl) config.searchUrl = connection.searchUrl;
+  if (source.roundId) config.roundId = text(source.roundId);
+  if (source.systemKey) config.systemKey = text(source.systemKey);
+  if (source.systems && typeof source.systems === "object") config.systems = Object.fromEntries(["sc-hs", "sc-ls", "imps"].filter(key => source.systems[key]).map(key => [key, createVehicleSearchConfig({ ...source.systems[key], apiProfile: key === "imps" ? "imps-v2" : "legacy-v1", ...(key === "imps" ? { connectionMode: "proxy" } : {}) }, "")]));
   return config;
 }

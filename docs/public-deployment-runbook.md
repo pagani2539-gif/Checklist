@@ -4,7 +4,7 @@
 
 ## ก่อน deploy
 
-1. ตรวจ source ล่าสุดและ artifact provenance แล้ว build ใหม่; ถ้า checkout มี Git ให้ตรวจ `git diff` เพิ่มเติม แต่ checkout ปัจจุบันไม่มี `.git` จึงต้องเก็บ source path, test output, build output และ hash/manifest แทน ห้ามคัดลอก `dist` เก่า
+1. ตรวจ source ล่าสุดและ artifact provenance แล้ว build ใหม่; ถ้า checkout เป็น Git repository ให้ตรวจ `git diff` เพิ่มเติม ส่วน source export ที่ไม่มี `.git` ให้เก็บ source path, test output, build output และ hash/manifest แทน ห้ามคัดลอก `dist` เก่า
 2. ตั้งค่า `.env` จาก `deploy/.env.local-auth.example` สำหรับบัญชีภายใน PostgreSQL; เก็บ database/S3 credential ใน Windows Credential Manager หรือ secret store ขององค์กร
 3. ตั้ง `VITE_STORAGE_MODE=server`, `CHECKLIST_STORAGE_BACKEND=postgres`, `CHECKLIST_DIST_DIR` ให้ชี้ไปยัง artifact ใหม่, `CHECKLIST_AUTH_MODE=local`, `CHECKLIST_ENFORCE_STATION_SCOPE=true`, `CHECKLIST_COOKIE_SECURE=true`
 4. กำหนด `CHECKLIST_DATABASE_URL` สำหรับ PostgreSQL และ `CHECKLIST_ATTACHMENT_BACKEND=s3` พร้อม `CHECKLIST_S3_*`; ให้ credential อยู่ใน secret store ขององค์กร
@@ -27,10 +27,10 @@ npm.cmd run admin:bootstrap-default
 node --env-file=.env server.mjs
 ```
 
-ก่อน start ให้ตรวจ build และ regression จาก source checkout เดียวกัน:
+ก่อน start ให้ตรวจ build และ regression จาก source checkout เดียวกัน โดยรันชุดเต็มกับฐานทดสอบ PostgreSQL ที่แยกจากข้อมูลจริง; ดูการตั้งชุดทดสอบที่ [คู่มือทดสอบ](testing.md):
 
 ```powershell
-node tools/run_all_tests.mjs
+npm.cmd run test:all
 $env:VITE_VEHICLE_PROXY_ENFORCE_STATION_TARGET = 'true'
 node node_modules/vite/bin/vite.js build --configLoader runner --outDir .\release\public
 Remove-Item Env:VITE_VEHICLE_PROXY_ENFORCE_STATION_TARGET

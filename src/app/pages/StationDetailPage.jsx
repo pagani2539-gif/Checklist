@@ -1,3 +1,4 @@
+import "../../styles/station-profile-route.css";
 import { getNextLaneNumberForScope, setLaneScope } from "../../domain/station-lane-scope.js";
 import { BOQ_CHECKLIST_PRESENTATION_VERSION } from "../../domain/boq-checklist-groups.js";
 
@@ -54,11 +55,11 @@ export function createStationDetailPage(runtime) {
     };
     const removeStationLane = async (lane) => {
       if (!profile || profile.active === false) return;
-      const linkedSystems = (profile.stationSystems || []).filter((system) => isWimSortingSystemRecord(system) && system.active !== false && system.laneId === lane?.id);
-      const linked = activeEquipment.filter((equipment) => isWimEquipment(equipment) && (equipment.laneId === lane?.id || linkedSystems.some((system) => system.id === equipment.parentSystemId)));
+      const linkedSystems = (profile.stationSystems || []).filter((system) => (isWimSortingSystemRecord(system) || String(system.canonicalItemId || system.systemId || "") === "lpr-control") && system.active !== false && system.laneId === lane?.id);
+      const linked = activeEquipment.filter((equipment) => equipment.laneId === lane?.id || linkedSystems.some((system) => system.id === equipment.parentSystemId));
       const confirmed = await requestConfirm({
         title: `ลบ Lane ${lane?.laneNo || ""}`,
-        description: linked.length ? `มี Sensor/Loop ผูกอยู่ ${linked.length} รายการ ระบบจะยกเลิกการผูกของอุปกรณ์ในสถานีปัจจุบัน แต่ Snapshot เดิมจะไม่เปลี่ยน` : "เลนนี้ยังไม่มีอุปกรณ์ผูกอยู่ และจะถูกนำออกจากโครงสร้างสถานี",
+        description: linked.length ? `มี LPR/WIM System หรือกล้องและอุปกรณ์ผูกอยู่ ${linked.length} รายการ ระบบจะยกเลิก Lane ของ System และคงอุปกรณ์จริงไว้ให้แก้ความสัมพันธ์ต่อ ส่วน Snapshot เดิมจะไม่เปลี่ยน` : "เลนนี้ยังไม่มี System หรืออุปกรณ์ผูกอยู่ และจะถูกนำออกจากโครงสร้างสถานี",
         confirmLabel: "ยืนยันลบเลน",
       });
       if (!confirmed) return;
@@ -77,10 +78,26 @@ export function createStationDetailPage(runtime) {
     const updateEquipment = (equipmentId, fieldOrPatch, value) => {
       if (profile?.active === false) return;
       const patch = fieldOrPatch && typeof fieldOrPatch === "object" ? { ...fieldOrPatch } : { [fieldOrPatch]: value };
+      const currentAsset = profile?.equipment?.find((equipment) => equipment.id === equipmentId);
+      const isLprCamera = currentAsset?.type === "LPR_CAMERA";
+      let lprParent = null;
       if (Object.prototype.hasOwnProperty.call(patch, "assetNo")) {
         const result = validateEquipmentDraft({ assetNo: patch.assetNo }, profile.equipment, { excludeId: equipmentId });
         if (!result.valid) { notify(result.errors.assetNo); return; }
         patch.assetNoMode = "manual";
+      }
+      if (isLprCamera) {
+        lprParent = (profile.stationSystems || []).find((system) => system.id === (patch.parentSystemId || currentAsset.parentSystemId)
+          && system.active !== false && String(system.canonicalItemId || system.systemId || "") === "lpr-control");
+        const lane = lprParent && (profile.lanes || []).find((entry) => entry.active !== false && entry.id === lprParent.laneId);
+        const occupied = lprParent && (profile.equipment || []).some((equipment) => equipment.id !== equipmentId && equipment.active !== false && equipment.type === "LPR_CAMERA" && equipment.parentSystemId === lprParent.id);
+        if (!lprParent || !lane || String(getLaneScope(lane, profile.stationSystems) || "").trim() !== String(lprParent.scope || "").trim() || occupied) {
+          notify(occupied ? "LPR System นี้มีกล้องจริงอยู่แล้ว 1 ตัว" : "กล้อง LPR ต้องผูกกับ LPR System ที่มี Lane ใน Scope เดียวกัน");
+          return;
+        }
+        patch.parentSystemId = lprParent.id;
+        patch.laneId = lprParent.laneId;
+        patch.scope = lprParent.scope;
       }
       update((current) => ({
         ...current,
@@ -97,11 +114,16 @@ export function createStationDetailPage(runtime) {
               nextPatch.laneId = parent?.laneId || null;
               nextPatch.scope = parent?.scope || null;
             }
+            if (equipment.type === "LPR_CAMERA" && lprParent) {
+              nextPatch.parentSystemId = lprParent.id;
+              nextPatch.laneId = lprParent.laneId;
+              nextPatch.scope = lprParent.scope;
+            }
             return { ...equipment, ...nextPatch };
           });
           return {
             ...entry,
-            equipment: synchronizeGeneratedAssetNos(equipment, entry.stationSystems),
+            equipment: isLprCamera ? equipment : synchronizeGeneratedAssetNos(equipment, entry.stationSystems),
             readinessConfirmedAt: null,
           };
         }),
@@ -157,6 +179,24 @@ export function createStationDetailPage(runtime) {
     };
     const updateCanonicalSystem = (id, field, value) => {
       const currentSystem = profile.stationSystems.find((entry) => entry.id === id);
+      const isLprSystem = String(currentSystem?.canonicalItemId || currentSystem?.systemId || "") === "lpr-control";
+      if (isLprSystem && field === "laneId") {
+        const laneId = String(value || "").trim() || null;
+        const lane = profile.lanes.find((entry) => entry.active !== false && entry.id === laneId);
+        const duplicate = profile.stationSystems.some((system) => system.id !== id && system.active !== false && String(system.canonicalItemId || system.systemId || "") === "lpr-control" && system.laneId === laneId);
+        if (!lane || duplicate || String(getLaneScope(lane, profile.stationSystems) || "").trim() !== String(currentSystem.scope || "").trim()) {
+          notify(!lane ? "LPR System ต้องผูกกับ Lane ที่ใช้งานอยู่" : duplicate ? "Lane นี้มี LPR System อยู่แล้ว" : "Lane และ LPR System ต้องอยู่ใน Scope เดียวกัน");
+          return;
+        }
+        update((current) => ({ ...current, stationProfiles: current.stationProfiles.map((entry) => entry.id === profile.id ? {
+          ...entry,
+          stationSystems: entry.stationSystems.map((system) => system.id === id ? { ...system, laneId } : system),
+          equipment: entry.equipment.map((equipment) => equipment.parentSystemId === id ? { ...equipment, laneId, scope: currentSystem.scope } : equipment),
+          readinessConfirmedAt: null,
+        } : entry) }));
+        return;
+      }
+      if (isLprSystem && field === "quantity" && Number(value) !== 1) { notify("LPR System หนึ่งรายการแทนหนึ่ง Lane และต้องมีจำนวน 1 ระบบ"); return; }
       if (isWimSortingSystemRecord(currentSystem) && field === "laneId") {
         const laneId = String(value || "").trim() || null;
         const laneExists = profile.lanes.some((lane) => lane.active !== false && lane.id === laneId);
@@ -201,6 +241,18 @@ export function createStationDetailPage(runtime) {
       const wimSystemIds = Array.isArray(options?.wimSystemIds) ? options.wimSystemIds : [];
       const isWimAsset = isWimEquipment(catalogItem.kind === "custom" ? null : { type: catalogItem.type });
       const isWimElectronicsChild = isWimElectronicsSubEquipmentType(catalogItem.type);
+      const isLprCamera = String(catalogItem.type || "").toUpperCase() === "LPR_CAMERA";
+      const lprParent = isLprCamera ? (profile.stationSystems || []).find((system) => system.id === options.parentSystemId
+        && system.active !== false && String(system.canonicalItemId || system.systemId || "") === "lpr-control") : null;
+      const lprLane = lprParent && (profile.lanes || []).find((lane) => lane.active !== false && lane.id === lprParent.laneId);
+      if (isLprCamera && (requestedQuantity !== 1 || !lprParent || !lprLane || String(getLaneScope(lprLane, profile.stationSystems) || "").trim() !== String(lprParent.scope || "").trim())) {
+        notify("เพิ่มกล้อง LPR ครั้งละ 1 ตัวใต้ LPR System ที่ผูกกับ Lane ใน Scope เดียวกัน");
+        return;
+      }
+      if (isLprCamera && (profile.equipment || []).some((asset) => asset.type === "LPR_CAMERA" && asset.active !== false && asset.parentSystemId === lprParent.id)) {
+        notify("LPR System นี้มีกล้องจริงอยู่แล้ว 1 ตัว");
+        return;
+      }
       if (isWimAsset && (wimSystemIds.length !== requestedQuantity || wimSystemIds.some((id) => !getWimSortingSystemById(profile.stationSystems, id)))) {
         notify("WIM Sensor/Loop ต้องเลือก WIM Sorting System แม่ก่อนเพิ่ม");
         return;

@@ -234,3 +234,37 @@ export function formatCentralNameEnglishFirst(name) {
   if (!name) return "";
   return [name.nameEn, name.nameTh].filter(Boolean).join(" · ");
 }
+
+// Display only: never rewrite source labels or persisted Snapshot values.
+export function useCentralEnglishNames(text = "") {
+  let result = String(text);
+  for (const name of [...CENTRAL_NAME_ENTRIES].sort((a, b) => b.nameTh.length - a.nameTh.length)) {
+    result = result.replaceAll(`${name.nameEn} · ${name.nameTh}`, name.nameEn)
+      .replaceAll(name.nameTh, name.nameEn);
+  }
+  return result;
+}
+
+export function getCentralChecklistItemLabel(item = {}) {
+  let task = useCentralEnglishNames(item.label || item.displayLabel || "");
+  // Older Snapshots froze this equipment-only warning into system task labels.
+  // Clean the display copy without changing the stored historical label.
+  if (item.systemRecordId && !item.assetId) {
+    task = task.replace(/ · ยังไม่ระบุตำแหน่ง\s*$/, "");
+  }
+  if (item.isEquipmentCleaning) task = task.replace(/^Equipment Cleaning · /, "ทำความสะอาดอุปกรณ์ · ");
+  if (item.isAreaCleaning) task = task.replace(/^Control Cabinet Surrounding Area Cleaning · /, "ทำความสะอาดพื้นที่โดยรอบ · ");
+  const name = getCentralEquipmentName(item.assetType || item.cleaningAssetType || item.assetBinding?.types?.[0]);
+  const owner = name?.nameEn || useCentralEnglishNames(item.assetName || item.systemName || "").split(" · ")[0]
+    || (item.sectionCode === '3.1' ? getCentralNameByKey('lpr-control')?.nameEn : '');
+  task = task.replace(/(ของ|ทำความสะอาด)(?=[A-Za-z])/g, '$1 ');
+  return owner && !task.includes(owner) ? `${owner} · ${task}` : task;
+}
+
+export function getLprScopeDisplayText(text, scope) {
+  const normalized = String(scope || '').trim().toLowerCase();
+  const target = normalized === '3d' ? 'ระบบ 3D'
+    : normalized === 'imps' ? 'ระบบ IMPS'
+    : normalized === 'image processing' ? 'ระบบ Image Processing' : '';
+  return target ? String(text || '').replace(/ร่วมกับ WIM/g, `สำหรับ${target}`) : String(text || '');
+}

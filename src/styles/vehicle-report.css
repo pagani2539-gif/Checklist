@@ -54,7 +54,7 @@
   border: 1px solid transparent;
   border-radius: 9px;
   color: #40556b;
-  font-weight: 650;
+  font-weight: var(--ops-weight-semibold);
   text-decoration: none;
 }
 
@@ -78,7 +78,7 @@
   color: #76520b;
 }
 
-.ops-vehicle-report-state > span { font-weight: 700; }
+.ops-vehicle-report-state > span { font-weight: var(--ops-weight-bold); }
 .ops-vehicle-report-state > strong { color: #3e4e60; }
 .ops-vehicle-report-state > small { color: #61758a; text-align: right; }
 .ops-vehicle-report-state.is-passed { border-color: #a9d9bd; background: #eefaf2; color: #166534; }
@@ -177,7 +177,7 @@
 .ops-vehicle-report-bar > div:first-child span { overflow-wrap: anywhere; }
 .ops-vehicle-report-bar > div:first-child strong { flex: 0 0 auto; color: #18324b; font-variant-numeric: tabular-nums; }
 .ops-vehicle-report-track { height: 9px; overflow: hidden; border-radius: 999px; background: #e8eef5; }
-.ops-vehicle-report-track > span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: #2563eb; }
+.ops-vehicle-report-track > span { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--ops-color-primary); }
 .tone-correct .ops-vehicle-report-track > span { background: #189453; }
 .tone-incorrect .ops-vehicle-report-track > span { background: #d0443e; }
 .tone-unable .ops-vehicle-report-track > span { background: #d88912; }
@@ -220,7 +220,7 @@
 .ops-vehicle-report-example dt,
 .ops-vehicle-report-provenance dt { color: #65798d; font-size: 12px; }
 .ops-vehicle-report-example dd,
-.ops-vehicle-report-provenance dd { min-width: 0; margin: 0; color: #22384f; font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.ops-vehicle-report-provenance dd { min-width: 0; margin: 0; color: #22384f; font-size: 13px; font-weight: var(--ops-weight-semibold); overflow-wrap: anywhere; }
 .ops-vehicle-report-example figure { margin: 0; padding: 8px; border: 1px solid #e1e8f0; border-radius: 9px; background: #f7f9fc; }
 .ops-vehicle-report-example figure img { display: block; width: 100%; max-height: 220px; object-fit: contain; }
 .ops-vehicle-report-example figcaption { margin-top: 5px; color: #64788c; font-size: 11px; }
@@ -370,7 +370,7 @@
   min-width: 0;
   color: #536a80;
   font-size: .76cqw;
-  font-weight: 650;
+  font-weight: var(--ops-weight-semibold);
 }
 
 .ops-print-report[data-report-mode="presentation"] .ops-presentation-vehicle-metrics strong {
@@ -442,7 +442,7 @@
   background: #f2f6fb;
   color: #435b73;
   font-size: .67cqw;
-  font-weight: 750;
+  font-weight: var(--ops-weight-bold);
 }
 
 .ops-print-report[data-report-mode="presentation"] .ops-presentation-vehicle-table td {
@@ -483,7 +483,7 @@
   background: #eef9f1;
   color: #167442;
   font-size: .62cqw;
-  font-weight: 750;
+  font-weight: var(--ops-weight-bold);
   white-space: nowrap;
 }
 

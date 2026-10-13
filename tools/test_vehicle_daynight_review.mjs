@@ -12,7 +12,7 @@ import {
   updateVehicleSearchDimensionReview,
   updateVehicleSearchScope,
 } from "../src/domain/vehicle-search.js";
-import { createDefaultStationProfile, createInspectionRound, getCloseReadiness } from "../src/domain/master-checklist.js";
+import { createDefaultStationProfile, createSnapshot, createInspectionRound, getCloseReadiness } from "../src/domain/master-checklist.js";
 
 const scoped = createVehicleReviewState({ dateFrom: "2026-09-08", dateTo: "2026-09-08" });
 assert.equal(scoped.scopeVersion, VEHICLE_REVIEW_SCOPE_VERSION);
@@ -62,11 +62,14 @@ assert.equal(legacy.scopeVersion, undefined, "legacy vehicle state remains unsco
 
 const profile = createDefaultStationProfile();
 profile.vehicleSearchConfig = { ...profile.vehicleSearchConfig, baseUrl: "http://vehicle-api.test", stationId: profile.id, stationName: profile.stationName };
-const round = createInspectionRound(profile, { inspectionDate: "2026-09-08" });
+const snapshot = createSnapshot(profile);
+delete snapshot.vehicleReviewSystemsVersion;
+delete snapshot.vehicleReviewSystems;
+const round = createInspectionRound(profile, { inspectionDate: "2026-09-08" }, { snapshot });
 assert.equal(round.snapshot.vehicleReviewScopeVersion, VEHICLE_REVIEW_SCOPE_VERSION);
 assert.deepEqual(Object.keys(round.vehicleSearch.scopes), VEHICLE_REVIEW_SCOPE_KEYS);
 const blocked = getCloseReadiness(round);
-assert.equal(blocked.blockers.filter((entry) => entry.type === "vehicle-search-fetch").length, 2, "both day and night scopes must be fetched");
+assert.equal(blocked.blockers.filter((entry) => entry.type === "vehicle-search-fetch").length, 3, "plate day/night plus one classification dataset must be fetched");
 assert.equal(blocked.canClose, false, "missing Vehicle API fetches remain incomplete");
 assert.equal(blocked.canConfirmClose, true, "missing Vehicle API fetches are warnings the user can acknowledge when closing");
 const dayReady = updateVehicleSearchScope(round.vehicleSearch, "day", {

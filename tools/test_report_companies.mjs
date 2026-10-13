@@ -11,25 +11,10 @@ assert.equal(getReportCompany('is8').name, 'iSMART');
 assert.equal('logoCaption' in getReportCompany('is8'), false);
 assert.equal(getReportCompany('unknown').id, 'ntr');
 assert.equal(Object.keys(REPORT_COVER_SECTION_META).length, 14);
-assert.deepEqual(REPORT_COVER_STANDARD.canvas, { width: 1672, height: 1188 });
-assert.equal(REPORT_COVER_STANDARD.aspectRatio, '1672 / 1188');
-assert.equal(REPORT_COVER_STANDARD.maxMastheadTitleLines, 2);
-assert.ok(REPORT_COMPANIES.every((company) => Array.isArray(company.cover.sectionList)));
-assert.ok(REPORT_COMPANIES.every((company) => !company.cover.facts && !company.cover.signatures && !company.cover.footer));
-const sharedCoverGeometry = JSON.stringify(REPORT_COMPANIES[0].cover);
-assert.ok(REPORT_COMPANIES.every((company) => JSON.stringify(company.cover) === sharedCoverGeometry), 'all companies must use one cover geometry');
-for (const company of REPORT_COMPANIES) {
-  for (const zone of REPORT_COVER_STANDARD.requiredZones) {
-    const [x, y, width, height] = company.cover[zone];
-    assert.ok(x >= 0 && y >= 0 && width > 0 && height > 0, `${company.id} ${zone} must be a positive cover zone`);
-    assert.ok(x + width <= REPORT_COVER_STANDARD.canvas.width, `${company.id} ${zone} must stay inside cover width`);
-    assert.ok(y + height <= REPORT_COVER_STANDARD.canvas.height, `${company.id} ${zone} must stay inside cover height`);
-  }
-  const title = company.cover.sectionTitle;
-  const photo = company.cover.photo;
-  const horizontalOverlap = title[0] < photo[0] + photo[2] && title[0] + title[2] > photo[0];
-  if (horizontalOverlap) assert.ok(title[1] + title[3] <= photo[1], `${company.id} section title must not overlap the photo`);
-}
+assert.deepEqual(REPORT_COVER_STANDARD.canvas, { width: 1672, height: 941 });
+assert.equal(REPORT_COVER_STANDARD.aspectRatio, '1672 / 941');
+assert.ok(REPORT_COMPANIES.every(company => company.heroImage === `${company.id}-hero.png`));
+assert.ok(REPORT_COMPANIES.every(company => !('cover' in company) && !('heroCrop' in company)));
 const coverSections = getReportCoverSections({ sections: model.sections.map((section) => ({ ...section, title: `แก้ชื่อ ${section.code}` })) });
 assert.equal(coverSections.length, model.sections.length);
 assert.ok(coverSections.some((section) => section.code === 'SC-01.01'));

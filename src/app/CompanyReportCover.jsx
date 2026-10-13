@@ -31,17 +31,13 @@ function CompanyBrandRail({ company }) {
   </aside>;
 }
 
-function CompanyReportHeader({ company, data, metadata, presentation = false }) {
+function CompanyReportHeader({ company, data }) {
   const standard = !data.isQuickField;
   return <header className="company-cover-heading">
     <p className="company-cover-lead">{standard ? 'ข้อมูลจริง จากการตรวจอุปกรณ์ประจำสถานี' : 'ข้อมูลจริง เพื่อพื้นที่ปลอดภัยกว่า'}</p>
     <h1>{data.reportTitle}</h1>
     <h2>{standard ? 'WIM Station Equipment Inspection' : 'Independent WIM Field Inspection'}</h2>
     <p className="company-cover-description">{REPORT_COPY.systemDescription}</p>
-    {!presentation && <div className={`company-cover-contract${standard ? '' : ' is-quick'}`} aria-label="บริบทหน้าปกรายงาน">
-      <span><b>{standard ? 'โครงการ' : 'รายการงาน'}</b>{valueOrDash(data.coverMeta.projectName || data.project || metadata.projectName)}</span>
-      {standard ? <span><b>เลขที่สัญญา</b>{valueOrDash(data.coverMeta.contractNo)}</span> : <span>งานเฉพาะกิจ · ไม่ผูกสัญญา</span>}
-    </div>}
     <span className="company-cover-heading-rule" aria-hidden="true" />
     <span className="company-cover-company-caption">{company.name} · CHECKLIST OPERATIONS HUB</span>
   </header>;
@@ -70,19 +66,12 @@ function CoverProjectContractFact({ data, metadata }) {
   </div>;
 }
 
-export default function CompanyReportCover({ model, companyId = 'ntr', draft = false, presentation = false }) {
+export default function CompanyReportCover({ model, companyId = 'ntr', draft = false }) {
   const company = getReportCompany(companyId);
   const data = getCompanyCoverData(model);
   const metadata = model.metadata || {};
   const summary = model.summary || {};
   const coverSections = getReportCoverSections(model);
-  const crop = company.heroCrop || { x: 0, y: 0, width: 1672, height: 941 };
-  const heroStyle = {
-    width: `${1672 / crop.width * 100}%`,
-    height: `${941 / crop.height * 100}%`,
-    left: `${-crop.x / crop.width * 100}%`,
-    top: `${-crop.y / crop.height * 100}%`,
-  };
   const themeStyle = {
     '--company-ink': company.theme.ink,
     '--company-heading': company.theme.heading || company.theme.ink,
@@ -90,26 +79,28 @@ export default function CompanyReportCover({ model, companyId = 'ntr', draft = f
     '--company-paper': company.theme.paper,
     '--company-line': company.theme.line,
     '--company-accent-soft': company.theme.accentSoft,
+    '--company-hero-position': company.heroPosition,
   };
   const metrics = [
-    { icon: 'clipboard', value: `${summary.done || 0}/${summary.total || 0}`, label: 'รายการตรวจ', detail: 'รายการที่บันทึกสถานะแล้ว' },
-    { icon: 'evidence', value: `${summary.evidenceComplete || 0}/${summary.evidenceTotal || 0}`, label: 'หลักฐานครบ', detail: 'ช่องหลักฐานจาก Snapshot' },
+    { icon: 'clipboard', value: `${summary.done || 0}/${summary.total || 0}`, label: 'รายการตรวจ', detail: 'ไม่นับไม่ติดตั้ง/ไม่เกี่ยวข้อง' },
+    { icon: 'evidence', value: `${summary.evidenceComplete || 0}/${summary.evidenceTotal || 0}`, label: 'ข้อมูลหลักฐาน', detail: 'นับข้อมูลแนบ ต้องตรวจการเปิดไฟล์' },
     { icon: 'grid', value: coverSections.length, label: 'หมวดตรวจ', detail: 'หมวดที่เปิดใช้งานในรอบนี้' },
-    { icon: 'check', value: `${summary.progress || 0}%`, label: 'ดำเนินการครบถ้วน', detail: summary.issues ? `${summary.issues} รายการต้องติดตาม` : 'ตามขอบเขตการตรวจ' },
+    { icon: 'check', value: `${summary.progress || 0}%`, label: 'มีผลตรวจ', detail: summary.issues ? `${summary.issues} รายการต้องติดตาม` : 'ไม่นับรายการที่ข้าม' },
   ];
-  return <section className={`company-cover company-${company.id} company-cover-${company.coverVariant}${presentation ? ' company-cover-presentation' : ''}`} data-company={company.id} data-cover-standard={REPORT_COVER_STANDARD.aspectRatio} style={{ ...themeStyle, '--company-cover-aspect': REPORT_COVER_STANDARD.aspectRatio, '--company-section-count': Math.max(1, coverSections.length) }} aria-label={`${REPORT_COPY.labels.coverAria} ${company.name}`}>
+  return <section className={`company-cover company-${company.id} company-cover-${company.coverVariant}`} data-company={company.id} data-cover-standard={REPORT_COVER_STANDARD.aspectRatio} style={{ ...themeStyle, '--company-cover-aspect': REPORT_COVER_STANDARD.aspectRatio, '--company-section-count': Math.max(1, coverSections.length) }} aria-label={`${REPORT_COPY.labels.coverAria} ${company.name}`}>
     <div className="company-canvas">
       <CompanyBrandRail company={company} />
-      <CompanyReportHeader company={company} data={data} metadata={metadata} presentation={presentation} />
+      <CompanyReportHeader company={company} data={data} metadata={metadata} />
       <div className={`company-cover-mode-badge${draft ? ' is-draft' : ''}`}><Icon name={draft ? 'edit' : data.isQuickField ? 'checklist' : 'archive'} /><div><strong>{draft ? 'ฉบับร่าง · รอบยังไม่ปิด' : data.isQuickField ? 'งานเฉพาะกิจ · ไม่ผูกสัญญา' : 'รายงานตรวจสถานี'}</strong><small>{draft ? 'DRAFT · INSPECTION IN PROGRESS' : data.isQuickField ? 'AD-HOC INSPECTION · NON-CONTRACT' : 'STATION INSPECTION REPORT'}</small></div></div>
       <section className="company-cover-photo" aria-label={`${REPORT_COPY.labels.referenceAlt} สำหรับ ${company.name} ไม่ใช่ภาพหลักฐาน`}>
-        <img data-company-asset alt="" src={`/report/companies/${company.id}-reference.png`} style={heroStyle} />
+        <img data-company-asset data-print-image="true" alt="" src={`/report/companies/${company.heroImage}`} />
         <div className="company-cover-photo-caption"><strong>{REPORT_COPY.overviewTitle}</strong><span>ภาพประกอบระบบ WIM · ไม่ใช่ภาพหลักฐาน</span></div>
       </section>
-      <aside className="company-cover-facts" aria-label={presentation ? 'ข้อมูลสถานีและสัญญา' : 'ข้อมูลสถานี'}>
-          <CoverFact icon="pin" label="รหัสสถานี / ชื่อสถานี" value={`${data.stationCode} · ${data.stationName}`} className={presentation ? 'company-cover-station-fact' : ''} />
+      <div className="company-cover-details">
+      <aside className="company-cover-facts" aria-label={'ข้อมูลสถานีและสัญญา'}>
+          <CoverFact icon="pin" label="รหัสสถานี / ชื่อสถานี" value={`${data.stationCode} · ${data.stationName}`} className={'company-cover-station-fact'} />
           <CoverFact icon="grid" label="จังหวัด / พื้นที่" value={data.province} />
-          {presentation && <CoverProjectContractFact data={data} metadata={metadata} />}
+          <CoverProjectContractFact data={data} metadata={metadata} />
       </aside>
       <section className="company-cover-scope" aria-label="ขอบเขตการตรวจ">
         <div className="company-cover-scope-heading"><Icon name="report" /><div><strong>ขอบเขตการตรวจ</strong><small>INSPECTION SCOPE</small></div></div>
@@ -118,6 +109,7 @@ export default function CompanyReportCover({ model, companyId = 'ntr', draft = f
           {coverSections.length > 3 && <small className="company-cover-scope-more">+ อีก {coverSections.length - 3} หมวดจาก Snapshot</small>}
         </div>
       </section>
+      </div>
       <section className="company-cover-summary" aria-label="สรุปหลักฐานการตรวจ">
         <div className="company-cover-summary-heading"><span><Icon name="search" /></span><div><strong>สรุปหลักฐานการตรวจ</strong><small>EVIDENCE SUMMARY</small></div></div>
         {metrics.map((metric) => <CoverMetric key={metric.label} {...metric} tone={metric.label === 'ดำเนินการครบถ้วน' && summary.issues ? 'issue' : ''} />)}

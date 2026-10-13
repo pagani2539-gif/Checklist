@@ -7,7 +7,7 @@ const redesignCss = readFileSync(new URL("../src/styles/redesign.css", import.me
 const foundationCss = readFileSync(new URL("../src/styles/foundation.css", import.meta.url), "utf8");
 const workspaceCss = readFileSync(new URL("../src/styles/workspace-layout.css", import.meta.url), "utf8");
 
-assert.match(pageSource, /getChecklistPageNavigationItems\(visibleSections\)/, "pager navigation should use the same sorted item order as the displayed station-category queue");
+assert.match(pageSource, /getChecklistPageNavigationItems\(visibleSections, visibleRound\.snapshot\?\.stationFormat, visibleRound\.snapshot\)/, "pager navigation should use the same sorted item order as the displayed station-category queue");
 assert.doesNotMatch(pageSource, /visibleSections\.flatMap\(\(section\) => section\.items/, "pager navigation should not independently flatten raw source sections");
 
 const resultPanel = pageSource.match(/<div className="ops-panel ops-items-panel ops-taskflow-main"[\s\S]*?ChecklistPager[\s\S]*?\n\s*<\/div>\s*\n\s*\{!currentIsVehicleReview/);
