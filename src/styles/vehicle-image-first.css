@@ -1,0 +1,324 @@
+/* Shared review layout. Scoped to the focused panel, excluding eligibility triage. */
+@media screen {
+  .ops-main:has(.ops-vehicle-image-first[data-workspace-layout="wide"]) { overflow: hidden; }
+  .ops-vehicle-api-page:has(.ops-vehicle-image-first[data-workspace-layout="wide"]),
+  .ops-vehicle-image-first[data-workspace-layout="wide"] { height: 100% !important; min-height: 0; flex: 1 1 0 !important; overflow: hidden !important; }
+  .ops-main:has(.ops-vehicle-image-first:not([data-workspace-layout="wide"])) { overflow-y: auto !important; }
+  .ops-vehicle-api-page:has(.ops-vehicle-image-first:not([data-workspace-layout="wide"])),
+  .ops-vehicle-image-first:not([data-workspace-layout="wide"]) { height: auto !important; flex: none !important; overflow: visible !important; }
+  .ops-vehicle-image-first { container: vehicle-review / inline-size; }
+  /* Grouped operations workbench: queue, evidence, decision. */
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-workbench-toolbar { padding: .5rem 0; border: 0; background: transparent; box-shadow: none; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-review-header-actions { gap: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-review-navigation-actions { margin-left: auto; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-workbench-toolbar .ops-button-secondary { min-height: 36px; padding: .4rem .75rem; background: var(--ops-card); border: 1px solid var(--ops-line); border-radius: .5rem; color: var(--ops-ink); box-shadow: none; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-workbench-toolbar .ops-button-secondary:hover { background: var(--ops-color-neutral-surface); border-color: var(--ops-ink-soft); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-compact-session { padding: .25rem 0 .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-photo-session-summary strong { font-weight: 600; font-size: .875rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-photo-session-summary span { color: var(--ops-muted); font-size: .75rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-queue { border: 1px solid var(--ops-line); border-radius: .75rem; box-shadow: none; background: var(--ops-card); padding: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 0; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-queue-heading { align-items: center; padding: .25rem 0 .5rem; border-bottom: 1px solid var(--ops-line); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-queue-heading .ops-eyebrow { display: none; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-queue-heading h4 { font-size: 1rem; font-weight: 600; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-queue-heading strong { font-size: .7rem; font-weight: 400; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-search > span { font-size: .75rem; font-weight: 400; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-row-actions { border: 1px solid transparent; border-bottom-color: var(--ops-line); border-radius: .5rem; background: transparent; box-shadow: none; padding: .25rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-row-actions:has([aria-current="true"]) { border-color: var(--ops-line); background: var(--ops-color-neutral-surface); box-shadow: inset 3px 0 var(--ops-color-primary); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-row-actions > button:first-of-type > span { font-size: .85rem; font-weight: 600; color: var(--ops-ink); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-heading { padding: .5rem .75rem; border: 1px solid var(--ops-line); border-radius: .75rem; background: var(--ops-card); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-heading > div:first-child { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-heading h4 { font-size: 1.125rem; font-weight: 700; order: -1; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-heading .ops-eyebrow { font-size: .75rem; color: var(--ops-muted); font-weight: 400; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-heading > div > span { font-size: .75rem; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main-tools > strong { font-size: .75rem; font-weight: 600; background: var(--ops-color-neutral-surface); padding: .3rem .5rem; border-radius: .4rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-evidence-stack { border: 1px solid var(--ops-line); border-radius: .75rem; background: var(--ops-color-neutral-surface); padding: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-image-comparison { border: 0; box-shadow: none; background: transparent; padding: 0; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-image-comparison > strong { padding: .25rem .25rem .5rem; font-size: .75rem; font-weight: 600; color: var(--ops-ink-soft); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-image { border: 0; box-shadow: none; background: transparent; padding: 0; border-radius: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-image img { border-radius: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-review-image-action { padding: .35rem .25rem; font-size: .75rem; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-inspector { border: 1px solid var(--ops-line); border-radius: .75rem; background: var(--ops-card); box-shadow: none; padding: .75rem; gap: .75rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-inspector-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; padding-bottom: .5rem; border-bottom: 1px solid var(--ops-line); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-inspector-heading > strong { font-size: 1rem; font-weight: 600; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-inspector-heading small { font-size: .7rem; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-details-toggle { border: 0; border-radius: .5rem; background: var(--ops-color-neutral-surface); box-shadow: none; padding: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-plate-summary { border: 0; border-radius: .5rem; background: var(--ops-color-neutral-surface); padding: .65rem; gap: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-plate-summary > div { border: 0; background: transparent; box-shadow: none; padding: 0; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-plate-summary strong { font-size: 1.125rem; font-weight: 700; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-review-dimension { border: 0; background: transparent; box-shadow: none; padding: 0; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-navigation { padding: .4rem 0 0; border: 0; background: transparent; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-compact-session,
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-photo-session-summary > div {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem;
+    min-width: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-test-controls[data-session-open="false"] {
+    display: none !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-search-metrics {
+    display: grid !important; grid-template-columns: 1.1fr 1.8fr 1.15fr 1fr !important; align-items: center;
+    gap: 0; padding: .5rem 0;
+    border: 1px solid var(--ops-line); border-radius: .5rem;
+    flex: 0 0 auto;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-search-metrics > div {
+    display: grid !important; grid-template-columns: auto 1fr; align-items: baseline;
+    gap: .2rem .5rem; min-height: 0 !important; min-width: 0;
+    padding: 0 .75rem !important; border: 0 !important; border-right: 1px solid var(--ops-line) !important; background: transparent !important;
+    width: auto; max-width: none; border-radius: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-search-metrics :is(span, strong, small) {
+    position: static; grid-area: auto; margin: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-search-metrics strong { font-size: 1.05rem; font-weight: 700; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-progress-track {
+    position: relative; width: 3rem; height: .25rem; flex: 0 0 3rem; grid-column: 2; grid-row: 2; align-self: center;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-responsive-tabs { display: none !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) {
+    display: grid !important; grid-template-columns: 256px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr); gap: .5rem;
+    flex: 1 1 0; min-height: 0; overflow: hidden;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-main {
+    display: grid !important; grid-template-columns: minmax(0, 1fr) 320px !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    width: 100%; height: 100% !important; min-height: 0; gap: .5rem;
+    overflow: hidden !important; position: static !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-main-heading { grid-column: 1 / -1; grid-row: 1; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-evidence-stack {
+    grid-column: 1 !important; grid-row: 2 !important; min-height: 0; height: 100%; max-height: none;
+    container-type: inline-size !important;
+    overflow-y: auto; overflow-x: hidden; padding: .5rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-inspector {
+    display: flex !important; flex-direction: column; grid-column: 2; grid-row: 2 !important;
+    width: 100%; height: 100% !important; max-height: none; min-height: 0;
+    overflow-y: auto !important; position: static !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-review-dimension-list,
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-review-dimension {
+    display: flex !important; flex-direction: column; height: auto !important;
+    min-height: 0; overflow: visible !important; flex: 1 0 auto;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-review-dimension > fieldset { overflow: visible; flex: 1; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-decision-footer {
+    position: sticky; bottom: 0; z-index: 2; background: var(--ops-card);
+    padding: .5rem 0; flex-shrink: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-navigation {
+    display: flex !important; flex-wrap: wrap; grid-column: 1 / -1; grid-row: 3;
+    position: static !important; width: auto; margin: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) [data-vehicle-queue="review"] {
+    display: flex !important; flex-direction: column; width: 100%; height: 100% !important;
+    min-height: 0; overflow: hidden !important; gap: .4rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) [data-vehicle-queue="review"] .ops-vehicle-focus-row-list {
+    display: grid !important; grid-auto-rows: max-content; align-content: start;
+    min-height: 0; height: auto !important; max-height: none;
+    flex: 1 1 0 !important; overflow-y: auto !important; gap: .35rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-row-actions > button:first-of-type {
+    display: flex !important; flex-direction: column; align-items: stretch;
+    gap: .15rem; padding: .3rem; min-height: 2.25rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-row-current-label,
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-row-actions > button:first-of-type > small:not(.ops-vehicle-queue-line) {
+    display: none;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-line { font-size: .75rem; line-height: 1.4; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-line em { display: inline; font-size: inherit; padding: 0; margin-left: .3rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-toggle { display: none !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-images.is-plate-pair {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .5rem;
+    height: auto !important; min-height: 0; max-height: none; align-items: start;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-image {
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    aspect-ratio: auto !important; flex: 0 0 auto !important; overflow: visible;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-image-comparison {
+    height: auto !important; flex: none; overflow: visible; align-self: start;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-review-image-media {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; min-height: 0; height: auto; aspect-ratio: auto; overflow: visible;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-image img {
+    position: static !important; width: 100% !important; height: auto !important;
+    max-width: 100%; max-height: none !important; object-fit: contain !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > div > span { font-size: .75rem; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > div > small { grid-column: 1 / -1; font-size: .75rem; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-progress-metric > small { grid-column: 1; grid-row: 2; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > .is-review-outcome { grid-template-columns: 1fr; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > div:last-child { border-right: 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-unverified-summary-action { grid-column: 1 / -1; justify-self: start; min-height: 24px; padding: .1rem .4rem; font-size: .7rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-line { display: flex; flex-wrap: wrap; gap: .2rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-queue-line em { margin-left: 0; }
+  @container vehicle-review (max-width: 1099.98px) {
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) {
+      display: flex !important; flex-direction: column; overflow: visible !important;
+      flex: none !important; height: auto !important; max-height: none !important;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) [data-vehicle-queue="review"] { height: auto !important; max-height: 24rem; flex: none; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-queue-toggle { display: block !important; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) [data-vehicle-queue="review"][data-queue-open="false"] > :not(.ops-vehicle-queue-toggle) { display: none !important; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-main {
+      height: auto !important; max-height: none !important; flex: none !important;
+      grid-template-rows: auto auto auto !important; overflow: visible !important;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-evidence-stack,
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-inspector {
+      height: auto !important; overflow: visible !important;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-evidence-stack {
+      display: block !important; align-self: start;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) [data-vehicle-queue="review"] { border-right: 0 !important; padding-right: 0 !important; }
+  }
+  @container vehicle-review (max-width: 759.98px) {
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: .5rem; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > div:nth-child(2) { border-right: 0 !important; }
+
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-main {
+      grid-template-columns: minmax(0, 1fr) !important;
+      grid-template-rows: auto auto auto auto !important;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) .ops-vehicle-focus-inspector { grid-column: 1; grid-row: 3 !important; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) .ops-vehicle-focus-navigation { grid-row: 4 !important; }
+  }
+
+  /* Two main panels: queue and one evidence/decision comparison workspace. */
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) > .ops-vehicle-focus-layout > .ops-vehicle-focus-main.is-comparison-review {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-comparison-workspace {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .6fr);
+    grid-column: 1; grid-row: 2; gap: 1rem;
+    min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden;
+    align-items: start; padding: .75rem;
+    border: 1px solid var(--ops-line); border-radius: .75rem;
+    background: var(--ops-color-neutral-surface);
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack {
+    grid-column: 1 !important; grid-row: 1 !important;
+    height: auto !important; border: 0; padding: 0;
+    background: transparent; overflow: visible !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-inspector {
+    grid-column: 2 !important; grid-row: 1 !important;
+    height: auto !important; max-height: none; align-self: start;
+    border: 0; border-radius: .5rem; padding: 0;
+    background: transparent; overflow: visible !important; gap: .5rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-images.is-lpr-only {
+    display: block !important; width: 100%; height: auto !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-image.is-overview {
+    width: 100% !important; max-width: none !important; margin: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop {
+    width: 100%; margin-bottom: .5rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop .ops-vehicle-review-image-media {
+    padding: .5rem; border-radius: .5rem; background: var(--ops-card);
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop img {
+    width: auto !important; max-width: 100%; max-height: clamp(5rem, 12vh, 10rem) !important;
+    height: clamp(5rem, 12vh, 10rem) !important; object-fit: contain;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-inspector-heading {
+    padding: .25rem 0 .5rem; margin: 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary {
+    background: var(--ops-card); padding: .75rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-classification-summary .vehicle-class-example {
+    display: flex; flex-direction: column; align-items: stretch;
+    background: var(--ops-card); padding: .75rem; border-radius: .5rem;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example > div { order: -1; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example figure {
+    width: 100%; max-width: 16rem; margin: .5rem 0 0;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-navigation {
+    grid-column: 1 !important; grid-row: 3 !important;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack img {
+    width: 100% !important; height: auto !important; max-width: 100%;
+    max-height: none !important; object-fit: contain;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-local-navigation {
+    display: flex !important; flex-wrap: wrap; justify-content: flex-start;
+    padding: .5rem 0 0; gap: .5rem; margin: 0; width: auto;
+    border-top: 1px solid var(--ops-line);
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-local-navigation > .ops-button {
+    flex: 0 1 auto !important; width: auto !important; min-width: 0;
+    min-height: 40px; padding: .4rem .65rem; font-size: .85rem;
+  }
+
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-inspector { padding: 0 !important; gap: .375rem !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop .ops-vehicle-review-image-action { display: none; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop .ops-vehicle-review-image-media { padding: .25rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-classification-details { padding: 0 !important; margin: 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-inspector-heading { padding: .25rem 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-review-dimension-list { padding: 0 !important; margin: 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-review-dimension > fieldset { padding: .25rem 0 !important; margin: 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop { margin-bottom: 0; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary { padding: .5rem !important; }
+
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-local-navigation { justify-content: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; text-align: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary > div { text-align: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-inspector-heading { flex-direction: column; align-items: center; gap: .125rem; text-align: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example > div { text-align: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example figure { align-self: center; margin-inline: auto; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-classification-summary .ops-vehicle-focus-section-heading { justify-content: center; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-decision-save-status { text-align: center; }
+
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack .ops-vehicle-focus-image { border: 0 !important; background: transparent !important; padding: 0 !important; width: 100% !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack .ops-vehicle-review-image-media { border: 0 !important; background: transparent !important; padding: 0 !important; width: 100%; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack .ops-vehicle-image-comparison { border: 0 !important; background: transparent !important; padding: 0 !important; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-inspector { position: sticky !important; top: 0; }
+
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary { border: 1px solid var(--ops-line) !important; border-radius: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary > div:first-child { border-right: 1px solid var(--ops-line) !important; padding-right: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-plate-summary > div:last-child { padding-left: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .is-plate-crop .ops-vehicle-review-image-media { border: 1px solid var(--ops-line); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-classification-summary .vehicle-class-example { border: 1px solid var(--ops-line); gap: .5rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example figure { flex: none !important; height: auto !important; min-height: 0; aspect-ratio: auto; padding: .25rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example figure { background: transparent; color: var(--ops-muted); }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-images { height: auto !important; min-height: 0 !important; }
+  /* Fit the complete evidence in the desktop workspace; enlargement stays in the image viewer. */
+  @container vehicle-review (min-width: 1100px) {
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-comparison-workspace { container-type: size; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-evidence-stack img { max-height: max(8rem, calc(100cqh - 4rem)) !important; }
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example img {
+    width: 100%; height: auto; max-height: none; object-fit: contain;
+  }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example figcaption, .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example small { font-size: .75rem; }
+  .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .vehicle-class-example strong { font-size: 1rem; line-height: 1.5; }
+  @container vehicle-review (max-width: 1099.98px) {
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) > .ops-vehicle-focus-layout > .ops-vehicle-focus-main.is-comparison-review {
+      grid-template-rows: auto auto !important;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-comparison-workspace {
+      height: auto; overflow: visible;
+    }
+  }
+  @container vehicle-review (max-width: 759.98px) {
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-comparison-workspace {
+      grid-template-columns: minmax(0, 1fr); padding: .5rem; gap: .75rem;
+    }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-focus-main.is-comparison-review .ops-vehicle-focus-inspector {
+      grid-column: 1 !important; grid-row: 2 !important; position: static !important;
+    }
+  }
+}

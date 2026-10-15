@@ -18,6 +18,9 @@ import { deleteStoredAttachment } from "../../domain/attachments.js";
 import { deleteStoredAttachments } from "../../domain/attachments.js";
 import { domSafeId } from "../dom-safe-id.js";
 import { getChecklistCoverageSummary } from "../../domain/master-checklist.js";
+import { getEquipmentDisplayLabel } from "../../domain/master-checklist.js";
+import { getCentralSystemNameForRecord } from "../../domain/equipment-names.js";
+import { isWimElectronicsSubEquipmentType } from "../../domain/wim-electronics.js";
 import { getChecklistPageNavigationItems } from "../checklist-queue-state.js";
 import { getChecklistWorkContext } from "../../domain/checklist-context.js";
 import { getCloseReadiness } from "../../domain/master-checklist.js";
@@ -47,5 +50,5 @@ import { STATUS_META, statusClass } from "../page-runtime-components.jsx";
 
 export function createRuntime() {
   const base = { Breadcrumb, Button, CHECKLIST_PROGRESS_POLICY_VERSION, CloseReadinessDialog, EmptyState, Icon, MAX_ATTACHMENT_BYTES, PageHeader, StatusBadge, UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID, VEHICLE_API_REVIEW_VERSION, VEHICLE_REVIEW_SCOPE_VERSION, attachmentIdsForRound, buildInspectionSections, buildItemState, createId, createUiDemoRound, createUiVehicleDemoRound, deleteStoredAttachment, deleteStoredAttachments, domSafeId, formatDate, formatDateTime, getChecklistCoverageSummary, getChecklistPageNavigationItems, getChecklistScopeMeta, getChecklistWorkContext, getCloseReadiness, getCorrectionSummary, getItemsForSnapshot, getRoundSummary, getSectionEvidenceStats, getStoredAttachment, getVehicleReviewContext, getVehicleReviewState, isEvidenceBypassItemStatus, isEvidenceSlotComplete, isVehicleApiReviewItem, isVehicleReviewScopeState, navigate, normalizeVehicleReviewState, normalizeVehicleSearchState, roundFor, saveStoredAttachment, shortId, useCallback, useEffect, useMemo, useRef, useState, vehicleApiHref };
-  return { ...base, ...createChecklistRuntime({ ...base, STATUS_META, statusClass }) };
+  return { ...base, ...createChecklistRuntime({ ...base, getCentralSystemNameForRecord, getEquipmentDisplayLabel, isWimElectronicsSubEquipmentType, STATUS_META, statusClass }) };
 }

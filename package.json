@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "prebuild": "node tools/build_dark_theme_surfaces.mjs && node tools/test_shared_select_usage.mjs",
+    "prebuild": "node tools/build_dark_theme_surfaces.mjs && node tools/test_shared_select_usage.mjs && node tools/test_lazy_runtime_dependencies.mjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "start": "node server.mjs",
@@ -44,6 +44,7 @@
     "test:station-tor-ui": "node tools/test_station_tor_ui.mjs",
     "test:station-checklist-controls": "node tools/test_station_checklist_controls.mjs",
     "test:runtime-checklist-labels": "node tools/test_runtime_checklist_labels.mjs",
+    "test:lazy-runtime-dependencies": "node tools/test_lazy_runtime_dependencies.mjs",
     "test:checklist-wording": "node tools/test_checklist_context_wording.mjs",
     "test:item-library": "node tools/test_item_library.mjs",
     "test:equipment-cleaning": "node tools/test_equipment_cleaning.mjs",

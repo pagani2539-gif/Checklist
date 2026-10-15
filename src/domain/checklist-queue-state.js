@@ -1,4 +1,5 @@
 import { getVehicleSystemLabel } from './vehicle-review-systems.js';
+import { getVehicleReviewContext, getVehicleReviewState, isVehicleApiReviewItem } from "./vehicle-search.js";
 import { sortEquipmentForDisplay } from "./ordering.js";
 import { getEffectiveEquipmentScope } from "./station-equipment-parent.js";
 import { getChecklistBoqGroupId } from "./boq-checklist-groups.js";
@@ -67,6 +68,35 @@ export function getChecklistQueueItemBlocks(items = []) {
     ...(inspectionItems.length ? [{ kind: "inspection", items: inspectionItems }] : []),
     ...(cleaningItems.length ? [{ kind: "cleaning", items: cleaningItems }] : []),
   ];
+}
+
+const RECORDED_VEHICLE_REVIEW_STATES = new Set([
+  "complete",
+  "failed",
+  "incomplete",
+  "recorded-unverified",
+  "empty-acknowledged",
+]);
+
+export function getVehicleReviewQueueProgress(items = [], round = {}) {
+  const reviewItems = (Array.isArray(items) ? items : [])
+    .filter((item) => isVehicleApiReviewItem(item, round?.snapshot));
+  const done = reviewItems.filter((item) => {
+    const context = getVehicleReviewContext(item);
+    const state = getVehicleReviewState(round?.vehicleSearch, {
+      reviewVersion: round?.snapshot?.vehicleReviewVersion,
+      context: context?.key,
+      systemKey: item.vehicleReviewSystemKey,
+    });
+    return RECORDED_VEHICLE_REVIEW_STATES.has(state.key);
+  }).length;
+
+  return {
+    total: reviewItems.length,
+    done,
+    pending: reviewItems.length - done,
+    progress: reviewItems.length ? Math.round(done / reviewItems.length * 100) : 0,
+  };
 }
 
 // Display-only cleanup: never rewrite Snapshot labels or source requirements.

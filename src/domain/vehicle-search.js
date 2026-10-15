@@ -462,6 +462,19 @@ function mergeVehicleSearchReviewSummaries(summaries) {
   };
 }
 
+function getVehicleReviewWorkStatus(summary) {
+  const pendingChecks = summary.pendingChecks || 0;
+  const unableToVerifyChecks = summary.unableToVerifyChecks || 0;
+  if (pendingChecks > 0) {
+    const unableLabel = unableToVerifyChecks ? ` · ตรวจยืนยันไม่ได้ ${unableToVerifyChecks} จุด` : "";
+    return { key: "reviewing", label: `ยังตรวจไม่ครบ · ค้าง ${pendingChecks} จุด${unableLabel}`, tone: "waiting", summary };
+  }
+  if (unableToVerifyChecks > 0) {
+    return { key: "recorded-unverified", label: `บันทึกผลครบแล้ว · ตรวจยืนยันไม่ได้ ${unableToVerifyChecks} จุด`, tone: "normal", summary };
+  }
+  return null;
+}
+
 export function getVehicleReviewState(value, { reviewVersion = VEHICLE_API_REVIEW_VERSION, context = "", systemKey = "", roundId = "" } = {}) {
   context ||= value?.independentContext || "";
   if (value?.systems) return getVehicleReviewState(value.systems?.[systemKey]?.[context] || createVehicleReviewState(), { reviewVersion, context });
@@ -473,7 +486,8 @@ export function getVehicleReviewState(value, { reviewVersion = VEHICLE_API_REVIE
     const summary = getVehicleSearchReviewSummary(value, { reviewVersion, context });
     if (states.some((state) => state.key === "not-fetched")) return { key: "not-fetched", label: value.independentContext === "classification" ? "ยังไม่ได้ดึงข้อมูลกลางวัน" : "ยังดึงข้อมูลกลางวัน/กลางคืนไม่ครบ", tone: "pending", summary };
     if (states.some((state) => state.key === "empty")) return { key: "empty", label: "ต้องยืนยันผลช่วงเวลาที่ไม่พบรถ", tone: "waiting", summary };
-    if (states.some((state) => state.key === "reviewing")) return { key: "reviewing", label: `ข้อมูล API พร้อมตรวจ · คงเหลือ ${summary.unresolvedChecks} จุด`, tone: "waiting", summary };
+    const workStatus = getVehicleReviewWorkStatus(summary);
+    if (workStatus) return workStatus;
     const outcome = getVehicleReviewOutcome(value, { reviewVersion, context });
     if (outcome.status === "failed") return { key: "failed", label: "ไม่ผ่านเกณฑ์", tone: "damaged", summary, outcome };
     if (outcome.status === "incomplete") return { key: "incomplete", label: "ยังไม่ครบเกณฑ์", tone: "waiting", summary, outcome };
@@ -487,7 +501,8 @@ export function getVehicleReviewState(value, { reviewVersion = VEHICLE_API_REVIE
     if (state.emptyResultAcknowledgedAt) return { key: "empty-acknowledged", label: "ยืนยันว่าไม่พบรถในช่วงเวลา", tone: "normal", summary };
     return { key: "empty", label: "ไม่พบรถในช่วงเวลา · ต้องยืนยันผล", tone: "waiting", summary };
   }
-  if (summary.pendingChecks || summary.unableToVerifyChecks) return { key: "reviewing", label: `ข้อมูล API พร้อมตรวจ · คงเหลือ ${summary.unresolvedChecks} จุด`, tone: "waiting", summary };
+  const workStatus = getVehicleReviewWorkStatus(summary);
+  if (workStatus) return workStatus;
   const outcome = getVehicleReviewOutcome(state, { reviewVersion, context });
   if (outcome.status === "failed") return { key: "failed", label: "ไม่ผ่านเกณฑ์", tone: "damaged", summary, outcome };
   if (outcome.status === "incomplete") return { key: "incomplete", label: "ยังไม่ครบเกณฑ์", tone: "waiting", summary, outcome };

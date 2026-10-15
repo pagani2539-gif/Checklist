@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { createDefaultStationProfile, createSnapshot, createInspectionRound, normalizeRound, getItemsForSnapshot, getCloseReadiness, buildInspectionSections } from '../src/domain/master-checklist.js';
-import { getChecklistPageQueueGroups } from '../src/app/checklist-queue-state.js';
+import { createDefaultStationProfile, createSnapshot, createInspectionRound, normalizeRound, getItemsForSnapshot, getCloseReadiness, getChecklistItemsProgress, buildInspectionSections } from '../src/domain/master-checklist.js';
+import { getChecklistPageQueueGroups, getVehicleReviewQueueProgress } from '../src/app/checklist-queue-state.js';
 import { getBoqChecklistDisplaySections } from '../src/domain/boq-checklist-groups.js';
 import { getInstalledVehicleSystems, getSystemVehicleSearch, setSystemVehicleSearch, projectVehicleRound, normalizeSystemVehicleSearch } from '../src/domain/vehicle-review-systems.js';
 import { createVehicleReviewState, getVehicleReviewState, updateVehicleSearchScope, searchVehicles, buildVehicleSearchPayload } from '../src/domain/vehicle-search.js';
@@ -59,6 +59,47 @@ for (const [scopes, format, keys] of [
 
 const profile = profileFor(['High Speed', 'Low Speed']);
 let round = createInspectionRound(profile, { inspectionDate: '2026-10-03' });
+const hsQueueGroup = getChecklistPageQueueGroups(buildInspectionSections(round.snapshot), 'SC', round.snapshot).find(group => group.title === 'DATA/CONTROL CENTRAL FOR HS');
+const hsGroupItems = hsQueueGroup.sections.flatMap(section => section.items);
+const hsReviewItems = hsGroupItems.filter(item => item.vehicleReviewSystemKey === 'sc-hs' && item.vehicleReviewContext);
+const initialChecklistProgress = getChecklistItemsProgress(hsGroupItems, round);
+assert.deepEqual({ done: initialChecklistProgress.done, total: initialChecklistProgress.total, pending: initialChecklistProgress.pending }, { done: 0, total: 7, pending: 7 }, 'ordinary checklist work keeps its own count');
+assert.deepEqual(getVehicleReviewQueueProgress(hsReviewItems, round), { total: 2, done: 0, pending: 2, progress: 0 }, 'unfetched review tasks stay pending in the queue summary');
+const reviewedContext = (context) => {
+  const state = createVehicleReviewState();
+  state.independentContext = context;
+  const scopeKeys = context === 'classification' ? ['day'] : ['day', 'night'];
+  state.scopes = {
+    ...state.scopes,
+    ...Object.fromEntries(scopeKeys.map((scopeKey) => [scopeKey, {
+      ...state.scopes[scopeKey],
+      fetchedAt: '2026-10-03T03:00:00.000Z',
+      rows: [{ id: `${context}-${scopeKey}`, occurredAt: scopeKey === 'night' ? '2026-10-03T20:00:00+07:00' : '2026-10-03T10:00:00+07:00', reviewStatus: 'correct', classificationReviewStatus: 'correct' }],
+    }])),
+  };
+  return state;
+};
+const reviewedRound = {
+  ...round,
+  vehicleSearch: { systems: { 'sc-hs': { plate: reviewedContext('plate'), classification: reviewedContext('classification') } } },
+};
+assert.deepEqual(getVehicleReviewQueueProgress(hsReviewItems, reviewedRound), { total: 2, done: 2, pending: 0, progress: 100 }, 'recorded vehicle review tasks are complete in the queue summary');
+const reviewedChecklistProgress = getChecklistItemsProgress(hsGroupItems, reviewedRound);
+assert.deepEqual({ done: reviewedChecklistProgress.done, total: reviewedChecklistProgress.total, pending: reviewedChecklistProgress.pending }, { done: 0, total: 7, pending: 7 }, 'recording vehicle reviews does not mark separate system checks complete');
+const unableToVerifyContext = (context) => {
+  const state = reviewedContext(context);
+  state.scopes = Object.fromEntries(Object.entries(state.scopes).map(([scopeKey, scope]) => [scopeKey, {
+    ...scope,
+    rows: scope.rows.map(row => ({ ...row, reviewStatus: 'unable-to-verify', classificationReviewStatus: 'unable-to-verify' })),
+  }]));
+  return state;
+};
+const unableToVerifyRound = {
+  ...round,
+  vehicleSearch: { systems: { 'sc-hs': { plate: unableToVerifyContext('plate'), classification: unableToVerifyContext('classification') } } },
+};
+assert.equal(getVehicleReviewState(unableToVerifyRound.vehicleSearch, { reviewVersion: round.snapshot.vehicleReviewVersion, context: 'plate', systemKey: 'sc-hs' }).key, 'recorded-unverified', 'the sample with unable-to-verify decisions is recorded');
+assert.deepEqual(getVehicleReviewQueueProgress(hsReviewItems, unableToVerifyRound), { total: 2, done: 2, pending: 0, progress: 100 }, 'unable-to-verify is a saved review decision, not pending work');
 const savedConfig = structuredClone(round.snapshot.vehicleReviewSystems);
 profile.vehicleSearchConfig.systems['sc-hs'].baseUrl = 'http://changed.test';
 assert.deepEqual(round.snapshot.vehicleReviewSystems, savedConfig, 'snapshot endpoints are frozen');

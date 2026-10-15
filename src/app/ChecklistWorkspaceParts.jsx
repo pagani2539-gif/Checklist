@@ -3,7 +3,7 @@ import { STATUS_OPTIONS, getChecklistItemsProgress } from "../domain/master-chec
 import { canUseNotInstalled } from "../domain/checklist-completion.js";
 import { isEvidenceSlotComplete } from "../domain/evidence-checklist.js";
 import { isEvidenceBypassItemStatus } from "../domain/inspection-status.js";
-import { getChecklistDisplayText, getChecklistPageQueueGroups, getChecklistQueueGroups, getChecklistQueueItemBlocks, getChecklistQueueItemLabel, getChecklistQueueSectionLabel, getChecklistQueueToggle, getCleaningQueueItemCount } from "./checklist-queue-state.js";
+import { getChecklistDisplayText, getChecklistPageQueueGroups, getChecklistQueueGroups, getChecklistQueueItemBlocks, getChecklistQueueItemLabel, getChecklistQueueSectionLabel, getChecklistQueueToggle, getCleaningQueueItemCount, getVehicleReviewQueueProgress } from "./checklist-queue-state.js";
 import { AppIcon as Icon } from "./icon-system.jsx";
 import { domSafeId } from "./dom-safe-id.js";
 import CustomSelect from "./CustomSelect.jsx";
@@ -104,7 +104,7 @@ export function createChecklistWorkspaceParts(runtime) {
     if (apiReview) {
       const vehicleContext = getVehicleReviewContext(item);
       const reviewState = getVehicleReviewState(vehicleSearch, { reviewVersion: vehicleReviewVersion, context: vehicleContext?.key, systemKey: item.vehicleReviewSystemKey });
-      const openLabel = vehicleContext?.key === "classification" ? "เริ่มตรวจคัดแยกประเภทรถในหน้านี้" : "เริ่มตรวจป้ายทะเบียนในหน้านี้";
+      const openLabel = vehicleContext?.key === "classification" ? "ตรวจประเภทรถ" : "ตรวจป้ายทะเบียน";
       return <article id={`check-item-${domSafeId(item.id)}`} className={`ops-check-item ops-vehicle-api-item is-${reviewState.key} ${hideEvidence ? "ops-check-item-focus" : ""}`} aria-labelledby={headingId}>
         <div className={`ops-check-item-heading ${focusLayout ? "ops-check-item-heading-a11y-only" : ""}`}><span className="ops-item-index">API</span><div><span className="ops-item-scope is-station">ตรวจระดับสถานี</span><h4 id={headingId} tabIndex="-1">{displayItemLabel}</h4><p>{item.helper}</p></div></div>
         <div className={`ops-vehicle-api-status tone-${reviewState.tone}`} role="status"><Icon name={reviewState.tone === "normal" ? "check" : reviewState.tone === "waiting" ? "refresh" : "search"} /><div><strong>{reviewState.label}</strong><span>{reviewState.summary.total ? `ทั้งหมด ${reviewState.summary.total} คัน · ตรวจแล้ว ${reviewState.summary.reviewed} คัน` : "ใช้ช่วงวันและเวลาเพื่อดึงข้อมูลจาก API สถานีจริง"}</span></div>{!readOnly && <button type="button" className="ops-button ops-button-primary" onClick={onOpenApiReview}>{openLabel}</button>}</div>
@@ -297,10 +297,12 @@ export function createChecklistWorkspaceParts(runtime) {
           const groupItems = group.sections.flatMap((section) => section.sourceItems || section.items);
           const groupCleaningCount = getCleaningQueueItemCount(groupItems);
           const groupProgress = getChecklistItemsProgress(groupItems, round);
+          const groupVehicleReviewProgress = getVehicleReviewQueueProgress(groupItems, round);
           const groupItemCount = groupProgress.done;
           const groupEvidence = getSectionEvidenceStats({ items: groupItems }, round);
           const groupStatusProgress = groupProgress.progress;
           const groupEvidenceProgress = groupEvidence.total ? Math.round((groupEvidence.complete / groupEvidence.total) * 100) : 0;
+          const groupVehicleReviewOnly = groupProgress.total === 0 && groupVehicleReviewProgress.total > 0 && groupEvidence.total === 0;
           const isGroupActive = group.sections.some((section) => section.items.some((item) => item.id === currentItemId));
           const groupKindLabel = group.kind === "station-readiness"
             ? "งานระดับสถานี"
@@ -323,9 +325,14 @@ export function createChecklistWorkspaceParts(runtime) {
             <button type="button" className="ops-task-queue-group-toggle" aria-expanded={isGroupExpanded} aria-current={isGroupActive ? "page" : undefined} onClick={() => toggleGroup(group)}>
               <span className="ops-task-queue-group-chevron" aria-hidden="true"><Icon name="arrow" size="small" /></span>
             <span className="ops-task-queue-group-copy"><strong>{group.title}</strong><small>{hierarchy === "station-categories" && group.categoryDescription ? group.categoryDescription : groupKindLabel}</small>{groupCleaningCount > 0 && <small>ทำความสะอาด {groupCleaningCount} รายการ</small>}</span>
-              <span className="ops-task-queue-group-progress" aria-label={`กลุ่ม ${group.title} บันทึกสถานะ ${groupItemCount} จาก ${groupProgress.total} รายการ`}>
-                <span className="ops-task-queue-group-progress-row"><span>ตรวจ</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupStatusProgress}%` }} /></span><strong>{groupItemCount}/{groupProgress.total} รายการ</strong></span>
-                <span className={`ops-task-queue-group-progress-row ${groupEvidence.total === 0 ? "is-empty" : groupEvidence.complete === groupEvidence.total ? "is-complete" : "is-incomplete"}`}><span>หลักฐาน</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupEvidenceProgress}%` }} /></span><strong>{groupEvidence.total ? `${groupEvidence.complete}/${groupEvidence.total} ช่อง` : "ไม่มีช่อง"}</strong></span>
+              <span className="ops-task-queue-group-progress" aria-label={`กลุ่ม ${group.title}${groupVehicleReviewOnly ? ` บันทึกผลข้อมูลรถ ${groupVehicleReviewProgress.done} จาก ${groupVehicleReviewProgress.total} งาน` : ` ตรวจรายการระบบ ${groupItemCount} จาก ${groupProgress.total} รายการ${groupVehicleReviewProgress.total ? ` · ตรวจข้อมูลรถ ${groupVehicleReviewProgress.done} จาก ${groupVehicleReviewProgress.total} งาน` : ""}`}`}>
+                {groupVehicleReviewOnly
+                  ? <span className={`ops-task-queue-group-progress-row ${groupVehicleReviewProgress.done === groupVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span>ข้อมูลรถ</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupVehicleReviewProgress.progress}%` }} /></span><strong>{groupVehicleReviewProgress.done}/{groupVehicleReviewProgress.total} งาน</strong></span>
+                  : <>
+                    <span className="ops-task-queue-group-progress-row"><span>ตรวจระบบ</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupStatusProgress}%` }} /></span><strong>{groupItemCount}/{groupProgress.total} รายการ</strong></span>
+                    {groupVehicleReviewProgress.total > 0 && <span className={`ops-task-queue-group-progress-row ${groupVehicleReviewProgress.done === groupVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span>ข้อมูลรถ</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupVehicleReviewProgress.progress}%` }} /></span><strong>{groupVehicleReviewProgress.done}/{groupVehicleReviewProgress.total} งาน</strong></span>}
+                    <span className={`ops-task-queue-group-progress-row ${groupEvidence.total === 0 ? "is-empty" : groupEvidence.complete === groupEvidence.total ? "is-complete" : "is-incomplete"}`}><span>หลักฐาน</span><span className="ops-task-queue-group-meter" aria-hidden="true"><span style={{ width: `${groupEvidenceProgress}%` }} /></span><strong>{groupEvidence.total ? `${groupEvidence.complete}/${groupEvidence.total} ช่อง` : "ไม่มีช่อง"}</strong></span>
+                  </>}
               </span>
             </button>
             {isGroupExpanded && <div className="ops-task-queue-group-sections">
@@ -337,6 +344,8 @@ export function createChecklistWorkspaceParts(runtime) {
           const sectionProgress = getChecklistItemsProgress(sourceItems, round);
           const itemCount = sectionProgress.done;
           const evidence = getSectionEvidenceStats({ ...section, items: sourceItems }, round);
+          const sectionVehicleReviewProgress = getVehicleReviewQueueProgress(sourceItems, round);
+          const sectionVehicleReviewOnly = sectionProgress.total === 0 && sectionVehicleReviewProgress.total > 0 && evidence.total === 0;
           const evidenceLabel = formatEvidenceCount(evidence.complete, evidence.total);
           const filteredLabel = section.excludedItemCount ? ` · ซ่อน ${section.excludedItemCount} รายการที่ไม่รวมความคืบหน้า` : "";
           const sectionMeta = getChecklistSectionMeta(section);
@@ -350,17 +359,22 @@ export function createChecklistWorkspaceParts(runtime) {
               <span className="ops-task-queue-chevron" aria-hidden="true"><Icon name="arrow" size="small" /></span>
               <span className="ops-task-queue-section-code">{section.queueDisplayCode || section.code}</span>
                <span className="ops-task-queue-section-copy"><strong>{section.title}</strong><small>{group.kind === "format-system" ? "ชุดตรวจย่อย" : "หมวดย่อย"}{sectionMeta ? ` · ${sectionMeta.label}` : ""}{filteredLabel}</small>{sectionCleaningCount > 0 && <small>ทำความสะอาด {sectionCleaningCount} รายการ</small>}</span>
-              <span className="ops-task-queue-section-progress" aria-label={`รายการตรวจบันทึกสถานะ ${itemCount} จาก ${sectionProgress.total} รายการ · ${evidenceLabel}`}>
-                <span className="ops-task-queue-section-progress-row">
-                  <span className="ops-task-queue-section-progress-label">ตรวจ</span>
-                  <span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${statusProgress}%` }} /></span>
-                  <strong>{itemCount}/{sectionProgress.total} รายการ</strong>
-                </span>
-                <span className={`ops-task-queue-section-progress-row ${evidenceTone}`}>
-                  <span className="ops-task-queue-section-progress-label">หลักฐาน</span>
-                  <span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${evidenceProgress}%` }} /></span>
-                  <strong>{evidence.total ? `${evidence.complete}/${evidence.total} ช่อง` : "ไม่มีช่อง"}</strong>
-                </span>
+              <span className="ops-task-queue-section-progress" aria-label={sectionVehicleReviewOnly ? `บันทึกผลข้อมูลรถ ${sectionVehicleReviewProgress.done} จาก ${sectionVehicleReviewProgress.total} งาน` : `รายการตรวจบันทึกสถานะ ${itemCount} จาก ${sectionProgress.total} รายการ · ${evidenceLabel}`}>
+                {sectionVehicleReviewOnly
+                  ? <span className={`ops-task-queue-section-progress-row ${sectionVehicleReviewProgress.done === sectionVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span className="ops-task-queue-section-progress-label">ข้อมูลรถ</span><span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${sectionVehicleReviewProgress.progress}%` }} /></span><strong>{sectionVehicleReviewProgress.done}/{sectionVehicleReviewProgress.total} งาน</strong></span>
+                  : <>
+                    <span className="ops-task-queue-section-progress-row">
+                      <span className="ops-task-queue-section-progress-label">ตรวจ</span>
+                      <span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${statusProgress}%` }} /></span>
+                      <strong>{itemCount}/{sectionProgress.total} รายการ</strong>
+                    </span>
+                    {sectionVehicleReviewProgress.total > 0 && <span className={`ops-task-queue-section-progress-row ${sectionVehicleReviewProgress.done === sectionVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span className="ops-task-queue-section-progress-label">ข้อมูลรถ</span><span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${sectionVehicleReviewProgress.progress}%` }} /></span><strong>{sectionVehicleReviewProgress.done}/{sectionVehicleReviewProgress.total} งาน</strong></span>}
+                    <span className={`ops-task-queue-section-progress-row ${evidenceTone}`}>
+                      <span className="ops-task-queue-section-progress-label">หลักฐาน</span>
+                      <span className="ops-task-queue-section-meter" aria-hidden="true"><span style={{ width: `${evidenceProgress}%` }} /></span>
+                      <strong>{evidence.total ? `${evidence.complete}/${evidence.total} ช่อง` : "ไม่มีช่อง"}</strong>
+                    </span>
+                  </>}
               </span>
             </button>
             {isExpanded && <div className="ops-task-queue-items"><div className="ops-task-queue-items-heading">รายการตรวจในหมวดย่อยนี้</div>
@@ -370,6 +384,8 @@ export function createChecklistWorkspaceParts(runtime) {
                   const equipmentProgress = getChecklistItemsProgress(equipmentGroup.items, round);
                   const equipmentItemCount = equipmentProgress.done;
                   const equipmentEvidence = getSectionEvidenceStats({ items: equipmentGroup.items }, round);
+                  const equipmentVehicleReviewProgress = getVehicleReviewQueueProgress(equipmentGroup.items, round);
+                  const equipmentVehicleReviewOnly = equipmentProgress.total === 0 && equipmentVehicleReviewProgress.total > 0 && equipmentEvidence.total === 0;
                   const equipmentCleaningCount = getCleaningQueueItemCount(equipmentGroup.items);
                   const equipmentEvidenceLabel = formatEvidenceCount(equipmentEvidence.complete, equipmentEvidence.total);
                   const equipmentStatusProgress = equipmentProgress.progress;
@@ -389,9 +405,14 @@ export function createChecklistWorkspaceParts(runtime) {
                     <button type="button" className="ops-task-queue-equipment-label" aria-label={`${equipmentKindLabel} ${equipmentLabel}`} aria-expanded={isEquipmentExpanded} onClick={() => toggleEquipmentGroup(section, equipmentGroup)}>
                       <span className="ops-task-queue-equipment-chevron" aria-hidden="true"><Icon name="arrow" size="small" /></span>
                       <span className="ops-task-queue-equipment-copy"><strong>{equipmentName}</strong>{equipmentCode && <small className="ops-task-queue-equipment-code">{equipmentCode}</small>}<small>{equipmentKindLabel}</small>{equipmentCleaningCount > 0 && <small>ทำความสะอาด {equipmentCleaningCount} รายการ</small>}</span>
-                      <span className="ops-task-queue-equipment-progress" aria-label={`${equipmentLabel} บันทึกสถานะ ${equipmentItemCount} จาก ${equipmentProgress.total} รายการ · ${equipmentEvidenceLabel}`}>
-                        <span className="ops-task-queue-equipment-progress-row"><span>ตรวจ</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentStatusProgress}%` }} /></span><strong>{equipmentItemCount}/{equipmentProgress.total} รายการ</strong></span>
-                        <span className={`ops-task-queue-equipment-progress-row ${equipmentEvidenceTone}`}><span>หลักฐาน</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentEvidenceProgress}%` }} /></span><strong>{equipmentEvidence.total ? `${equipmentEvidence.complete}/${equipmentEvidence.total} ช่อง` : "ไม่มีช่อง"}</strong></span>
+                      <span className="ops-task-queue-equipment-progress" aria-label={equipmentVehicleReviewOnly ? `${equipmentLabel} บันทึกผลข้อมูลรถ ${equipmentVehicleReviewProgress.done} จาก ${equipmentVehicleReviewProgress.total} งาน` : `${equipmentLabel} บันทึกสถานะ ${equipmentItemCount} จาก ${equipmentProgress.total} รายการ · ${equipmentEvidenceLabel}`}>
+                        {equipmentVehicleReviewOnly
+                          ? <span className={`ops-task-queue-equipment-progress-row ${equipmentVehicleReviewProgress.done === equipmentVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span>ข้อมูลรถ</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentVehicleReviewProgress.progress}%` }} /></span><strong>{equipmentVehicleReviewProgress.done}/{equipmentVehicleReviewProgress.total} งาน</strong></span>
+                          : <>
+                            <span className="ops-task-queue-equipment-progress-row"><span>ตรวจ</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentStatusProgress}%` }} /></span><strong>{equipmentItemCount}/{equipmentProgress.total} รายการ</strong></span>
+                            {equipmentVehicleReviewProgress.total > 0 && <span className={`ops-task-queue-equipment-progress-row ${equipmentVehicleReviewProgress.done === equipmentVehicleReviewProgress.total ? "is-complete" : "is-incomplete"}`}><span>ข้อมูลรถ</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentVehicleReviewProgress.progress}%` }} /></span><strong>{equipmentVehicleReviewProgress.done}/{equipmentVehicleReviewProgress.total} งาน</strong></span>}
+                            <span className={`ops-task-queue-equipment-progress-row ${equipmentEvidenceTone}`}><span>หลักฐาน</span><span className="ops-task-queue-equipment-meter" aria-hidden="true"><span style={{ width: `${equipmentEvidenceProgress}%` }} /></span><strong>{equipmentEvidence.total ? `${equipmentEvidence.complete}/${equipmentEvidence.total} ช่อง` : "ไม่มีช่อง"}</strong></span>
+                          </>}
                       </span>
                     </button>
                     {isEquipmentExpanded && <div className="ops-task-queue-equipment-items">

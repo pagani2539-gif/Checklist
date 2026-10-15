@@ -6,6 +6,9 @@
 .snapshot-vehicle-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 14px; font-size: 11px; }
 .snapshot-vehicle-table th, .snapshot-vehicle-table td { border: 1px solid #d7e3ed; padding: 5px; text-align: left; vertical-align: middle; overflow-wrap: anywhere; }
 .snapshot-vehicle-table th { background: #edf5fc; }
+.snapshot-excluded-vehicle-table { border-color: #d8c6b8; }
+.snapshot-excluded-vehicle-table > thead > tr > th { background: #fff4eb; }
+.snapshot-excluded-vehicle-table td:last-child small { display: block; margin-top: 4px; }
 .snapshot-vehicle-table > thead > tr > th:nth-child(1) { width: 22%; }
 .snapshot-vehicle-table > thead > tr > th:nth-child(2) { width: 34%; }
 .snapshot-vehicle-table small, .snapshot-vehicle-table strong { display: block; }

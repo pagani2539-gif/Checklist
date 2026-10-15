@@ -32,9 +32,6 @@
 .ops-vehicle-eligibility-actions > div { display:flex; flex-wrap:wrap; gap:8px; }
 .ops-vehicle-eligibility-actions :is(select,textarea) { width:100%; }
 .ops-vehicle-eligibility-audit { display:block; margin-top:10px; color:#607b92; }
-.snapshot-excluded-vehicle-table { border-color:#d8c6b8; }
-.snapshot-excluded-vehicle-table > thead > tr > th { background:#fff4eb; }
-.snapshot-excluded-vehicle-table td:last-child small { display:block; margin-top:4px; }
 @media (max-width:760px) {
   .ops-vehicle-eligibility-heading { flex-direction:column; }
   .ops-vehicle-eligibility-heading strong { text-align:left; }

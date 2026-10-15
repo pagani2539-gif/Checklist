@@ -247,7 +247,7 @@
     .ops-vehicle-api-page [data-photo-review="true"] .ops-vehicle-classification-summary .ops-vehicle-focus-section-heading > span { display: none; }
     .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-classification-details .ops-vehicle-classification-metrics { grid-template-columns: minmax(0, 1fr) 98px; gap: .4rem; }
     .ops-vehicle-api-page [data-photo-review="true"] .ops-vehicle-classification-metrics span { white-space: nowrap; }
-    .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-review-dimension-list { grid-column: 1; grid-row: 2; min-height: 0; max-height: none; overflow-y: auto !important; border-top: 1px solid var(--ops-line); padding-top: .4rem; }
+    .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-review-dimension-list { grid-column: 1; grid-row: 2; min-height: 0; max-height: none; overflow-y: auto !important; padding-top: .4rem; }
     .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-review-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; }
     .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-review-actions > button { min-width: 0; min-height: 44px; padding: .3rem; white-space: normal; overflow-wrap: anywhere; }
     .ops-vehicle-api-page [data-photo-review="true"] .ops-vehicle-focus-inspector-body { grid-column: 1; grid-row: 3; }
@@ -388,6 +388,26 @@
   .ops-vehicle-api-page.is-context-plate .ops-vehicle-focus-panel[data-photo-review="true"] [data-vehicle-workspace="plate"] .ops-vehicle-focus-images.is-plate-pair {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* Keep plate and vehicle facts readable in the narrow inspector column. */
+.ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-classification-details .ops-vehicle-focus-facts {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-classification-details .ops-vehicle-focus-facts > div {
+  grid-template-columns: minmax(92px, .85fr) minmax(0, 1.15fr);
+  min-width: 0;
+  align-items: start;
+}
+.ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-classification-details .ops-vehicle-focus-facts dt {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-classification-details .ops-vehicle-focus-facts dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media screen {

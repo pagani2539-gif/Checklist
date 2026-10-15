@@ -1,4 +1,5 @@
 import CustomSelect from "./CustomSelect.jsx";
+import "../styles/master-select.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { filterReferenceOptions, referenceOptionsFor } from "../domain/reference-data.js";
 

@@ -5,7 +5,7 @@ import "../../styles/vehicle-class-example.css";
 export function VehicleClassExample({ label, title = "ประเภทรถจากระบบ", compact = false, axleCount }) {
   const illustration = getVehicleClassIllustration(label);
   return <div className={`vehicle-class-example${compact ? " is-compact" : ""}`}>
-    {illustration && <figure><img src={illustration.image} alt="" decoding="async" /><figcaption>ภาพตัวอย่างประเภทรถ</figcaption></figure>}
+    {illustration && <figure><div className="vehicle-class-example-illustration"><img src={illustration.image} alt="" decoding="async" /></div></figure>}
     <div>{title && <small>{title}</small>}<strong>{label || "ไม่พบประเภทรถ"}</strong>{axleCount !== null && axleCount !== undefined && <small>จำนวนเพลาจากระบบ: {axleCount} เพลา</small>}{!illustration && <small>ไม่มีภาพตัวอย่างตรงกับประเภทนี้</small>}</div>
   </div>;
 }

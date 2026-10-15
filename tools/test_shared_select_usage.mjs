@@ -9,4 +9,12 @@ function inspect(dir) {
  }
 }
 inspect('src/app');
-console.log('PASS app dropdowns use shared components; no native select or datalist');
+const masterSelect = readFileSync('src/app/MasterSelect.jsx', 'utf8');
+const masterSelectStyles = readFileSync('src/styles/master-select.css', 'utf8');
+assert.match(masterSelect, /import ["']\.\.\/styles\/master-select\.css["']/,
+ 'MasterSelect must load its own styles on every route');
+assert.match(masterSelectStyles, /\.master-select-menu\s*\{[^}]*position\s*:\s*absolute[^}]*max-height\s*:\s*300px[^}]*overflow\s*:\s*auto/i,
+ 'Searchable dropdown options must stay inside a bounded overlay');
+assert.match(masterSelectStyles, /\.master-select-option\s*\{[^}]*width\s*:\s*100%[^}]*display\s*:\s*flex/i,
+ 'Searchable dropdown choices must remain a vertical list');
+console.log('PASS app dropdowns use shared components and MasterSelect owns its bounded menu styles');

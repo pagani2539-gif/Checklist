@@ -908,7 +908,7 @@ button.ops-vehicle-focus-image:hover { border-color: var(--ops-blue); box-shadow
 .ops-vehicle-focus-panel .ops-vehicle-queue-pagination button.is-active {
   border-color: var(--ops-blue);
   background: var(--ops-blue);
-  color: var(--ops-color-white);
+  color: var(--ops-action-foreground, var(--ops-color-white));
 }
 
 .ops-vehicle-focus-panel .ops-vehicle-queue-pagination button:disabled {
@@ -2461,26 +2461,6 @@ button.ops-vehicle-focus-image:hover { border-color: var(--ops-blue); box-shadow
     min-height: 44px;
   }
 }
-.ops-vehicle-review-entry {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  width: min(100%, 1040px);
-  margin: 20px auto;
-  padding: 20px;
-  border: 1px solid #c9d9ec;
-  border-radius: 12px;
-  background: #f7fbff;
-}
-.ops-vehicle-review-entry-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 11px; background: var(--ops-color-primary-soft); color: var(--ops-blue); }
-.ops-vehicle-review-entry-copy { display: grid; min-width: 0; gap: 5px; }
-.ops-vehicle-review-entry-copy .ops-eyebrow { margin: 0; }
-.ops-vehicle-review-entry-copy h4 { margin: 0; color: var(--ops-ink); font-size: var(--ops-type-heading-sm); }
-.ops-vehicle-review-entry-copy > p:not(.ops-eyebrow) { margin: 0; color: var(--ops-muted); font-size: var(--ops-type-body-compact); line-height: 1.5; }
-.ops-vehicle-review-entry-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; color: var(--ops-muted); font-size: var(--ops-type-caption); }
-.ops-vehicle-review-entry-summary strong { margin-left: 4px; color: var(--ops-ink); }
-.ops-vehicle-review-entry > .ops-button { min-height: 44px; white-space: nowrap; }
 .ops-vehicle-api-page { gap: 8px; }
 .ops-vehicle-api-page > .ops-breadcrumb { display: none; }
 .ops-vehicle-api-page > .ops-page-header { align-items: center; gap: 8px 16px; margin: 0; padding: 0 0 8px; border-bottom: 1px solid var(--ops-line); }
@@ -2514,9 +2494,6 @@ button.ops-vehicle-focus-image:hover { border-color: var(--ops-blue); box-shadow
 }
 
 @media screen and (max-width: 767px) {
-  .ops-vehicle-review-entry { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; margin: 12px 0; padding: 14px; }
-  .ops-vehicle-review-entry-icon { width: 40px; height: 40px; }
-  .ops-vehicle-review-entry > .ops-button { grid-column: 1 / -1; width: 100%; white-space: normal; }
   .ops-vehicle-api-page > .ops-page-header { align-items: stretch; flex-direction: column; }
   .ops-vehicle-review-header-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
   .ops-vehicle-review-context-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3102,13 +3079,6 @@ button.ops-vehicle-focus-image:hover { border-color: var(--ops-blue); box-shadow
 
 @media screen and (max-width: 1279px) {
   :is(.ops-vehicle-api-page, .ops-workspace-header) .ops-vehicle-review-header-actions > .ops-status { display: none; }
-}
-@media screen and (min-width: 1280px) {
-
-  .checklist-page.is-vehicle-review-entry .ops-vehicle-review-entry {
-    width: min(100%, 1120px);
-    margin-block: 16px;
-  }
 }
 @media screen and (min-width: 1280px) {
 

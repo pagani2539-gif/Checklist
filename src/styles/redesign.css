@@ -4009,7 +4009,7 @@ html:has(.checklist-page:not(.is-report-previewing)), body:has(.checklist-page:n
 .ops-round-pending { display: grid; gap: 8px; justify-items: start; margin: 6px 0; }
 .ops-round-pending > span { color: var(--text-primary, inherit); font-weight: 600; }
 .ops-pending-results { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--border, #888); border-radius: 12px; background: var(--surface, transparent); color: inherit; }
-.ops-pending-results-dialog { width: min(640px, calc(100vw - 32px)); max-height: 80dvh; box-sizing: border-box; padding: 20px; border: 1px solid var(--border, #888); border-radius: 12px; background: var(--surface, var(--ops-color-white)); color: var(--text, #222); overflow: auto; }
+.ops-pending-results-dialog { width: min(640px, calc(100vw - 32px)); max-height: 80dvh; box-sizing: border-box; padding: 20px; border: 1px solid var(--ops-line-strong); border-radius: 12px; background: var(--ops-card); color: var(--ops-ink); overflow: auto; }
 .ops-pending-results-dialog::backdrop { background: rgb(0 0 0 / 45%); }
 .ops-pending-results-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ops-pending-results-dialog h2 { margin: 0; font-size: var(--ops-type-heading-sm); }
