@@ -3,6 +3,7 @@ import { CURRENT_STATE_VERSION } from "../domain/state-version.js";
 import { clearPendingServerState, loadServerState, saveServerState, saveServerOperations } from "../domain/server-storage.js";
 import { prepareWorkspaceViewUpdate } from '../domain/workspace-operations.js';
 import { describeWorkspaceSaveError } from "../domain/workspace-save-error.js";
+import { deletionFailureDiagnostic } from '../domain/deletion-diagnostics.js';
 
 async function normalizeServerChecklistState(state) {
   const storage = await import("../domain/storage.js");
@@ -87,6 +88,11 @@ export function useServerWorkspaceSync({ serverStorage, setState, notify }) {
         }
         return result;
       } catch (error) {
+        const diagnostic = deletionFailureDiagnostic({ reason, operationId,
+          requestId: error?.payload?.requestId || error?.requestId,
+          status: error?.status || error?.statusCode, code: error?.code,
+          preparationError: Boolean(preparationError), operationCount: operations?.length });
+        if (diagnostic) console.error(JSON.stringify(diagnostic));
         generationRef.current += 1;
         readyRef.current = false;
         setServerWritable(false);

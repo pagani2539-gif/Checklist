@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { deletionFailureDiagnostic } from '../src/domain/deletion-diagnostics.js';
 import { assertRoundVehicleConnectionUpdates } from './round-vehicle-connection.mjs';
 import path from "node:path";
 import { attachmentKey, stationFolderSegment } from './attachment-key.mjs';
@@ -240,6 +241,9 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
       return true;
     } catch (error) {
       const status = error.statusCode || (error.message === "Forbidden" ? 403 : 500);
+      const diagnostic = deletionFailureDiagnostic({ ...request.workspaceDeletionDiagnostic,
+        requestId: id, status, code: error?.code });
+      if (diagnostic) console.error(JSON.stringify(diagnostic));
       if (!user && status === 401) {
         const rateLimit = rateLimitUnauthenticated(request);
         if (rateLimit.limited) {
@@ -512,6 +516,8 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (pathname === "/api/v1/state" && request.method === "PATCH") {
       return withUser(request, response, async (user, requestIdValue) => {
         const body = await readJson(request);
+        request.workspaceDeletionDiagnostic = { reason: body.reason, operationId: body.operationId,
+          operationCount: Array.isArray(body.operations) ? body.operations.length : undefined };
         if (!/^[A-Za-z0-9_-]{8,100}$/.test(body.operationId || '') || !Array.isArray(body.operations) || !body.operations.length) throw Object.assign(new Error('Invalid workspace operation request'), { statusCode: 400 });
         let changingFolders = [];
         // A row decision cannot rename station folders. Its locked store
@@ -551,6 +557,7 @@ export function createApi({ store, auth, attachmentStore, vehicleReady = null, e
     if (pathname === "/api/v1/state" && request.method === "PUT") {
       return withUser(request, response, async (user, requestIdValue) => {
         const body = await readJson(request);
+        request.workspaceDeletionDiagnostic = { reason: body.reason };
         const nextState = body.state || body;
         const current = await store.getState();
         const stationIds = await scopedStationIds(user, current.state || {});
