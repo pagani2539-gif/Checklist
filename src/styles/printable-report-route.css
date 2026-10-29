@@ -3532,3 +3532,36 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+@media screen {
+  .ops-print-report[data-report-mode="presentation"].is-report-preview .ops-presentation-slide-list {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .ops-print-report[data-report-mode="presentation"].is-report-preview .ops-presentation-slide-list > .ops-presentation-print-page {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ops-print-report[data-report-mode="presentation"].is-report-preview .vehicle-analytics-rendered-page:has(.ops-presentation-print-page) {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ops-print-report[data-report-mode="presentation"].is-report-preview .vehicle-analytics-rendered-page:has(.ops-presentation-print-page) > .ops-presentation-print-page {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ops-print-report[data-report-mode="presentation"].is-report-preview .ops-presentation-item-slide {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}

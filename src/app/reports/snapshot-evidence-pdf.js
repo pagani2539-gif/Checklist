@@ -1,6 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
 import { prepareSnapshotPdfImages } from './snapshot-pdf-images.js';
-import { waitForVehicleAnalyticsLayout } from './vehicle-analytics-ready.js';
+import { waitForVehicleReportReady } from './vehicle-analytics-ready.js';
 
 export const SNAPSHOT_PDF_SIZES = Object.freeze({ standard: [595.276,841.89], presentation: [960,540] });
 
@@ -23,18 +23,11 @@ export async function createSnapshotEvidencePdf(images, mode='standard', { draft
 
 export async function downloadSnapshotEvidencePdf(report, {fileName='snapshot-evidence.pdf',onProgress=()=>{}}={}) {
   if (!report) throw new Error('ยังไม่มีตัวอย่างรายงาน');
-  await waitForVehicleAnalyticsLayout(report);
+  await waitForVehicleReportReady(report, onProgress);
   const pages = [...report.querySelectorAll('.snapshot-vehicle-page')].filter(page => !page.closest('.vehicle-analytics-measure'));
   const mode=report.dataset.reportMode;
   const draft=report.dataset.reportDraft==='true';
   if (!pages.length) throw new Error('ยังไม่มีหลักฐานรถใน Snapshot');
-  const deadline = Date.now()+180_000;
-  while (report.querySelector('.snapshot-evidence-image[data-print-attachment="loading"]') && Date.now()<deadline) {
-    onProgress('กำลังรอภาพหลักฐานโหลดครบ…');
-    await new Promise(resolve=>setTimeout(resolve,100));
-  }
-  if (report.querySelector('.snapshot-evidence-image[data-print-attachment="loading"],.snapshot-evidence-image[data-print-attachment="missing"]')) throw new Error('ภาพบางไฟล์ยังโหลดไม่ครบ จึงยังสร้าง PDF ไม่ได้');
-  await document.fonts.ready;
   const {toJpeg,getFontEmbedCSS} = await import('html-to-image');
   const fontEmbedCSS = await getFontEmbedCSS(pages[0]);
   const images=[];

@@ -29,9 +29,9 @@ export class AsyncModuleErrorBoundary extends Component {
 }
 
 export function renderPage(route, pageComponents, propsByRoute) {
-  const routeName = route?.name || "dashboard";
-  const Page = pageComponents[routeName] || pageComponents.dashboard;
-  const props = propsByRoute[routeName] || propsByRoute.dashboard || {};
+  const routeName = route?.name || "inspections";
+  const Page = pageComponents[routeName] || pageComponents.inspections;
+  const props = propsByRoute[routeName] || propsByRoute.inspections || {};
   const isRoundPage = ['checklist', 'historyDetail', 'vehicleApi', 'historyVehicleApi'].includes(routeName);
   const roundStatus = isRoundPage ? (props.state?.inspectionRounds?.find(round => round.id === route?.id)?.status || 'missing') : '';
   const pageKey = `${routeName}:${route?.id || route?.contractId || ''}:${roundStatus}`;

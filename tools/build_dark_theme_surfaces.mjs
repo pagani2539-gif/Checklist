@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import postcss from 'postcss';
-const files = ['foundation','redesign','workspace-layout','station-profile-route','vehicle-review-route','vehicle-review-entry','printable-report-route','contracts','master-select','vehicle-sample-eligibility','plum-theme','vehicle-review-workspace','vehicle-photo-review','vehicle-snapshot-evidence'];
+const files = ['foundation','redesign','workspace-layout','station-profile-route','vehicle-review-route','vehicle-config-panel','vehicle-review-entry','printable-report-route','contracts','master-select','vehicle-sample-eligibility','plum-theme','vehicle-review-workspace','vehicle-photo-review','vehicle-snapshot-evidence'];
 const protectedSelector = ':not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *))';
 const palette = {
   '#6b7f99':'var(--ops-muted-soft)', '#51637d':'var(--ops-ink-soft)',

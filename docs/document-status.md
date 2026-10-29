@@ -12,7 +12,7 @@
 
 ## สถานะ runtime ปัจจุบัน
 
-- Frontend ใช้ React/Vite และ custom hash router; route หลักคือ Dashboard, Stations, Inspections และ History พร้อมเส้นทางสร้าง/ดู Contract, Work Package และ Contract Work Report (`#/contracts` เปลี่ยนไป Dashboard) รอบใหม่ที่ผูกสัญญาเลือก Contract, Work Package และสถานีจากบริบทเดียวกัน ส่วน Contract Work Report แยกจาก Station Inspection Report
+- Frontend ใช้ React/Vite และ custom hash router; route หลักคือ Stations, Inspections และ History พร้อมเส้นทางสร้าง/ดู Contract, Work Package และ Contract Work Report (`#/dashboard` และหน้า index ของ `#/contracts` เปลี่ยนไป `#/inspections`) รอบใหม่ที่ผูกสัญญาเลือก Contract, Work Package และสถานีจากบริบทเดียวกัน ส่วน Contract Work Report แยกจาก Station Inspection Report
 - `VITE_STORAGE_MODE=local` ใช้ localStorage/IndexedDB แบบ local-first
 - `VITE_STORAGE_MODE=server` โหลด/บันทึก state ผ่าน `/api/v1/state`; เมื่อบันทึกไม่สำเร็จ client จะยกเลิกการแก้ไขที่ยังไม่บันทึกและโหลดข้อมูลส่วนกลางล่าสุด โดยไม่เก็บหรือส่งซ้ำ browser draft หากโหลดข้อมูลไม่ได้จะระงับการเขียนจนกว่าจะโหลดได้
 - Server ใช้ PostgreSQL เป็น persistence backend เดียว; attachment เลือก filesystem หรือ S3-compatible

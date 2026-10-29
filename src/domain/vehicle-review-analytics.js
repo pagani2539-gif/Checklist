@@ -68,7 +68,8 @@ export function buildVehicleReviewAnalytics(entries, dimension) {
 }
 
 export function buildVehicleAnalyticsPages(base, entries) {
-  return buildVehicleReviewAnalytics(entries, base.dimension).map(section => {
+  // Plate report pages are already scoped by period and compare day/night in the summary.
+  return buildVehicleReviewAnalytics(entries, base.dimension).filter(section => base.dimension !== "plate" || section.key !== "periods").map(section => {
     const periodSuffix = base.dimension === "classification" ? "" : ` · ${base.period.label}`;
     const title = `${section.title}${periodSuffix}`;
     return {

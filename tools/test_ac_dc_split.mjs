@@ -1,10 +1,33 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { makeEquipment, createInspectionRound, getItemsForSnapshot, normalizeRound, normalizeStationProfile, getChecklistItemsProgress } from '../src/domain/master-checklist.js';
 import { splitAcDcState, AC_DC_SPLIT_VERSION } from '../src/domain/ac-dc-split.js';
 import { attachmentIdsForState } from '../src/domain/storage.js';
 import { getChecklistPageNavigationItems } from '../src/domain/checklist-queue-state.js';
 import { sortEquipmentForDisplay } from '../src/domain/ordering.js';
 import { getCanonicalItemsForFormat } from '../src/domain/canonical-station-catalog.js';
+import { verifyAcDcMigrationBackup } from './ac_dc_backup_verification.mjs';
+
+const backupDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ac-dc-backup-verification-'));
+try {
+  await fs.mkdir(path.join(backupDir, 'attachments'));
+  await fs.writeFile(path.join(backupDir, 'checklist.dump'), 'verified database');
+  await fs.writeFile(path.join(backupDir, 'attachments', 'evidence.bin'), 'verified attachment');
+  const databaseBytes = (await fs.stat(path.join(backupDir, 'checklist.dump'))).size;
+  await fs.writeFile(path.join(backupDir, 'manifest.json'), JSON.stringify({
+    status: 'complete', stateVersion: 17, database: 'checklist.dump', attachments: 'attachments', attachmentFileCount: 1,
+  }));
+  await fs.writeFile(path.join(backupDir, 'ac-dc-backup-check.json'), JSON.stringify({
+    stateVersion: 17, attachmentFileCount: 1, databaseBytes,
+  }));
+  const verified = await verifyAcDcMigrationBackup(backupDir, 17);
+  assert.equal(verified.databasePath, path.join(backupDir, 'checklist.dump'));
+  await assert.rejects(verifyAcDcMigrationBackup(backupDir, 18), /does not match expected version/);
+} finally {
+  await fs.rm(backupDir, { recursive: true, force: true });
+}
 
 const system = { id: 'electronics', canonicalItemId: 'wim-electronics-system', systemId: 'wim', scope: 'IMPS', quantity: 1, active: true };
 const asset = (type, id) => makeEquipment(type, 1, { id, parentAssetId: 'cab', parentSystemId: system.id, scope: 'IMPS', outputVoltages: [12, 24], serialNo: `${id}-serial` });

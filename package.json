@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "prebuild": "node tools/build_dark_theme_surfaces.mjs && node tools/test_shared_select_usage.mjs && node tools/test_lazy_runtime_dependencies.mjs",
+    "prebuild": "node tools/build_dark_theme_surfaces.mjs && node tools/test_shared_select_usage.mjs && node tools/test_lazy_runtime_dependencies.mjs && node tools/test_css_custom_properties.mjs",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "start": "node server.mjs",

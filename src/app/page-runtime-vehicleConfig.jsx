@@ -1,3 +1,4 @@
+import "../styles/vehicle-config-panel.css";
 import { getInstalledVehicleSystems, getVehicleSystemConfig } from "../domain/vehicle-review-systems.js";
 import { AppIcon as Icon } from "./icon-system.jsx";
 import { useEffect, useRef, useState } from "react";

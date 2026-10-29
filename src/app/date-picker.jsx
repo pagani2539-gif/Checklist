@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { AppIcon as Icon } from "./icon-system.jsx";
 import CustomSelect from "./CustomSelect.jsx";
+import { getDatePopoverPosition } from "./date-picker-position.js";
 import { formatThaiDate, formatThaiDateTimeInput, getThaiNowDateTimeInput, normalizeThaiDateTimeInput, parseThaiDateTimeInput } from "../domain/date-time.js";
 
 const THAI_WEEKDAYS = Object.freeze(["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"]);
@@ -85,18 +86,7 @@ function DatePickerShell({ mode, id, value, onChange, disabled = false, label = 
   const updatePopoverPosition = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = Math.min(390, Math.max(280, window.innerWidth - 16));
-    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
-    const below = Math.max(0, window.innerHeight - rect.bottom - 12);
-    const above = Math.max(0, rect.top - 12);
-    const openUpward = below < 420 && above > below;
-    setPopoverStyle({
-      left: `${left}px`,
-      width: `${width}px`,
-      top: openUpward ? "auto" : `${rect.bottom + 6}px`,
-      bottom: openUpward ? `${window.innerHeight - rect.top + 6}px` : "auto",
-      maxHeight: `${Math.min(560, Math.max(300, openUpward ? above : below))}px`,
-    });
+    setPopoverStyle(getDatePopoverPosition(rect, window.innerWidth, window.innerHeight));
   }, []);
 
   const closePicker = useCallback((restoreFocus = false) => {

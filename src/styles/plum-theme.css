@@ -20,10 +20,6 @@
     background: linear-gradient(var(--ops-paper) 72%, rgba(248, 252, 254, 0));
   }
 
-  .ops-summary-grid .ops-metric {
-    background: var(--ops-color-highlight-gradient);
-  }
-
   .ops-brand-mark {
     position: relative;
     background: var(--ops-color-primary-gradient);
@@ -141,7 +137,6 @@
 
   .ops-vehicle-report-track > span { background: var(--ops-color-primary); }
 
-  .ops-shell .contract-region-option:has(input:checked),
   .ops-shell .contract-station-option.is-selected,
   .ops-shell .contract-agreement-issued-list button.is-selected,
   .ops-shell .master-select-option:hover,

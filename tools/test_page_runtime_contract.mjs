@@ -12,12 +12,6 @@ const traverse = traverseModule.default.default || traverseModule.default;
 const pageKeysByFactory = {
   createChecklistPage: "checklist",
   createContextualStationPage: "contextualStation",
-  createContractAgreementCoverPage: "contractAgreementCover",
-  createContractReportPage: "contractReport",
-  createNewContractPage: "contractNew",
-  createContractDetailPage: "contractDetail",
-  createWorkPackagePage: "workPackage",
-  createDashboardPage: "dashboard",
   createHistoryPage: "history",
   createInspectionsPage: "inspections",
   createNewInspectionPage: "newInspection",

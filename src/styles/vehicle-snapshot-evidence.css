@@ -90,13 +90,13 @@
 .snapshot-vehicle-table,.snapshot-vehicle-card-grid article { background:#fff; }
 .vehicle-period-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:clamp(12px,1.5vw,30px); margin:20px 0 0; }
 .vehicle-period-summary.is-single { grid-template-columns:minmax(0,1fr); max-width:1000px; margin:20px auto 0; width:100%; }
-.vehicle-period-analysis { --period-accent:#d58b00; --period-border:#f3d88e; --period-surface:#fffaf0; box-sizing:border-box; container-type:inline-size; min-width:0; height:100%; padding:clamp(12px,1.25vw,24px); color:#162b4d; border:1px solid var(--period-border); border-radius:16px; background:var(--period-surface); }
-.vehicle-period-analysis.is-night { --period-accent:#123f7d; --period-border:#bfd3f4; --period-surface:#f1f6ff; }
-.vehicle-period-analysis.is-unknown { --period-accent:#536579; --period-border:#d1dbe5; --period-surface:#f7f9fb; }
+.vehicle-period-analysis { --period-accent:#d58b00; --period-ink:#8a5700; --period-border:#f3d88e; --period-surface:#fffaf0; box-sizing:border-box; container-type:inline-size; min-width:0; height:100%; padding:clamp(12px,1.25vw,24px); color:#162b4d; border:1px solid var(--period-border); border-radius:16px; background:var(--period-surface); }
+.vehicle-period-analysis.is-night { --period-accent:#123f7d; --period-ink:#123f7d; --period-border:#bfd3f4; --period-surface:#f1f6ff; }
+.vehicle-period-analysis.is-unknown { --period-accent:#536579; --period-ink:#536579; --period-border:#d1dbe5; --period-surface:#f7f9fb; }
 .vehicle-period-summary.is-classification { max-width:1280px; }
-.vehicle-period-analysis.is-classification { --period-accent:#155b8d; --period-border:#c6dceb; --period-surface:#f4f9fc; }
+.vehicle-period-analysis.is-classification { --period-accent:#155b8d; --period-ink:#155b8d; --period-border:#c6dceb; --period-surface:#f4f9fc; }
 .vehicle-summary-heading { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); align-items:center; gap:clamp(8px,1cqw,16px); min-height:clamp(90px,13cqw,170px); }
-.vehicle-summary-period { display:flex; align-items:center; justify-content:center; gap:clamp(8px,1.4cqw,20px); min-width:0; min-height:70%; padding-right:clamp(8px,1.4cqw,20px); border-right:1px solid var(--period-border); color:var(--period-accent); }
+.vehicle-summary-period { display:flex; align-items:center; justify-content:center; gap:clamp(8px,1.4cqw,20px); min-width:0; min-height:70%; padding-right:clamp(8px,1.4cqw,20px); border-right:1px solid var(--period-border); color:var(--period-ink); }
 .vehicle-summary-period.is-classification { justify-content:flex-start; }
 .vehicle-summary-period .ops-icon { flex:0 0 auto; width:clamp(44px,10cqw,104px); height:clamp(44px,10cqw,104px); }
 .vehicle-summary-period.is-classification .ops-icon { width:clamp(56px,8cqw,92px); height:clamp(56px,8cqw,92px); }
@@ -110,7 +110,7 @@
 .vehicle-summary-score { display:grid; align-content:center; min-width:0; }
 .vehicle-summary-score > span { color:#21395e; font-size:clamp(12px,1.6cqw,17px); line-height:1.3; }
 .vehicle-summary-score.is-classification > span { font-weight:var(--ops-weight-semibold); }
-.vehicle-summary-score > strong { color:var(--period-accent); font-size:clamp(34px,10cqw,100px); line-height:.98; letter-spacing:-.055em; font-weight:var(--ops-weight-extrabold); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.vehicle-summary-score > strong { color:var(--period-ink); font-size:clamp(34px,10cqw,100px); line-height:.98; letter-spacing:-.055em; font-weight:var(--ops-weight-extrabold); font-variant-numeric:tabular-nums; white-space:nowrap; }
 .vehicle-summary-score > p { margin:4px 0 0; color:#1a3155; font-size:clamp(12px,2.3cqw,22px); line-height:1.3; }
 .vehicle-sample-caption { min-height:1.5em; margin:8px 0 10px; color:#526782; font-size:clamp(10px,1.4cqw,15px); line-height:1.5; text-align:center; }
 .vehicle-count-chart { min-width:0; }
@@ -127,31 +127,32 @@
 .vehicle-count-axis > div > span:last-child { border-right:1px solid #c3ccd6; }
 .vehicle-count-unit { margin:7px 0 0; color:#526782; font-size:clamp(10px,1.1cqw,14px); line-height:1.4; text-align:center; }
 .vehicle-accuracy-caption { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px clamp(8px,1cqw,14px); margin-top:10px; padding:8px 10px; border:1px solid var(--period-border); border-left:4px solid var(--period-accent); border-radius:8px; background:rgb(255 255 255 / 68%); color:#344a67; font-size:clamp(10px,1.1cqw,13px); line-height:1.4; }
-.vehicle-accuracy-caption strong { color:var(--period-accent); font-size:clamp(11px,1.25cqw,14px); }
+.vehicle-accuracy-caption strong { color:var(--period-ink); font-size:clamp(11px,1.25cqw,14px); }
 .vehicle-accuracy-caption small { flex-basis:100%; color:#60738b; font-size:clamp(9px,.95cqw,11px); }
 .ops-print-report[data-report-mode="standard"] .vehicle-count-row,.ops-print-report[data-report-mode="standard"] .vehicle-count-axis { grid-template-columns:minmax(72px,.8fr) minmax(28px,1.4fr) minmax(88px,1fr); gap:5px; }
 .ops-print-report[data-report-mode="standard"] .vehicle-count-row,.ops-print-report[data-report-mode="standard"] .vehicle-count-value { font-size:9px; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-period-summary { flex:1; min-height:0; margin-top:1cqw; gap:1.3cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-period-summary.is-single { max-width:100%; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-period-analysis { padding:1.2cqw; border-radius:1cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-period-analysis { display:flex; flex-direction:column; min-height:0; padding:1.2cqw; border-radius:1cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-heading { min-height:13cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-period .ops-icon { width:10cqw; height:10cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-period.is-classification .ops-icon { width:7cqw; height:7cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-period > span { font-size:4cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-period-copy > span { font-size:3.2cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > span { font-size:1.5cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > span { font-size:clamp(12px,1.8cqw,17px); }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > strong { font-size:9.2cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-summary-score > p { font-size:2.2cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-sample-caption { margin:.4cqw 0 .6cqw; font-size:1.5cqw; }
 .ops-print-report[data-report-mode="presentation"] .vehicle-count-row,.ops-print-report[data-report-mode="presentation"] .vehicle-count-axis { grid-template-columns:minmax(8cqw,.9fr) minmax(7cqw,2.2fr) minmax(12cqw,1.4fr); gap:.8cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-count-row { margin:.65cqw 0; font-size:1.7cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-count-track { height:2.2cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-count-value { font-size:1.6cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-count-axis { font-size:1.4cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-count-unit { margin:.4cqw 0 0; font-size:1.4cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption { gap:.3cqw .8cqw; margin-top:.7cqw; padding:.6cqw .8cqw; font-size:1.1cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption strong { font-size:1.25cqw; }
-.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption small { font-size:.95cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-chart { display:grid; flex:1 1 auto; min-height:0; grid-template-rows:repeat(4,minmax(2.8cqw,1fr)) auto auto; gap:.45cqw; padding-block:.5cqw; }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-row { min-height:2.8cqw; margin:0; font-size:clamp(12px,2.7cqw,18px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-track { height:clamp(14px,2.8cqw,26px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-value { font-size:clamp(12px,2.4cqw,17px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-axis { font-size:clamp(10px,1.7cqw,13px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-count-unit { margin:.2cqw 0 0; font-size:clamp(11px,1.8cqw,14px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption { gap:.4cqw .8cqw; margin-top:.8cqw; padding:.8cqw 1cqw; font-size:clamp(12px,1.8cqw,15px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption strong { font-size:clamp(13px,2cqw,16px); }
+.ops-print-report[data-report-mode="presentation"] .vehicle-accuracy-caption small { font-size:clamp(11px,1.6cqw,13px); }
 @media print { .vehicle-report-geometry { opacity:.5; } .vehicle-period-analysis,.vehicle-count-bar { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
 .vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] > .snapshot-vehicle-page { height:auto; aspect-ratio:16 / 9; margin:20px 0; }
 .snapshot-reason-summary { position: relative; margin-top: 18px; background: #fff; font-size: 13px; }

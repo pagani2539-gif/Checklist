@@ -94,7 +94,7 @@ const copy = createContextualChecklistCopy(createChecklistCopySnapshot());
 const originalSlot = copy.sections[0].items[0].evidenceSlots[0].displayLabel;
 const editedCopy = updateChecklistCopy(copy, { sectionCode: "1.1", itemId: "1.1.staff", field: "label", value: "ตรวจความพร้อมของทีมงาน" });
 assert.equal(editedCopy.sections[0].items[0].evidenceSlots[0].displayLabel, originalSlot);
-for (const path of ["src/app/pages/ChecklistPage.jsx", "src/app/App.jsx"]) {
+for (const path of ["src/app/pages/ChecklistPage.jsx", "src/app/ChecklistWorkspaceParts.jsx"]) {
   const source = readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
   assert.ok(source.includes("รายการตรวจที่") && source.includes("ในรายการที่แสดง"));
 }

@@ -7,6 +7,8 @@ import ThemePreference from "./ThemePreference.jsx";
 
 import { AppIcon as Icon } from "./icon-system.jsx";
 import { Button, ConfirmDialog } from "./controls/ActionControls.jsx";
+import { CloseSuccessDialog } from "./dialogs/CloseSuccessDialog.jsx";
+import { shouldShowCloseSuccess } from "./close-round-success.js";
 
 
 import { createPageRuntime, PAGE_RUNTIME_KEYS } from "./page-runtime.js";
@@ -14,7 +16,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 
 
 import { getBackFallbackTarget, parseHash, primaryRouteFor, PRIMARY_ROUTES } from "./router.js";
-import { canNavigateBackInApp, canNavigateForwardInApp, initializeRouteHistory, navigate, navigateBack, navigateForward, replaceRoute } from "./navigation.js";
+import { canNavigateBackInApp, canNavigateForwardInApp, initializeRouteHistory, navigate, navigateBack, navigateForward, replaceRoute, skipToMainContent } from "./navigation.js";
 
 import { createLazyPage, renderPage } from "./page-registry.jsx";
 import { LocalLoginScreen, PasswordChangeScreen } from "./LocalAuthScreens.jsx";
@@ -52,19 +54,12 @@ function createInitialChecklistState() {
 
 const LazyContractContextBar = lazy(() => import("./ContractContextBar.jsx"));
 const CONTRACT_CONTEXT_ROUTES = new Set([
-  "contractDetail", "contractEdit", "contractAgreementCover", "workPackage", "contractReportNew",
   "newInspection", "checklist", "historyDetail", "historyVehicleApi", "historyRevise", "vehicleApi", "stationDetail",
 ]);
 
 const PAGE_RUNTIME_LOADERS = Object.freeze({
   checklist: () => import("./page-runtimes/checklist.runtime.js"),
   contextualStation: () => import("./page-runtimes/contextual-station.runtime.js"),
-  contractAgreementCover: () => import("./page-runtimes/contract-agreement-cover.runtime.js"),
-  contractReport: () => import("./page-runtimes/contract-report.runtime.js"),
-  contractNew: () => import("./page-runtimes/contract-new.runtime.js"),
-  contractDetail: () => import("./page-runtimes/contract-detail.runtime.js"),
-  workPackage: () => import("./page-runtimes/work-package.runtime.js"),
-  dashboard: () => import("./page-runtimes/dashboard.runtime.js"),
   history: () => import("./page-runtimes/history.runtime.js"),
   inspections: () => import("./page-runtimes/inspections.runtime.js"),
   newInspection: () => import("./page-runtimes/new-inspection.runtime.js"),
@@ -98,13 +93,6 @@ const checklistPage = lazyPageFactory(() => import("./pages/ChecklistPage.jsx"),
 const vehicleApiPage = lazyPageFactory(() => import("./pages/VehicleApiReviewPage.jsx"), "createVehicleApiReviewPage", "vehicleApi");
 
 const PAGE_COMPONENTS = Object.freeze({
-  dashboard: lazyPageFactory(() => import("./pages/DashboardPage.jsx"), "createDashboardPage", "dashboard"),
-  newContract: lazyPageFactory(() => import("./pages/ContractsPage.jsx"), "createNewContractPage", "contractNew"),
-  contractEdit: lazyPageFactory(() => import("./pages/ContractsPage.jsx"), "createNewContractPage", "contractNew"),
-  contractDetail: lazyPageFactory(() => import("./pages/ContractsPage.jsx"), "createContractDetailPage", "contractDetail"),
-  contractAgreementCover: lazyPageFactory(() => import("./pages/ContractAgreementCoverPage.jsx"), "createContractAgreementCoverPage", "contractAgreementCover"),
-  workPackage: lazyPageFactory(() => import("./pages/ContractsPage.jsx"), "createWorkPackagePage", "workPackage"),
-  contractReportNew: lazyPageFactory(() => import("./pages/ContractReportPage.jsx"), "createContractReportPage", "contractReport"),
   referenceData: lazyPageFactory(() => import("./pages/ReferenceDataPage.jsx"), "createReferenceDataPage", "referenceData"),
   stations: lazyPageFactory(() => import("./pages/StationsPage.jsx"), "createStationsPage", "stations"),
   stationDetail: lazyPageFactory(() => import("./pages/StationDetailPage.jsx"), "createStationDetailPage", "stationDetail"),
@@ -126,6 +114,7 @@ function App() {
   initializeRouteHistory();
   const serverStorage = isServerStorageEnabled();
   const [route, setRoute] = useState(() => parseHash());
+  const [closeSuccessRoundId, setCloseSuccessRoundId] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const sidebarToggleRef = useRef(null);
   const [state, setState] = useState(createInitialChecklistState);
@@ -135,6 +124,8 @@ function App() {
   const [confirmRequest, setConfirmRequest] = useState(null);
   const [purgeRetry, setPurgeRetry] = useState(null);
   const confirmResolverRef = useRef(null);
+  const handleCloseSuccess = useCallback((roundId) => setCloseSuccessRoundId(roundId), []);
+  const dismissCloseSuccess = useCallback(() => setCloseSuccessRoundId(null), []);
   const notify = (message) => { setToast(message); window.clearTimeout(window.__checklistToast); window.__checklistToast = window.setTimeout(() => setToast(""), 2800); };
   const serverSync = useServerWorkspaceSync({ serverStorage, setState, notify });
   const { authConfig, authRequired, currentUser, persistServerState, remoteLoaded, refreshServerState, serverSaveError, serverSaveState, serverWritable } = serverSync;
@@ -231,10 +222,15 @@ function App() {
       setRoute(nextRoute);
     };
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash) replaceRoute("#/dashboard");
+    if (!window.location.hash) replaceRoute("#/inspections");
     else if (parseHash().redirectTo) replaceRoute(parseHash().redirectTo);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+  useEffect(() => {
+    if (!closeSuccessRoundId) return;
+    const closingRoute = route.id === closeSuccessRoundId && ["checklist", "historyDetail"].includes(route.name);
+    if (!closingRoute) setCloseSuccessRoundId(null);
+  }, [closeSuccessRoundId, route.id, route.name]);
   useEffect(() => {
     if (route.name === "historyDetail" && route.query?.edit === "1") {
       navigate(`#/history/${encodeURIComponent(route.id)}/revise`);
@@ -244,7 +240,7 @@ function App() {
       navigate(`#/stations/${encodeURIComponent(route.query.stationId)}`);
     }
   }, [route.name, route.id, route.query?.edit, route.query?.stationId, state.stationProfiles]);
-  useEffect(() => { const heading = document.getElementById("page-heading"); if (heading) requestAnimationFrame(() => heading.focus()); }, [route.name, route.id]);
+  useEffect(() => { const heading = document.getElementById("page-heading"); if (heading && !shouldShowCloseSuccess(closeSuccessRoundId, route)) requestAnimationFrame(() => heading.focus()); }, [route.name, route.id, closeSuccessRoundId]);
   const requestConfirm = useCallback((request) => {
     if (confirmResolverRef.current) return Promise.resolve(false);
     return new Promise((resolve) => {
@@ -350,42 +346,6 @@ function App() {
     if (!secondConfirmed) return;
     await finishStationPurge(profile.id, impact);
   };
-  const permanentlyDeleteContract = async (contract) => {
-    if (!contract) return;
-    const { buildContractDeletionImpact } = await import("../domain/contracts.js");
-    const impact = buildContractDeletionImpact(state, contract.id);
-    const contractCode = String(contract.contractNo || contract.id || "").trim();
-    const firstConfirmed = await requestConfirm({
-      title: `ลบสัญญา ${contractCode || "นี้"} ถาวร`,
-      description: "การดำเนินการนี้ย้อนกลับไม่ได้ ข้อมูลสัญญา งวดงาน การผูกสถานี รายงานหน้าปก และ Snapshot หน้าปกของสัญญานี้จะถูกลบออกจากระบบ",
-      details: [
-        { label: "สัญญา", value: `${contractCode || "—"} · ${contract.title || contract.projectName || "ไม่มีชื่อ"}` },
-        { label: "งวดงาน", value: `${impact.counts.workPackages} งวด` },
-        { label: "การผูกสถานี", value: `${impact.counts.assignments} รายการ` },
-        { label: "รายงานหน้าปก", value: `${impact.counts.reports} รายการ` },
-        { label: "หน้าปกสัญญาที่ออกแล้ว", value: `${impact.counts.covers} ฉบับ` },
-        { label: "ประวัติการตรวจ", value: `${impact.counts.preservedHistory} รายการจะคงไว้` },
-      ],
-      confirmLabel: "ดำเนินการต่อ",
-      confirmVariant: "danger",
-      confirmIcon: "delete",
-    });
-    if (!firstConfirmed) return;
-    const secondConfirmed = await requestConfirm({
-      title: "ยืนยันการลบสัญญาถาวรอีกครั้ง",
-      description: "ข้อมูลสัญญาและข้อมูลลูกที่ระบุไว้จะถูกลบถาวร ส่วน Station Profile และประวัติการตรวจจะไม่ถูกลบ หากต้องการดำเนินการ ให้พิมพ์เลขที่สัญญาให้ตรงทุกตัว",
-      requiredCode: contractCode,
-      inputLabel: "พิมพ์เลขที่สัญญาเพื่อยืนยัน",
-      inputMismatchText: "เลขที่สัญญายังไม่ตรง กรุณาตรวจสอบอีกครั้ง",
-      confirmLabel: "ลบสัญญาและข้อมูลที่เกี่ยวข้อง",
-      confirmVariant: "danger",
-      confirmIcon: "delete",
-    });
-    if (!secondConfirmed) return;
-    const { purgeContractFromState } = await import("../domain/contracts.js");
-    update((current) => purgeContractFromState(current, contract.id), "ลบสัญญาและข้อมูลที่เกี่ยวข้องถาวรแล้ว");
-    navigate("#/dashboard");
-  };
   const deleteRound = async (round) => {
     if (!round) return;
     const closed = round.status === "closed";
@@ -440,13 +400,6 @@ function App() {
   const isReadOnlySurface = route.name === "historyDetail" || route.name === "historyVehicleApi" || route.name === "historyVehicleApiReport"
     || (["checklist", "vehicleApi", "vehicleApiReport"].includes(route.name) && state.inspectionRounds.some((round) => round.id === route.id && round.status === "closed"));
   const pageLayout = {
-    dashboard: "dashboard",
-    newContract: "contract-setup",
-    contractEdit: "contract-setup",
-    contractDetail: "contract-detail",
-    contractAgreementCover: "contract-agreement-cover",
-    workPackage: "contract-work-package",
-    contractReportNew: "contract-report",
     stations: "station-directory",
     stationDetail: "station-workspace",
     newStation: "station-setup",
@@ -461,7 +414,7 @@ function App() {
     historyVehicleApiReport: "history-vehicle-report",
     historyRevise: "revision-setup",
     adminUsers: "user-management",
-  }[route.name] || "dashboard";
+  }[route.name] || "round-queue";
   const isDeepWorkspace = ["inspection-workspace", "vehicle-review", "history-detail", "history-vehicle-review"].includes(pageLayout);
   const isDemoSurface = [UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID].includes(route.id) && !roundFor(state, route.id);
   const hasInspectionHeader = pageLayout === "inspection-workspace" && Boolean(roundFor(state, route.id) || isDemoSurface);
@@ -486,20 +439,13 @@ function App() {
         ? "บันทึกแล้ว"
         : "พร้อมบันทึกอัตโนมัติ";
   const pageContent = renderPage(route, PAGE_COMPONENTS, {
-    dashboard: { state, update },
-    newContract: { state, update, notify, route },
-    contractEdit: { state, update, notify, route },
-    contractDetail: { state, update, notify, onDeleteContract: permanentlyDeleteContract, route },
-    contractAgreementCover: { state, update, notify, route },
-    workPackage: { state, update, notify, route },
-    contractReportNew: { state, update, notify, route },
     referenceData: { state, update, notify, route },
     stations: { state },
     stationDetail: { state, update, notify, requestConfirm, onArchiveStation: archiveStation, onPurgeStation: permanentlyDeleteStation, route },
     newStation: { state, update, requestConfirm },
     inspections: { state, onDelete: deleteRound },
     newInspection: { state, update, notify, route },
-    checklist: { state, update, notify, requestConfirm, route, savedAt, serverSaveState, serverWritable: !serverStorage || serverWritable, navigationControls: <InspectionNavigation />, accountControls: <InspectionAccountMenu user={currentUser} refreshServerState={refreshServerState} saveFailed={serverStorage && serverSaveState === "failed"} /> },
+    checklist: { state, update, notify, requestConfirm, route, onCloseSuccess: handleCloseSuccess, savedAt, serverSaveState, serverWritable: !serverStorage || serverWritable, navigationControls: <InspectionNavigation />, accountControls: <InspectionAccountMenu user={currentUser} refreshServerState={refreshServerState} saveFailed={serverStorage && serverSaveState === "failed"} /> },
     vehicleApi: { state, update, notify, requestConfirm, route, currentUser, serverSaveError, serverWritable: !serverStorage || serverWritable },
     vehicleApiReport: { state, route },
     history: { state, onDelete: deleteRound },
@@ -513,7 +459,7 @@ function App() {
 
     {pageContent}
   </>;
-  return <div data-page-layout={pageLayout} onClick={handleShellRouteClick} className={`ops-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""} ${isDeepWorkspace ? "is-deep-workspace" : ""}`.trim()}><a className="ops-skip-link" href="#main-content">ข้ามไปยังเนื้อหาหลัก</a><aside className="ops-sidebar" aria-label="เมนูหลัก"><div className="ops-brand"><span className="ops-brand-mark"><StationBrandMark /></span><span className="ops-brand-copy"><strong>CHECKLIST</strong><small>Operations Hub</small></span><button ref={sidebarToggleRef} type="button" className="ops-sidebar-toggle" aria-label={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} aria-expanded={!sidebarCollapsed} aria-controls="primary-navigation" title={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} onClick={() => setSidebarCollapsed((current) => !current)}><Icon name="arrow" /></button></div><nav id="primary-navigation" className="ops-main-nav" aria-label="ส่วนของระบบ">{PRIMARY_ROUTES.map((item) => <a key={item.key} className={activeRoute === item.key ? "is-active" : ""} aria-current={activeRoute === item.key ? "page" : undefined} aria-label={item.label} title={item.label} href={item.hash}><Icon name={item.key === "dashboard" ? "home" : item.key === "contracts" ? "archive" : item.key === "stations" ? "building" : item.key === "inspections" ? "list" : "archive"} /><span className="ops-nav-label-full" aria-hidden="true">{item.label}</span><span className="ops-nav-label-short" aria-hidden="true">{SIDEBAR_SHORT_LABELS[item.key] || item.label}</span></a>)}{serverStorage && currentUser?.role === "admin" && <a className={activeRoute === "adminUsers" ? "is-active" : ""} aria-current={activeRoute === "adminUsers" ? "page" : undefined} aria-label="จัดการผู้ใช้" title="จัดการผู้ใช้" href="#/admin/users"><Icon name="settings" /><span className="ops-nav-label-full" aria-hidden="true">จัดการผู้ใช้</span><span className="ops-nav-label-short" aria-hidden="true">ผู้ใช้</span></a>}</nav><ThemePreference /></aside><main id="main-content" className="ops-main" tabIndex="-1">{!hasInspectionHeader && <header className="ops-topbar"><div className="ops-topbar-leading">{!["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <button type="button" className="ops-button ops-button-secondary ops-shell-back ops-navigation-icon" aria-label="ย้อนกลับ" title="ย้อนกลับ" onClick={() => navigateBack(backFallbackTarget)} disabled={!canGoBack && !backFallbackTarget}><Icon name="arrow-left" /></button>} {!["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <button type="button" className="ops-button ops-button-secondary ops-shell-forward ops-navigation-icon" aria-label="เดินหน้า" title="เดินหน้า" onClick={navigateForward} disabled={!canNavigateForwardInApp()}><Icon name="arrow-right" /></button>}<div className="ops-topbar-context"><p className="ops-eyebrow">FIELD OPERATIONS / CHECKLIST</p></div></div>{["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <><div id="ops-workspace-header" className="ops-workspace-header" /><div id="ops-workspace-periods" className="ops-workspace-periods" /></>}<div className="ops-topbar-actions">{currentUser && <><span className="ops-current-user">{currentUser.displayName}</span><button type="button" className="ops-button ops-button-secondary ops-logout-button" onClick={async () => { await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" }); window.location.reload(); }}>ออกจากระบบ</button></>}<SaveStatus className={`ops-save-indicator ${isReadOnlySurface ? "is-readonly" : ""} ${serverSaveState === "failed" ? "is-conflict" : ""} ${isDemoSurface ? "is-demo" : ""}`.trim()} label={shellSaveState} icon={shellSaveIcon} />{serverStorage && serverSaveState === "failed" && <button type="button" className="ops-button ops-button-secondary" onClick={refreshServerState}>โหลดข้อมูลล่าสุด</button>}</div></header>}{CONTRACT_CONTEXT_ROUTES.has(route.name) && <Suspense fallback={null}><LazyContractContextBar state={state} route={route} /></Suspense>}<div style={{ display: "contents" }} inert={!hasInspectionHeader && serverStorage && !serverWritable}>{page}</div></main>{purgeRetry ? <div className="ops-toast ops-toast-retry" role="alert" aria-live="assertive"><Icon name="alert" /><span>{purgeRetry.message}</span><Button onClick={retryStationPurge} variant="secondary" icon="refresh" disabled={purgeRetry.busy}>{purgeRetry.busy ? "กำลังลองใหม่..." : "ลองลบไฟล์แนบอีกครั้ง"}</Button></div> : toast && <div className="ops-toast" role="status" aria-live="polite"><Icon name="check" />{toast}</div>}<ConfirmDialog request={confirmRequest} onResolve={resolveConfirm} /></div>;
+  return <div data-page-layout={pageLayout} onClick={handleShellRouteClick} className={`ops-shell ${sidebarCollapsed ? "is-sidebar-collapsed" : ""} ${isDeepWorkspace ? "is-deep-workspace" : ""}`.trim()}><a className="ops-skip-link" href="#main-content" onClick={skipToMainContent}>ข้ามไปยังเนื้อหาหลัก</a><aside className="ops-sidebar" aria-label="เมนูหลัก"><div className="ops-brand"><span className="ops-brand-mark"><StationBrandMark /></span><span className="ops-brand-copy"><strong>CHECKLIST</strong><small>Operations Hub</small></span><button ref={sidebarToggleRef} type="button" className="ops-sidebar-toggle" aria-label={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} aria-expanded={!sidebarCollapsed} aria-controls="primary-navigation" title={sidebarCollapsed ? "ขยายเมนู" : "ย่อเมนู"} onClick={() => setSidebarCollapsed((current) => !current)}><Icon name="arrow" /></button></div><nav id="primary-navigation" className={`ops-main-nav${serverStorage && currentUser?.role === "admin" ? " has-admin-link" : ""}`} aria-label="ส่วนของระบบ">{PRIMARY_ROUTES.map((item) => <a key={item.key} className={activeRoute === item.key ? "is-active" : ""} aria-current={activeRoute === item.key ? "page" : undefined} aria-label={item.label} title={item.label} href={item.hash}><Icon name={item.key === "stations" ? "building" : item.key === "inspections" ? "list" : "archive"} /><span className="ops-nav-label-full" aria-hidden="true">{item.label}</span><span className="ops-nav-label-short" aria-hidden="true">{SIDEBAR_SHORT_LABELS[item.key] || item.label}</span></a>)}{serverStorage && currentUser?.role === "admin" && <a className={activeRoute === "adminUsers" ? "is-active" : ""} aria-current={activeRoute === "adminUsers" ? "page" : undefined} aria-label="จัดการผู้ใช้" title="จัดการผู้ใช้" href="#/admin/users"><Icon name="settings" /><span className="ops-nav-label-full" aria-hidden="true">จัดการผู้ใช้</span><span className="ops-nav-label-short" aria-hidden="true">ผู้ใช้</span></a>}</nav><ThemePreference /></aside><main id="main-content" className="ops-main" tabIndex="-1">{!hasInspectionHeader && <header className="ops-topbar"><div className="ops-topbar-leading">{!["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <button type="button" className="ops-button ops-button-secondary ops-shell-back ops-navigation-icon" aria-label="ย้อนกลับ" title="ย้อนกลับ" onClick={() => navigateBack(backFallbackTarget)} disabled={!canGoBack && !backFallbackTarget}><Icon name="arrow-left" /></button>} {!["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <button type="button" className="ops-button ops-button-secondary ops-shell-forward ops-navigation-icon" aria-label="เดินหน้า" title="เดินหน้า" onClick={navigateForward} disabled={!canNavigateForwardInApp()}><Icon name="arrow-right" /></button>}<div className="ops-topbar-context"><p className="ops-eyebrow">FIELD OPERATIONS / CHECKLIST</p></div></div>{["vehicle-review", "history-vehicle-review"].includes(pageLayout) && <><div id="ops-workspace-header" className="ops-workspace-header" /><div id="ops-workspace-periods" className="ops-workspace-periods" /></>}<div className="ops-topbar-actions">{currentUser && <><span className="ops-current-user">{currentUser.displayName}</span><button type="button" className="ops-button ops-button-secondary ops-logout-button" onClick={async () => { await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" }); window.location.reload(); }}>ออกจากระบบ</button></>}<SaveStatus className={`ops-save-indicator ${isReadOnlySurface ? "is-readonly" : ""} ${serverSaveState === "failed" ? "is-conflict" : ""} ${isDemoSurface ? "is-demo" : ""}`.trim()} label={shellSaveState} icon={shellSaveIcon} />{serverStorage && serverSaveState === "failed" && <button type="button" className="ops-button ops-button-secondary" onClick={refreshServerState}>โหลดข้อมูลล่าสุด</button>}</div></header>}{CONTRACT_CONTEXT_ROUTES.has(route.name) && <Suspense fallback={null}><LazyContractContextBar state={state} route={route} /></Suspense>}<div style={{ display: "contents" }} inert={!hasInspectionHeader && serverStorage && !serverWritable}>{page}</div></main>{purgeRetry ? <div className="ops-toast ops-toast-retry" role="alert" aria-live="assertive"><Icon name="alert" /><span>{purgeRetry.message}</span><Button onClick={retryStationPurge} variant="secondary" icon="refresh" disabled={purgeRetry.busy}>{purgeRetry.busy ? "กำลังลองใหม่..." : "ลองลบไฟล์แนบอีกครั้ง"}</Button></div> : toast && <div className="ops-toast" role="status" aria-live="polite"><Icon name="check" />{toast}</div>}<ConfirmDialog request={confirmRequest} onResolve={resolveConfirm} />{shouldShowCloseSuccess(closeSuccessRoundId, route) && <CloseSuccessDialog onClose={dismissCloseSuccess} />}</div>;
 }
 
 export default App;

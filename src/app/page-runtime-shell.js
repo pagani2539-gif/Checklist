@@ -13,7 +13,6 @@ export function roundFor(state, roundId) {
 }
 
 export const SIDEBAR_SHORT_LABELS = Object.freeze({
-  dashboard: "ภาพรวม",
   stations: "ทะเบียนสถานี",
   inspections: "รอบตรวจ",
   history: "ประวัติ",

@@ -1,4 +1,11 @@
 .vehicle-test-report-page { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+.vehicle-report-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--ops-line); padding-bottom: 8px; }
+.vehicle-report-tabs [role="tab"] { flex: 1; min-height: 44px; padding: 10px 16px; border: 1px solid var(--ops-line); border-radius: 8px; background: var(--ops-card); color: var(--ops-ink); font: inherit; cursor: pointer; }
+.vehicle-report-tabs [aria-selected="true"] { background: var(--ops-color-primary); color: var(--ops-action-foreground, #fff); border-color: var(--ops-color-primary); font-weight: var(--ops-weight-bold); }
+.vehicle-report-tabs [role="tab"]:focus-visible { outline: 3px solid var(--ops-color-focus, #296dab); outline-offset: 2px; }
+/* Preserve measurable document dimensions without exposing a second copy on screen or to assistive tools. */
+@media screen { .vehicle-test-report-page > .vehicle-test-report-preview.is-staged { position: absolute; left: -100000px; top: 0; width: 100%; pointer-events: none; } }
+@media print { .vehicle-test-report-page > .vehicle-test-report-preview.is-staged { position: static; width: auto; pointer-events: auto; } }
 .vehicle-analytics-panel { margin-block: 24px; color: var(--ops-ink); min-width: 0; width: 100%; }
 .vehicle-report-screen-overview { width: 100%; min-width: 0; }
 @media (max-width: 600px) {

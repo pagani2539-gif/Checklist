@@ -12,13 +12,14 @@ import { archiveVehicleEvidence, vehicleEvidenceTasksForReport } from "../../dom
 import { createUiVehicleSystemsDemoRound } from "../../domain/demo-fixture.js";
 import { useCentralEnglishNames } from "../../domain/equipment-names.js";
 import { preparePrintableImageCopies } from "../reports/print-image-optimizer.js";
+import { completeCloseRound } from "../close-round-success.js";
 export function getChecklistPrintTitle(round, coverMeta) {
   const clean = (value) => String(value ?? "").trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-").replace(/[. ]+$/g, "");
   return [clean(coverMeta?.reportTitle), clean(round?.snapshot?.stationName || round?.snapshot?.stationCode), coverMeta?.contractNo?.trim() ? `สัญญา${clean(coverMeta.contractNo)}` : ""].filter(Boolean).join("_") || "รายงานตรวจบำรุงรักษา";
 }
 export function createChecklistPage(runtime) {
   const { Breadcrumb, Button, CHECKLIST_PROGRESS_POLICY_VERSION, ChecklistEvidenceDrawer, ChecklistItem, ChecklistPager, ChecklistTaskQueue, CloseReadinessDialog, EmptyState, Icon, MAX_ATTACHMENT_BYTES, PageHeader, PrintableReport, REPORT_COMPANIES, REPORT_COVER_FIELD_LABELS, REPORT_COVER_REQUIRED_FIELDS, StatusBadge, UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID, VEHICLE_API_REVIEW_VERSION, VEHICLE_REVIEW_SCOPE_VERSION, appendStationInspectionReportRevision, attachmentIdsForRound, buildInspectionSections, buildItemState, createId, createUiDemoRound, createUiVehicleDemoRound, deleteStoredAttachment, deleteStoredAttachments, domSafeId, formatDate, formatDateTime, getChecklistCoverageSummary, getChecklistPageNavigationItems, getChecklistScopeMeta, getChecklistWorkContext, getCloseReadiness, getCorrectionSummary, getItemsForSnapshot, getReportCoverMeta, getReportCoverReadiness, getRoundSummary, getSectionEvidenceStats, getStoredAttachment, getVehicleReviewContext, getVehicleReviewState, inferReportCompanyId, isEvidenceBypassItemStatus, isEvidenceSlotComplete, isVehicleApiReviewItem, isVehicleReviewScopeState, navigate, normalizeReportCoverMeta, normalizeVehicleReviewState, normalizeVehicleSearchState, roundFor, saveStationInspectionReportCover, saveStoredAttachment, shortId, stationInspectionReportForRound, useCallback, useEffect, useMemo, useRef, useState, vehicleApiHref } = runtime;
-  return function ChecklistPage({ state, update: persistUpdate, notify, requestConfirm, route, readOnly = false, savedAt = null, serverSaveState = "idle", navigationControls = null, accountControls = null, serverWritable = true }) {
+  return function ChecklistPage({ state, update: persistUpdate, notify, requestConfirm, route, onCloseSuccess = null, readOnly = false, savedAt = null, serverSaveState = "idle", navigationControls = null, accountControls = null, serverWritable = true }) {
     const storedRound = roundFor(state, route.id);
     const isDemoRoute = !storedRound && route.name === "checklist" && [UI_DEMO_ROUND_ID, UI_VEHICLE_DEMO_ROUND_ID].includes(route.id);
     const [demoRound, setDemoRound] = useState(() => {
@@ -420,10 +421,9 @@ export function createChecklistPage(runtime) {
       }
       if (JSON.stringify(latestRoundRef.current?.vehicleSearch) !== JSON.stringify(round.vehicleSearch)) { finalizingRef.current = false; notify("ข้อมูลรถเปลี่ยนระหว่างเก็บภาพ กรุณาตรวจความพร้อมแล้วปิดรอบอีกครั้ง"); return; }
       setCloseReadinessDialog(false);
-      const outcome = await update((current) => ({ ...current, inspectionRounds: current.inspectionRounds.map((entry) => entry.id === round.id ? { ...entry, vehicleEvidenceArchive, status: "closed", progressPolicyVersion: CHECKLIST_PROGRESS_POLICY_VERSION, closedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : entry) }), "ปิดรอบการตรวจแล้ว");
+      const outcome = await update((current) => ({ ...current, inspectionRounds: current.inspectionRounds.map((entry) => entry.id === round.id ? { ...entry, vehicleEvidenceArchive, status: "closed", progressPolicyVersion: CHECKLIST_PROGRESS_POLICY_VERSION, closedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : entry) }));
       finalizingRef.current = false;
-      if (outcome === null) { notify("ปิดรอบไม่สำเร็จ กรุณาตรวจสถานะบันทึกและโหลดข้อมูลล่าสุด"); return; }
-      navigate(`#/history/${encodeURIComponent(round.id)}`);
+      if (!completeCloseRound(outcome, round.id, onCloseSuccess, navigate)) { notify("ปิดรอบไม่สำเร็จ กรุณาตรวจสถานะบันทึกและโหลดข้อมูลล่าสุด"); return; }
     };
     const navigateToCloseBlocker = (blocker) => {
       setCloseReadinessDialog(false);
@@ -627,13 +627,13 @@ export function createChecklistPage(runtime) {
       if (!await confirmReportCompany({ draft: canPrintDraftReport })) return;
       const nextMode = reportPreviewMode === "standard" ? "none" : "standard";
       setReportPreviewMode(nextMode);
-      if (nextMode !== "none") window.requestAnimationFrame(() => document.querySelector(".ops-print-report.is-report-preview")?.scrollIntoView({ behavior: "auto", block: "start", inline: "center" }));
+      if (nextMode !== "none") window.requestAnimationFrame(() => document.querySelector(".ops-report-preview-toolbar")?.scrollIntoView({ behavior: "auto", block: "start", inline: "center" }));
     };
     const togglePresentationPreview = async () => {
       if (!await confirmReportCompany({ draft: canPrintDraftReport })) return;
       const nextMode = reportPreviewMode === "presentation" ? "none" : "presentation";
       setReportPreviewMode(nextMode);
-      if (nextMode !== "none") window.requestAnimationFrame(() => document.querySelector(".ops-print-report.is-report-preview")?.scrollIntoView({ behavior: "auto", block: "start", inline: "center" }));
+      if (nextMode !== "none") window.requestAnimationFrame(() => document.querySelector(".ops-report-preview-toolbar")?.scrollIntoView({ behavior: "auto", block: "start", inline: "center" }));
     };
     const closeReportPreview = () => {
       setReportPreviewMode("none");
@@ -649,7 +649,7 @@ export function createChecklistPage(runtime) {
           <div className="company-selector-main">
             <label htmlFor="report-company">รูปแบบหน้าปกรายงาน</label>
             <CustomSelect id="report-company" value={reportCompanyId} onChange={event => setReportCompanyId(event.target.value)}><option value="">เลือกบริษัท</option>{REPORT_COMPANIES.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}</CustomSelect>
-            <small>ใช้กับหน้าปก A4 และ Presentation 16:9 · ไม่เปลี่ยนข้อมูล Snapshot หรือผลตรวจ</small>
+            <small>ใช้กับรายงาน A4 และรายงานนำเสนอ 16:9 · ไม่เปลี่ยนผลตรวจหรือหลักฐานที่บันทึกไว้</small>
           </div>
         </div>
         {canPrintDraftReport ? <div className="ops-info-banner"><Icon name="info" /><span>พิมพ์ข้อมูลระหว่างตรวจได้เลย เอกสารจะแสดงว่าเป็นฉบับร่าง ใช้ผลตรวจและหลักฐาน ณ ตอนนี้ และไม่ปิดรอบหรือบันทึกเป็นรายงานฉบับสมบูรณ์</span></div> : <section className={`report-cover-editor${reportCoverReadiness.ready ? " is-ready" : " has-missing"}`} aria-labelledby="report-cover-editor-title">
@@ -663,12 +663,17 @@ export function createChecklistPage(runtime) {
           </div>
           {canEditReportCover && <div className="report-cover-editor-actions"><span>{reportCoverReadiness.missingLabels.length ? "ต้องกรอก " + reportCoverReadiness.missingLabels.join(" · ") : "กรอกข้อมูลครบแล้ว · วันที่ตรวจ " + (visibleRound.meta?.inspectionDate ? formatDate(visibleRound.meta.inspectionDate) : "ยังไม่ระบุ")}</span><Button onClick={saveReportCover} variant="secondary" icon="save">บันทึกข้อมูลหน้าปก</Button></div>}
         </section>}
-        {canPrintDraftReport ? <div className="ops-report-menu-actions"><Button onClick={toggleReportPreview} variant="secondary" icon="print" disabled={!selectedReportCompany || Boolean(printPreparation)}>{standardReportPreviewActive ? "ซ่อนตัวอย่างฉบับร่าง" : "ดูตัวอย่างฉบับร่าง"}</Button><Button onClick={togglePresentationPreview} variant="secondary" icon="display" disabled={!selectedReportCompany || Boolean(printPreparation)}>{presentationReportPreviewActive ? "ซ่อนรายงานพรีเซนต์" : "ดูพรีเซนต์ฉบับร่าง"}</Button><Button onClick={() => handlePrint("standard", { draft: true })} variant="primary" icon="print" disabled={!selectedReportCompany || Boolean(printPreparation)}>พิมพ์ฉบับร่าง</Button><Button onClick={() => handlePrint("presentation", { draft: true })} variant="secondary" icon="print" disabled={!selectedReportCompany || Boolean(printPreparation)}>พิมพ์พรีเซนต์ฉบับร่าง</Button></div> : <div className="ops-report-menu-actions">
-          <Button onClick={toggleReportPreview} variant="secondary" icon="print" disabled={!selectedReportCompany || !reportCoverReadiness.ready || Boolean(printPreparation)}>{standardReportPreviewActive ? "ซ่อนตัวอย่างรายงาน" : "ดูตัวอย่างรายงาน"}</Button>
-          <Button onClick={togglePresentationPreview} variant="secondary" icon="display" disabled={!selectedReportCompany || !reportCoverReadiness.ready || Boolean(printPreparation)}>{presentationReportPreviewActive ? "ซ่อนรายงานพรีเซนต์" : "ดูรายงานพรีเซนต์"}</Button>
-          <Button onClick={() => handlePrint("standard")} variant="primary" icon="print" disabled={!selectedReportCompany || !reportCoverReadiness.ready || Boolean(printPreparation)}>พิมพ์รายงาน</Button>
-          <Button onClick={() => handlePrint("presentation")} variant="secondary" icon="print" disabled={!selectedReportCompany || !reportCoverReadiness.ready || Boolean(printPreparation)}>พิมพ์รายงานพรีเซนต์</Button>
-        </div>}
+        <div className="ops-report-menu-actions">
+          {[
+            { mode: "standard", title: "รายงาน A4", format: "A4", active: standardReportPreviewActive, preview: toggleReportPreview },
+            { mode: "presentation", title: "รายงานนำเสนอ 16:9", format: "รายงานนำเสนอ 16:9", active: presentationReportPreviewActive, preview: togglePresentationPreview },
+          ].map((format) => <fieldset key={format.mode} className="ops-report-format-actions">
+            <legend>{format.title}{canPrintDraftReport ? " · ฉบับร่าง" : ""}</legend>
+            <Button onClick={format.preview} variant="secondary" icon="eye" aria-pressed={format.active} disabled={!selectedReportCompany || (!canPrintDraftReport && !reportCoverReadiness.ready) || Boolean(printPreparation)}>{format.active ? "ซ่อนตัวอย่าง" : "แสดงตัวอย่าง"}{canPrintDraftReport ? "ฉบับร่าง" : "รายงาน"}{format.mode === "standard" ? " A4" : "นำเสนอ 16:9"}</Button>
+            <Button onClick={() => handlePrint(format.mode, { draft: canPrintDraftReport })} variant="primary" icon="print" disabled={!selectedReportCompany || (!canPrintDraftReport && !reportCoverReadiness.ready) || Boolean(printPreparation)}>พิมพ์ / บันทึกเป็น PDF{canPrintDraftReport ? " ฉบับร่าง" : ""}{format.mode === "standard" ? " ขนาด A4" : " รูปแบบ 16:9"}</Button>
+          </fieldset>)}
+          <small className="ops-report-action-note">แสดงตัวอย่างเพื่อดูเอกสารบนหน้าจอ หรือเลือกพิมพ์เพื่อสั่งพิมพ์และบันทึกเป็น PDF</small>
+        </div>
         {!canPrintDraftReport && <section className="station-report-revisions" aria-label="ประวัติฉบับรายงาน"><strong>ฉบับรายงานที่เคยสร้าง</strong>{stationReport?.revisions?.length ? <ol>{[...stationReport.revisions].sort((a, b) => b.version - a.version).map((revision) => <li key={revision.id}><span>ฉบับที่ {revision.version} · {REPORT_COMPANIES.find((company) => company.id === revision.companyId)?.name || revision.companyId || "ไม่ระบุแบบรายงาน"} · {revision.format === "presentation" ? "Presentation" : "A4"}</span><small>{revision.generatedAt ? formatDateTime(revision.generatedAt) : "ไม่ระบุเวลา"}</small></li>)}</ol> : <small>ยังไม่มีฉบับรายงานที่สร้างไว้</small>}</section>}
       </div>
     </details> : null;
@@ -717,7 +722,7 @@ export function createChecklistPage(runtime) {
           <div><span className="ops-eyebrow">REPORT PREVIEW</span><strong>{presentationReportPreviewActive ? "ตัวอย่างรายงานพรีเซนต์" : "ตัวอย่างรายงาน"}</strong></div>
           <Button onClick={closeReportPreview} variant="secondary" icon="arrow">กลับหน้าตรวจ</Button>
         </div>}
-        <AcDcLegacyArchive archive={visibleRound.acDcSplitArchive} renderEvidence={(item, value) => <ChecklistEvidenceDrawer item={item} itemValue={value} readOnly allowClipboardPaste={false} round={visibleRound} notify={notify} />} />
+        {formReadOnly && <AcDcLegacyArchive archive={visibleRound.acDcSplitArchive} renderEvidence={(item, value) => <ChecklistEvidenceDrawer item={item} itemValue={value} readOnly allowClipboardPaste={false} round={visibleRound} notify={notify} />} />}
         {reportPreviewMode !== "none" && <PrintableReport round={visibleRound} state={state} preview mode={presentationReportPreviewActive ? "presentation" : "standard"} companyId={reportCompanyId} reportCoverMeta={reportCoverMeta} draft={canPrintDraftReport} />}
         {printPreparation && <div className="ops-dialog-layer" role="presentation">
           <section ref={printDialogRef} tabIndex={-1} className="ops-dialog ops-print-preparation-dialog" role="dialog" aria-modal="true" aria-labelledby="print-preparation-title" aria-describedby="print-preparation-description" onKeyDown={(event) => { if (event.key === "Escape" && printPreparation.stage !== "ready" && printPreparation.stage !== "printing") { event.preventDefault(); cancelPrintPreparation(); } }}>

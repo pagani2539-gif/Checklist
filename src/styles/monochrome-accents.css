@@ -996,25 +996,6 @@
 :root[data-theme] :is(.ops-vehicle-api-separate-page-note):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border); color: var(--ops-color-link)
 }
 
-:root[data-theme] :is(.ops-vehicle-config-panel):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
-  border: 1px solid var(--ops-color-primary-border)
-}
-
-:root[data-theme] :is(.ops-vehicle-config-heading span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-
-:root[data-theme] :is(.ops-vehicle-config-primary):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-
-:root[data-theme] :is(.ops-vehicle-config-summary):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-
-:root[data-theme] :is(.ops-vehicle-config-purpose):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border); color: var(--ops-color-link)
-}
-
-:root[data-theme] :is(.ops-vehicle-config-tested):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-
 :root[data-theme] :is(.ops-vehicle-search-heading span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
 }
 
@@ -1144,88 +1125,23 @@
 :root[data-theme] :is(.ops-vehicle-api-page .ops-vehicle-focus-completion):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
   color: var(--ops-color-link)
 }
+:root[data-theme] :is(.ops-vehicle-config-panel):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
+  border: 1px solid var(--ops-color-primary-border)
+}
+:root[data-theme] :is(.ops-vehicle-config-heading span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
+}
+:root[data-theme] :is(.ops-vehicle-config-primary):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
+}
+:root[data-theme] :is(.ops-vehicle-config-summary):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
+}
+:root[data-theme] :is(.ops-vehicle-config-purpose):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border); color: var(--ops-color-link)
+}
+:root[data-theme] :is(.ops-vehicle-config-tested):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
+}
 :root[data-theme] :is(.ops-vehicle-review-entry):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) {
   border: 1px solid var(--ops-color-primary-border)
 }
-:root[data-theme] :is(.ops-context-note, .contract-context-strip, .ops-report-type-note):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.report-type-icon):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-color-primary-soft)
-}
-:root[data-theme] :is(.contract-package-row p, .contract-assigned-row span, .contract-work-actions span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-summary-list dt, .contract-work-cover-facts span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-field-hint):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-region-option, .contract-region-add, .contract-station-option):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-region-option:has(input:checked), .contract-station-option.is-selected):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border-color: var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-detail-hero):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-detail-hero p):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-tabs):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border-bottom: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-tabs button):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-tabs small):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-color-primary-soft)
-}
-:root[data-theme] :is(.contract-region-chip-list span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-color-primary-soft)
-}
-:root[data-theme] :is(.contract-inline-form input, .contract-report-controls select):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.report-type-grid article):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.report-type-grid p):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-report-list span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-station-option-icon):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-color-primary-soft)
-}
-:root[data-theme] :is(.contract-station-option small):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-report-controls):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-linked-data, .contract-agreement-form-section, .contract-agreement-issued-list):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-linked-grid dt):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-repeat-row input):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-row-number):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-color-primary-soft)
-}
-:root[data-theme] :is(.contract-agreement-empty-row):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px dashed var(--ops-color-primary-border); color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-version-select):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-version-select select):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-identifiers):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-project):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-facts):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border-top: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-facts dt):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-committee-heading span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-agreement-committee th, .contract-agreement-committee td):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-issued-list button):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-issued-list button.is-selected):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border-color: var(--ops-color-primary-border)
-}
-:root[data-theme] :is(.contract-agreement-issued-list span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-work-cover):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { box-shadow: 0 12px 34px rgba(127, 127, 127, .12)
-}
-:root[data-theme] :is(.contract-work-logo-placeholder):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
-}
-:root[data-theme] :is(.contract-work-cover-rule):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { background: var(--ops-card)
-}
-:root[data-theme] :is(.contract-work-cover-footer):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
+:root[data-theme] :is(.ops-context-note, .ops-report-type-note):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { border: 1px solid var(--ops-color-primary-border)
 }
 :root[data-theme] :is(.contract-reference-row span):not(:where(.ops-print-report, .ops-print-report *, .contract-agreement-cover, .contract-agreement-cover *, .ops-vehicle-report, .ops-vehicle-report *, [data-print-document], [data-print-document] *)) { color: var(--ops-color-link)
 }

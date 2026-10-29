@@ -70,8 +70,8 @@
     background: var(--ops-card); padding: .3rem;
   }
   .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions:has([aria-current="true"]) {
-    border-color: var(--ops-primary); background: var(--ops-primary-soft);
-    box-shadow: inset .15rem 0 var(--ops-primary);
+    border-color: var(--ops-color-primary); background: var(--ops-color-primary-soft);
+    box-shadow: inset .15rem 0 var(--ops-color-primary);
   }
   .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions > button:first-of-type {
     display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto;
@@ -101,7 +101,7 @@
     justify-self: start; font-style: normal; color: var(--ops-muted);
   }
   .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-queue-row-actions em.is-done {
-    color: var(--ops-success); background: var(--ops-color-success-soft);
+    color: var(--ops-success); background: var(--ops-success-soft);
     border-radius: .4rem; padding: .15rem .35rem;
   }
   .ops-vehicle-focus-panel [data-vehicle-queue="review"] .ops-vehicle-row-delete {

@@ -183,6 +183,7 @@
   @container vehicle-review (max-width: 759.98px) {
     .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; row-gap: .5rem; }
     .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-metrics > div:nth-child(2) { border-right: 0 !important; }
+    .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification) .ops-vehicle-search-result-metric > span { white-space: nowrap !important; overflow-wrap: normal !important; }
 
     .ops-vehicle-image-first:is(#vehicle-focus-workspace-plate, #vehicle-focus-workspace-classification, #vehicle-focus-workspace-all) > .ops-vehicle-focus-layout:not(.ops-vehicle-eligibility-layout) > .ops-vehicle-focus-main {
       grid-template-columns: minmax(0, 1fr) !important;

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createConfiguredStore } from '../server/store.mjs';
 import { splitAcDcState } from '../src/domain/ac-dc-split.js';
 import { attachmentIdsForState } from '../src/domain/storage.js';
+import { verifyAcDcMigrationBackup } from './ac_dc_backup_verification.mjs';
 
 const apply = process.argv.includes('--apply');
 const backupIndex = process.argv.indexOf('--backup');
@@ -35,13 +36,7 @@ try {
     attachmentIdsPreserved: retained.size,
   };
   if (apply && changed) {
-    const manifest = JSON.parse(await fs.readFile(path.join(backupDir, 'manifest.json'), 'utf8'));
-    assert((await fs.stat(manifest.database)).size > 0, 'database backup is empty');
-    assert((await fs.stat(manifest.attachments || manifest.objects)).isDirectory(), 'attachments backup is missing');
-    const verification = JSON.parse(await fs.readFile(path.join(backupDir, 'ac-dc-backup-check.json'), 'utf8'));
-    assert.equal(verification.stateVersion, expectedBackupVersion, 'backup verification version does not match expected version');
-    assert(verification.attachmentFileCount > 0, 'attachment backup verification is empty');
-    assert.equal(verification.databaseBytes, (await fs.stat(manifest.database)).size, 'database backup changed after verification');
+    await verifyAcDcMigrationBackup(backupDir, expectedBackupVersion);
     // Write the exact input state before a version-checked commit. No ids/files are deleted.
     await fs.writeFile(path.join(backupDir, `ac-dc-before-v${current.version}.json`), JSON.stringify(current), { flag: 'wx' });
     const saved = await store.saveState(next, { expectedVersion: current.version, requireExactVersion: true,

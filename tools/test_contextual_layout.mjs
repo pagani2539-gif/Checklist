@@ -41,7 +41,7 @@ const inlineEditorSource = fs.readFileSync(new URL("../src/app/StationRelationsh
 const relationshipRegisterSource = fs.readFileSync(new URL("../src/app/StationRelationshipRegister.jsx", import.meta.url), "utf8");
 const redesignCss = fs.readFileSync(new URL("../src/styles/redesign.css", import.meta.url), "utf8");
 const tokenCss = fs.readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
-for (const layout of ["dashboard", "station-directory", "station-workspace", "station-setup", "round-queue", "round-setup", "inspection-workspace", "vehicle-review", "history-library", "history-detail", "history-vehicle-review", "revision-setup"]) {
+for (const layout of ["station-directory", "station-workspace", "station-setup", "round-queue", "round-setup", "inspection-workspace", "vehicle-review", "history-library", "history-detail", "history-vehicle-review", "revision-setup"]) {
   assert.ok(appSource.includes(`\"${layout}\"`), `route layout ${layout} should be declared`);
 }
 assert.match(appSource, /data-checklist-context=\{currentChecklistContext\.key\}/);

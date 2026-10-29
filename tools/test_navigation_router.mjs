@@ -2,20 +2,20 @@ import assert from "node:assert/strict";
 import { canNavigateBackInApp, canNavigateForwardInApp, initializeRouteHistory, navigate, navigateBack, navigateForward, normalizeHash } from "../src/app/navigation.js";
 import { getBackFallbackTarget, parseHash, primaryRouteFor, PRIMARY_ROUTES, ROUTE_META } from "../src/app/router.js";
 
-assert.equal(PRIMARY_ROUTES.length, 4);
-assert.deepEqual(PRIMARY_ROUTES.map((route) => route.key), ["dashboard", "stations", "inspections", "history"]);
+assert.equal(PRIMARY_ROUTES.length, 3);
+assert.deepEqual(PRIMARY_ROUTES.map((route) => route.key), ["stations", "inspections", "history"]);
 assert.equal(PRIMARY_ROUTES.find((route) => route.key === "stations")?.label, "ทะเบียนสถานี");
 assert.equal(ROUTE_META.stations?.[0], "ทะเบียนสถานี");
 
 const cases = [
-  ["#/dashboard", "dashboard"],
-  ["#/contracts", "dashboard"],
-  ["#/contracts/new", "newContract"],
-  ["#/contracts/contract-1", "contractDetail"],
-  ["#/contracts/contract-1/edit", "contractEdit"],
-  ["#/contracts/contract-1/cover", "contractAgreementCover"],
-  ["#/contracts/contract-1/work-packages/package-9", "workPackage"],
-  ["#/contracts/contract-1/work-packages/package-9/reports/new?stationId=station-1", "contractReportNew"],
+  ["#/dashboard", "inspections"],
+  ["#/contracts", "inspections"],
+  ["#/contracts/new", "inspections"],
+  ["#/contracts/contract-1", "inspections"],
+  ["#/contracts/contract-1/edit", "inspections"],
+  ["#/contracts/contract-1/cover", "inspections"],
+  ["#/contracts/contract-1/work-packages/package-9", "inspections"],
+  ["#/contracts/contract-1/work-packages/package-9/reports/new?stationId=station-1", "inspections"],
   ["#/stations", "stations"],
   ["#/stations/new", "newStation"],
   ["#/stations/station-1", "stationDetail"],
@@ -38,12 +38,10 @@ for (const [hash, expectedName] of cases) {
   assert.ok(ROUTE_META[route.name], `Missing metadata for ${route.name}`);
 }
 
-assert.equal(parseHash("#/contracts").redirectTo, "#/dashboard");
+assert.equal(parseHash("#/dashboard").redirectTo, "#/inspections");
+assert.equal(parseHash("#/contracts").redirectTo, "#/inspections");
 
 assert.equal(primaryRouteFor("stationDetail"), "stations");
-assert.equal(primaryRouteFor("contractDetail"), null);
-assert.equal(primaryRouteFor("contractAgreementCover"), null);
-assert.equal(primaryRouteFor("workPackage"), null);
 assert.equal(primaryRouteFor("newInspection"), "inspections");
 assert.equal(primaryRouteFor("vehicleApiReport"), "inspections");
 assert.equal(primaryRouteFor("historyVehicleApiReport"), "history");
@@ -56,11 +54,12 @@ assert.equal(getBackFallbackTarget(parseHash("#/inspections/round-1/vehicle-api/
 assert.equal(getBackFallbackTarget(parseHash("#/history/round-1/vehicle-api/axles")), "#/history/round-1");
 assert.equal(getBackFallbackTarget(parseHash("#/inspections/round-1/vehicle-api-report/plate?scope=day")), "#/inspections/round-1/vehicle-api/plate?scope=day");
 assert.equal(getBackFallbackTarget(parseHash("#/history/round-1/vehicle-api-report/classification?scope=night")), "#/history/round-1/vehicle-api/classification?scope=night");
-assert.equal(getBackFallbackTarget(parseHash("#/contracts/contract-1/work-packages/package-9")), "#/contracts/contract-1");
+assert.equal(getBackFallbackTarget(parseHash("#/contracts/contract-1/work-packages/package-9")), null);
+for (const [hash] of cases.filter(([hash]) => hash.startsWith("#/contracts"))) assert.equal(parseHash(hash).redirectTo, "#/inspections", hash);
 assert.equal(normalizeHash("stations"), "#/stations");
 assert.equal(normalizeHash("/history/round-1"), "#/history/round-1");
 assert.equal(normalizeHash("#/dashboard"), "#/dashboard");
-assert.equal(normalizeHash(""), "#/dashboard");
+assert.equal(normalizeHash(""), "#/inspections");
 
 const previousWindow = globalThis.window;
 const testLocation = { href: "http://localhost/#/stations/new", hash: "#/stations/new", pathname: "/", search: "" };
@@ -92,11 +91,11 @@ try {
   navigate("#/stations");
   assert.equal(testLocation.hash, "#/stations");
   assert.equal(canNavigateBackInApp(), true);
-  navigateBack("#/dashboard");
+  navigateBack("#/inspections");
   assert.equal(testHistory.backCalls, 1);
   testHistory.state.__checklistAppNavigation.index = 0;
-  navigateBack("#/dashboard");
-  assert.equal(testLocation.hash, "#/dashboard");
+  navigateBack("#/inspections");
+  assert.equal(testLocation.hash, "#/inspections");
   assert.equal(testHistory.state.__checklistAppNavigation.index, 0);
 } finally {
   if (previousWindow === undefined) delete globalThis.window;

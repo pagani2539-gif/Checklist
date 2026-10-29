@@ -28,6 +28,13 @@ for (const companyId of ['ntr', 'ltp', 'is8']) {
     const section = { code: item.sectionCode, title: item.sectionCode === '1.1' ? 'การแสดงความพร้อม' : '3D Dimension', items: [item] };
     currentModel = { ...base, sections: [section], orderedItems: [{ ...item, presentationSection: section }], vehicleSearch: null, metadata: { ...base.metadata, roundId: 'round-context-test', inspectionDate: '2026-10-07' } };
     const html = renderToStaticMarkup(React.createElement(Report, { round, mode: 'presentation', preview: true, companyId }));
+    const standardHtml = renderToStaticMarkup(React.createElement(Report, { round, mode: 'standard', preview: true, companyId }));
+    assert.ok(standardHtml.includes('company-cover'), 'A4 retains the company report cover');
+    assert.ok(!standardHtml.includes('class="ops-print-header"'), 'A4 must not render the redundant field-form header after the company cover');
+    assert.ok(!standardHtml.includes('แบบฟอร์มตรวจหน้างาน'), 'A4 has no legacy field-form title');
+    assert.ok(!standardHtml.includes('ops-print-meta-grid') && !standardHtml.includes('ops-print-summary-strip'), 'A4 must not repeat cover metadata and summary below the cover');
+    assert.ok(!standardHtml.includes('ops-print-cover-overview'), 'A4 must not repeat the section overview below the company cover');
+    assert.ok(standardHtml.includes('data-print-item-id='), 'A4 retains the inspection detail rows');
     const slide = html.slice(html.indexOf('data-print-presentation-item-id'));
     assert.ok(!slide.includes('DATE MUST NOT PRINT'));
     assert.ok(!slide.includes('HELPER MUST NOT PRINT'));

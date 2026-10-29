@@ -68,6 +68,7 @@ const sourceBefore = JSON.stringify(source);
 for (const [scope, total] of [["day", 10], ["night", 1], ["all", 11]]) {
   const pages = buildVehicleSnapshotEvidencePages(source, { context: "plate", scope });
   const analytics = pages.filter(page => page.kind === 'analytics');
+  assert.ok(analytics.every(page => page.analytics.key !== 'periods'), 'plate report uses summary comparison instead of repeating one-period tables');
   assert.ok(analytics.every(page => page.analytics.total === (scope === 'all' && page.period.key === 'day' ? 10 : scope === 'all' && page.period.key === 'night' ? 1 : total)));
   for (const page of analytics) {
     assert.ok(page.analytics.title.includes(page.period.label), 'plate detail retains its period label');
@@ -102,7 +103,7 @@ assert.equal(new Set(systems.map(page => page.key)).size, systems.length);
 const classificationPages = buildVehicleSnapshotEvidencePages({ rows: [...classEntries.map(entry => ({ ...entry.row, reviewDetails: { classification: entry.detail } })), { ...classEntries[0].row, id: "night-class", occurredAt: "2026-10-10T22:00" }], supportsClassification: true }, { context: "classification" });
 assert.ok(classificationPages.filter(page => page.kind === "analytics").every(page => page.total === 3));
 const empty = buildVehicleSnapshotEvidencePages({ rows: [] }, { context: "plate", scope: "day" }).filter(page => page.kind === "analytics");
-assert.equal(empty.length, 6);
+assert.equal(empty.length, 5);
 assert.ok(empty.every(page => page.analytics.total === 0 && page.analytics.rows.length === 0));
 assert.equal(JSON.stringify(source), sourceBefore);
 const scored = buildVehicleSnapshotEvidencePages({ rows: [source.rows[0]], sourceCount: 2, eligibleCount: 1, excludedCount: 1, sampleEligibilityPolicyVersion: "plate-evidence-v2", excludedRows: [{ id: "excluded", occurredAt: "2026-10-10T10:00", province: "ห้ามนับ" }] }, { context: "plate", scope: "day" });

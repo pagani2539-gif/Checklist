@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { readAppSource, readPageSource } from "./source-bundle.mjs";
 
-const appSource = readAppSource();
+const vehicleConfigSource = readFileSync(new URL("../src/app/page-runtime-vehicleConfig.jsx", import.meta.url), "utf8");
+const appSource = [readAppSource(), vehicleConfigSource].join("\n");
 const checklistSource = readPageSource("ChecklistPage.jsx");
 const vehicleReviewSource = readPageSource("VehicleApiReviewPage.jsx");
 const vehicleReplacementSource = readFileSync(new URL("../src/app/vehicle-review/VehicleTestReplacementDialog.jsx", import.meta.url), "utf8");
 const pageRuntimeSource = readFileSync(new URL("../src/app/page-runtime.js", import.meta.url), "utf8");
-const redesignCss = readFileSync(new URL("../src/styles/redesign.css", import.meta.url), "utf8");
-const workspaceCss = readFileSync(new URL("../src/styles/workspace-layout.css", import.meta.url), "utf8");
-const vehicleQueueCss = readFileSync(new URL("../src/styles/vehicle-photo-review.css", import.meta.url), "utf8");
+// Route CSS was split out of redesign/workspace; keep the same checks on its current owner.
+const vehicleRouteCss = readFileSync(new URL("../src/styles/vehicle-review-route.css", import.meta.url), "utf8");
+const redesignCss = readFileSync(new URL("../src/styles/redesign.css", import.meta.url), "utf8") + "\n" + vehicleRouteCss;
+const workspaceCss = readFileSync(new URL("../src/styles/workspace-layout.css", import.meta.url), "utf8") + "\n" + vehicleRouteCss;
+const vehicleQueueCss = readFileSync(new URL("../src/styles/vehicle-photo-review.css", import.meta.url), "utf8") + "\n" + vehicleRouteCss;
 const vehicleWorkspaceCss = readFileSync(new URL("../src/styles/vehicle-review-workspace.css", import.meta.url), "utf8");
 const envExample = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
 const singleViewportCss = redesignCss.slice(redesignCss.indexOf("/* Single-viewport inspection workspace"));
@@ -22,7 +25,7 @@ assert.match(openReviewBody, /navigate\(vehicleApiHref\(visibleRound, currentVeh
 
 assert.match(checklistSource, /className=\{`ops-page checklist-page[^`]*\$\{currentIsVehicleReview \? "is-vehicle-review-entry"/, "vehicle Checklist items should use a compact entry layout");
 assert.match(checklistSource, /ops-vehicle-review-entry/, "vehicle Checklist items should show a compact entry card instead of an inline review panel");
-assert.match(checklistSource, /เปิดหน้าตรวจ/, "active vehicle Checklist items should offer a dedicated review page");
+assert.match(checklistSource, /formReadOnly \? "เปิดผลตรวจจาก Snapshot" : currentVehicleContext\?\.key === "classification" \? "ตรวจประเภทรถ" : "ตรวจป้ายทะเบียน"/, "vehicle entry must identify the matching review task and preserve the read-only Snapshot label");
 assert.match(checklistSource, /vehicleApiHref\(visibleRound, currentVehicleContext\?\.key, \{ history: formReadOnly, systemKey: currentVisibleItem\?\.vehicleReviewSystemKey \}\)/, "closed and history Checklist items should open the matching read-only context page");
 assert.match(vehicleReviewSource, /const isDemoRoute = !storedRound && route\.name === "vehicleApi" && route\.id === UI_VEHICLE_DEMO_ROUND_ID/, "the dedicated Vehicle API route should recognize the non-persisted vehicle demo round");
 assert.match(appSource, /vehicleApi: \{ state, update, notify, requestConfirm, route, currentUser, serverSaveError, serverWritable: !serverStorage \|\| serverWritable \}/, "the Vehicle API route should receive confirmation and central save status and failure details");
@@ -62,9 +65,9 @@ assert.match(appSource, /!isPlateContext && row\.axles\.length > 0/, "plate cont
 assert.match(appSource, /\(row\.integrityWarnings\?\.length \|\| row\.errorFlags\?\.length \|\| row\.warningFlags\?\.length\)/, "legacy vehicle review should retain integrity warning evidence");
 assert.match(appSource, /ตรวจคันค้างถัดไป/, "pending navigation should explicitly target the next unresolved vehicle without repeating the count");
 assert.doesNotMatch(appSource, /ไปคันค้างถัดไป/, "pending navigation should use the updated action wording");
-assert.match(appSource, /const remainingRows = \[\s*\.\.\.orderedRows\.slice\(selectedIndex \+ 1\),\s*\.\.\.orderedRows\.slice\(0, selectedIndex \+ 1\),\s*\]\.filter\(row => !deletedRowIds\.has\(row\.id\)\)/, "deleting the current row should continue forward through the queue and wrap around");
-assert.match(appSource, /const nextRow = remainingRows\.find\(isPendingRow\) \|\| remainingRows\[0\] \|\| null;/, "after deletion, navigation should prefer a remaining pending vehicle");
-assert.match(appSource, /if \(nextIsPending && queueStatusFilter === "reviewed"\) setQueueStatusFilter\("pending"\)/, "after deletion, the active queue filter should reveal the next pending vehicle");
+assert.match(appSource, /getVehicleAfterDeletion\(orderedRows, deleteTarget\.rows\.map\(row => row\.id\), isPendingRow\)/, "deletion should use the tested queue-order domain helper");
+assert.match(appSource, /const nextRow = navigation\.nextRow;/, "deletion should select the pending row chosen by the domain helper");
+assert.match(appSource, /const nextFilter = queueStatusFilter === "reviewed" \? "pending" : queueStatusFilter;[\s\S]*?setQueueStatusFilter\(nextFilter\)/, "after deletion, the active queue filter should reveal the next pending vehicle");
 assert.match(appSource, /"reviewed", "บันทึกผลแล้ว"/, "the reviewed filter should describe recorded results without implying verification passed");
 assert.match(appSource, /className="vehicle-bulk-label"[^>]*>\{bulkMode \? "ยกเลิกการเลือก" : "เลือกหลายรายการ"\}/, "bulk selection should have a visible text label");
 assert.match(appSource, /className="ops-vehicle-row-current-label">กำลังตรวจ/, "the currently selected vehicle should be labeled in the queue");

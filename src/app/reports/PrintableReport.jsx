@@ -198,19 +198,6 @@ export function createPrintableReportComponent(runtime) {
     </article>;
   }
 
-  function PrintableSummaryStrip({ summary }) {
-    const metrics = [
-      { label: REPORT_TEXT.summary.progress, value: `${summary.progress}%`, detail: `${summary.done} จาก ${summary.total} รายการ · ค้าง ${summary.pending}`, icon: "check", tone: "complete" },
-      { label: REPORT_TEXT.summary.checked, value: summary.done, detail: REPORT_TEXT.summary.checkedDetail, icon: "clipboard", tone: "normal" },
-      { label: REPORT_TEXT.summary.followUp, value: summary.issues, detail: summary.issues ? REPORT_TEXT.summary.followUpDetail : REPORT_TEXT.summary.noFollowUp, icon: "alert", tone: summary.issues ? "waiting" : "normal" },
-      { label: REPORT_TEXT.summary.evidenceComplete, value: summary.evidenceComplete, detail: `จาก ${summary.evidenceTotal} ช่อง · ไม่ครบ ${summary.evidenceIncomplete}`, icon: "camera", tone: summary.evidenceIncomplete ? "waiting" : "complete" },
-    ];
-    return <section className="ops-print-summary-strip" aria-label={REPORT_TEXT.summary.aria}>{metrics.map((metric) => <div className={`ops-print-summary-metric tone-${metric.tone}`} key={metric.label}>
-      <span className="ops-print-summary-icon"><Icon name={metric.icon} size="small" /></span>
-      <div><span>{metric.label}</span><strong>{metric.value}</strong><small>{metric.detail}</small></div>
-    </div>)}</section>;
-  }
-
   const PRINT_SECTION_ICON_BY_CODE = Object.freeze({
     "1.1": "equipment",
     "1.1.5": "scan",
@@ -237,29 +224,6 @@ export function createPrintableReportComponent(runtime) {
     return readinessIcons[item.templateId || item.id] || PRINT_SECTION_ICON_BY_CODE[item.sectionCode] || "clipboard";
   }
 
-
-  function PrintableSectionOverview({ sections }) {
-    if (!sections.length) return null;
-    const itemCount = sections.reduce((total, section) => total + (Array.isArray(section.items) ? section.items.length : 0), 0);
-    return <section className="ops-print-cover-overview" aria-label={REPORT_TEXT.table.scopeTitle}>
-      <div className="ops-print-cover-overview-heading">
-        <div><p>{REPORT_TEXT.table.scopeEyebrow}</p><h2>{REPORT_TEXT.table.scopeTitle}</h2></div>
-        <strong>{sections.length} หมวด · {itemCount} รายการ</strong>
-      </div>
-      <div className="ops-print-cover-overview-grid">
-        {sections.map((section) => {
-          const itemCountForSection = Array.isArray(section.items) ? section.items.length : 0;
-          const iconName = PRINT_SECTION_ICON_BY_CODE[section.code] || "list";
-          return <div className="ops-print-cover-overview-item" data-section-code={section.code} data-context-icon={iconName} key={section.code}>
-          <span className="ops-print-cover-overview-icon" aria-hidden="true"><Icon name={iconName} size="small" /></span>
-          <span className="ops-print-cover-overview-code">{section.code}</span>
-          <div><strong>{section.title}</strong></div>
-          <small>{itemCountForSection} {REPORT_TEXT.table.itemCount}</small>
-        </div>;
-        })}
-      </div>
-    </section>;
-  }
 
   function getPresentationEvidenceEntries(item) {
     const entries = getPrintableEvidenceEntries(item);
@@ -593,8 +557,6 @@ export function createPrintableReportComponent(runtime) {
     const isPresentation = mode === "presentation";
     const usesCleaningPages = !isPresentation && round?.snapshot?.checklistPolicyVersion === "station-item-controls-v9";
     const reportVariantId = isPresentation ? REPORT_TEXT.document.presentationTemplateId : model.templateId;
-    const metadata = model.metadata;
-    const reportCover = model.reportCover || {};
     const correction = model.correction;
     const reportDocument = REPORT_TEXT.document;
     const detailRuns = [];
@@ -605,23 +567,6 @@ export function createPrintableReportComponent(runtime) {
       if (previous && previous.section.code === section.code && previous.cleaning === cleaning) previous.items.push(item);
       else detailRuns.push({ key: `${section.code}-${index}`, section, cleaning, items: [item] });
     });
-    const missingReportValue = REPORT_TEXT.placeholder.missing;
-    const reportValue = (value) => value || missingReportValue;
-    const reportControlFields = [
-      [reportDocument.controlLabels.documentNo, reportValue(metadata.documentNo)],
-      [reportDocument.controlLabels.stationCode, reportValue(metadata.stationCode)],
-      [reportDocument.controlLabels.createdAt, metadata.createdAt ? formatDate(metadata.createdAt) : missingReportValue],
-    ];
-    const metadataFields = [
-      [reportDocument.metadataLabels.project, reportValue(metadata.projectName)],
-      [reportDocument.metadataLabels.station, reportValue(metadata.stationName)],
-      ...(!reportCover.isQuickField ? [
-        [reportDocument.metadataLabels.contractNo, reportValue(metadata.contractNo)],
-        ["ภาค/พื้นที่", reportValue(Array.isArray(metadata.regionNames) ? metadata.regionNames.join(" · ") : metadata.regionNames)],
-      ] : []),
-      [reportDocument.metadataLabels.closedAt, metadata.closedAt ? formatDateTime(metadata.closedAt) : missingReportValue],
-    ];
-    const reportProjectContext = [metadata.projectName, metadata.stationName].filter(Boolean).join(" · ") || missingReportValue;
     const reportRevisionMarker = round.basedOnRoundId
       ? `ฉบับแก้ไขครั้งที่ ${round.revisionNumber || 1}`
       : correction
@@ -634,25 +579,8 @@ export function createPrintableReportComponent(runtime) {
       {!isPresentation && <CompanyReportCover model={model} companyId={companyId} draft={draft} />}
       {!isPresentation && <div className="company-report-document-details">
         <div className="ops-print-cover-content">
-      <header className="ops-print-header">
-        <div className="ops-print-header-main">
-          <div className="ops-print-header-identity">
-            <p className="ops-print-report-kicker">{reportDocument.kicker}</p>
-            <h1>{reportDocument.title}</h1>
-            <p className="ops-print-project-context">{reportProjectContext}</p>
-            {reportRevisionMarker && <p className="ops-print-revision-marker">{reportRevisionMarker}</p>}
-          </div>
-          <div className="ops-print-title-lockup">
-            <span className="ops-print-brand-mark"><Icon name="clipboard" /></span>
-             <div><p className="ops-print-brand-eyebrow">{reportDocument.brandEyebrow}</p><h2>{reportDocument.formTitle}</h2><p>{reportDocument.formCodePrefix} · {reportVariantId}</p></div>
-          </div>
-        </div>
-        <dl className="ops-print-control-box">{reportControlFields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-      </header>
-      <dl className="ops-print-meta-grid">{metadataFields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-      <PrintableSummaryStrip summary={model.summary} />
+      {reportRevisionMarker && <p className="ops-print-revision-marker">{reportRevisionMarker}</p>}
        <PrintableVehicleReport vehicleReport={vehicleReport} metadata={model.metadata} />
-      <PrintableSectionOverview sections={model.sections} />
         </div>
       </div>}
       {isPresentation && <PrintablePresentationPage className={`is-cover${hasPresentationSlides ? "" : " is-last"}`}><CompanyReportCover model={model} companyId={companyId} draft={draft} presentation /></PrintablePresentationPage>}

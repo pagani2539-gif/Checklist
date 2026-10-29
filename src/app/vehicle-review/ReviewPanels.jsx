@@ -12,6 +12,7 @@ import { VehicleClassExample, VehicleClassComparison } from "./VehicleClassExamp
 import CustomSelect from "../CustomSelect.jsx";
 import VehicleClassSelect from "./VehicleClassSelect.jsx";
 import { VEHICLE_CLASS_OPTIONS } from "../../domain/vehicle-class-options.js";
+import { getVehicleAfterDeletion } from "../../domain/vehicle-deletion-navigation.js";
 import { deleteVehicleReviewRows, getVehicleDeletionDataset } from "../../domain/vehicle-row-deletion.js";
 import { getVehicleRowProgress, getVehicleRecordedProgress, isVehicleDecisionDirty, getVehiclePersistenceResult, persistVehicleReviewChange, continueAfterVehicleDecisionSave } from "../../domain/vehicle-review-progress.js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -150,7 +151,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     return `ความถูกต้อง${summary.pendingChecks ? "ชั่วคราว" : ""} ${percent} · ${resultLabel}`;
   }
 
-  function getVehicleReviewStatusTone(reviewState, criteriaDirty, outcome) {
+  function getVehicleReviewStatusTone(criteriaDirty, outcome) {
     if (criteriaDirty) return "waiting";
     if (outcome?.status === "passed") return "normal";
     if (outcome?.status === "failed") return "damaged";
@@ -636,9 +637,6 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
       : context?.key === "plate"
         ? "ตรวจเลขทะเบียนเทียบกับภาพป้ายทะเบียนจาก API"
         : "เลือกช่วงเวลา ดึงรถทุกคัน แล้วตรวจผลจาก API แยกตามบริบท";
-    const activeDimensionSummary = summary.dimensions?.[context?.key] || summary;
-    const activeThreshold = VEHICLE_REVIEW_THRESHOLDS[context?.key];
-    const isEvidenceScore = context?.key === "plate" && searchState.sampleEligibilityPolicyVersion === VEHICLE_SAMPLE_ELIGIBILITY_POLICY_VERSION;
     return <section className={`ops-vehicle-search-panel is-context-${context?.key || "all"}`} data-vehicle-search-panel aria-labelledby={`vehicle-search-title-${context?.key || "all"}`}>
       <div className="ops-vehicle-search-heading">
         <div><p className="ops-eyebrow">{context?.checklistNumber || "VEHICLE API"}</p><h3 id={`vehicle-search-title-${context?.key || "all"}`}>{panelTitle}</h3><span>{panelDescription}</span></div>
@@ -679,7 +677,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
    * deep-link route. Selection is deliberately local UI state; vehicle rows and
    * review decisions remain in the round's vehicleSearch payload.
    */
-  function VehicleSampleEligibilityTriage({ rows, visibleRows, page, pageCount, selectedRow, summary, readOnly, reason, setReason, note, setNote, onSelect, onDecide, onPage, onOpenImage, sampleSettings }) {
+  function VehicleSampleEligibilityTriage({ rows, visibleRows, page, pageCount, selectedRow, readOnly, reason, setReason, note, setNote, onSelect, onDecide, onPage, onOpenImage, sampleSettings }) {
     const [readyImageSources, setReadyImageSources] = useState([]);
     const reasonLabel = code => VEHICLE_SAMPLE_ELIGIBILITY_OPTIONS.find(option => option.value === code)?.label || code || "—";
     const eligibility = selectedRow?.sampleEligibility;
@@ -698,7 +696,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
           })}</div> : <p>ไม่พบรายการ</p>}
           <nav className="ops-vehicle-eligibility-pagination" aria-label="แบ่งหน้าข้อมูลต้นทาง"><button type="button" className="ops-button ops-button-secondary" onClick={() => onPage(Math.max(0, page - 1))} disabled={page <= 0}>ก่อนหน้า</button><span>หน้า {page + 1} / {pageCount}</span><button type="button" className="ops-button ops-button-secondary" onClick={() => onPage(Math.min(pageCount - 1, page + 1))} disabled={page >= pageCount - 1}>ถัดไป</button></nav>
         </aside>
-        {selectedRow && <main className="ops-vehicle-eligibility-detail ops-vehicle-focus-main" data-dock-panel="evidence"><header className="ops-vehicle-focus-main-heading"><div><p className="ops-eyebrow">รายการ {rows.findIndex(row => row.id === selectedRow.id) + 1} จาก {rows.length}</p><h5>{selectedRow.plateNumber || "ไม่พบเลขทะเบียนจาก API"} · {selectedRow.province || "ไม่พบจังหวัดจาก API"}</h5><span>{selectedRow.occurredAt ? formatDateTime(selectedRow.occurredAt) : "ไม่พบเวลา"} · {selectedRow.lane || "ไม่ระบุ Lane"}</span></div>{eligibility?.status !== "pending" && <strong className={`is-${eligibility.status}`}>{eligibility.status === "eligible" ? "พร้อมคิดคะแนน" : `คัดออก · ${reasonLabel(eligibility.reasonCode)}`}</strong>}</header>
+        {selectedRow && <section aria-label="รายละเอียดรถในชุดทดสอบ" className="ops-vehicle-eligibility-detail ops-vehicle-focus-main" data-dock-panel="evidence"><header className="ops-vehicle-focus-main-heading"><div><p className="ops-eyebrow">รายการ {rows.findIndex(row => row.id === selectedRow.id) + 1} จาก {rows.length}</p><h5>{selectedRow.plateNumber || "ไม่พบเลขทะเบียนจาก API"} · {selectedRow.province || "ไม่พบจังหวัดจาก API"}</h5><span>{selectedRow.occurredAt ? formatDateTime(selectedRow.occurredAt) : "ไม่พบเวลา"} · {selectedRow.lane || "ไม่ระบุ Lane"}</span></div>{eligibility?.status !== "pending" && <strong className={`is-${eligibility.status}`}>{eligibility.status === "eligible" ? "พร้อมคิดคะแนน" : `คัดออก · ${reasonLabel(eligibility.reasonCode)}`}</strong>}</header>
           <div className="ops-vehicle-focus-evidence-stack"><section className="ops-vehicle-eligibility-images ops-vehicle-focus-images is-plate-pair" aria-label="ตรวจภาพจริงก่อนจัดเข้าชุดคะแนน"><div className="ops-vehicle-image-comparison"><strong>ภาพจากกล้อง LPR</strong><VehicleReviewImage className="ops-vehicle-focus-image is-lpr" src={selectedRow.lprImage} alt={`ภาพจากกล้อง LPR ${selectedRow.id}`} emptyLabel="ไม่พบภาพ LPR จากต้นทาง" onImageLoad={markImageReady} onImageFailure={markImageFailed} onOpen={() => onOpenImage?.(selectedRow, "lpr", "ภาพจากกล้อง LPR", selectedRow.lprImage)} actionLabel="ดูภาพ LPR เต็ม" loading="eager" /></div><div className="ops-vehicle-image-comparison is-plate-crop"><strong>ภาพป้ายทะเบียน Crop</strong><VehicleReviewImage className="ops-vehicle-focus-image is-plate" src={selectedRow.plateImage} alt={`ภาพป้ายทะเบียน ${selectedRow.id}`} emptyLabel="ไม่พบภาพป้ายจากต้นทาง" onImageLoad={markImageReady} onImageFailure={markImageFailed} onOpen={() => onOpenImage?.(selectedRow, "plate", "ภาพป้ายทะเบียน", selectedRow.plateImage)} actionLabel="ดูภาพป้ายเต็ม" loading="eager" /></div><div><strong>ภาพรถ Overview</strong><VehicleReviewImage className="ops-vehicle-focus-image is-overview" src={selectedRow.overviewImage} alt={`ภาพรถ Overview ${selectedRow.id}`} emptyLabel="ไม่พบภาพรถ Overview จากต้นทาง" onImageLoad={markImageReady} onImageFailure={markImageFailed} onOpen={() => onOpenImage?.(selectedRow, "overview", "ภาพรถ Overview", selectedRow.overviewImage)} actionLabel="ดูภาพรถเต็ม" loading="eager" /></div></section>
           <dl className="ops-vehicle-eligibility-api-values"><div><dt>เลขทะเบียนจาก API</dt><dd>{selectedRow.plateNumber || "ไม่พบค่าจาก API"}</dd></div><div><dt>จังหวัดจาก API</dt><dd>{selectedRow.province || "ไม่พบค่าจาก API"}</dd></div><div><dt>รหัสรายการต้นทาง</dt><dd>{selectedRow.id}</dd></div></dl>
           </div>
@@ -708,11 +706,11 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
           <div className="ops-vehicle-eligibility-sample-controls">{sampleSettings}</div>
           {eligibility?.reviewedAt && <small className="ops-vehicle-eligibility-audit">ผู้บันทึก {eligibility.reviewedByName || "ไม่ระบุ"} · {formatDateTime(eligibility.reviewedAt)}{eligibility?.note ? ` · ${eligibility.note}` : ""}</small>}
         </aside>
-        </main>}
+        </section>}
     </div>;
   }
 
-  function VehicleFocusReviewPanel({ round, value, readOnly, onChange, notify, currentUser = null, focusRowId, focusReviewKind, onFocusComplete, contextKey = "", onReviewStatusChange, evidenceItem = null, evidenceItemValue = null, onEvidenceChange, onEvidenceAttachmentChange, onEvidenceAttachmentRemove, scopeKey = "day", onScopeChange, allowLiveSearch = true, workbenchActions = null, serverSaveError = null, serverWritable = true, onRowReview, onEvidenceRowSaved }) {
+  function VehicleFocusReviewPanel({ round, value, readOnly, onChange, notify, currentUser = null, focusRowId, focusReviewKind, onFocusComplete, contextKey = "", onReviewStatusChange, evidenceItem = null, evidenceItemValue = null, onEvidenceAttachmentChange, onEvidenceAttachmentRemove, scopeKey = "day", onScopeChange, allowLiveSearch = true, workbenchActions = null, serverSaveError = null, serverWritable = true, onRowReview, onEvidenceRowSaved }) {
     const vehicleSearchConfig = useMemo(() => getRoundVehicleSearchConfig(round), [round?.snapshot, round?.vehicleConnectionUpdates, round?.id]);
     const vehicleSearchBaseUrl = vehicleSearchConfig.baseUrl;
     const connectionReady = Boolean(vehicleSearchBaseUrl && (vehicleSearchConfig.apiProfile !== "imps-v2" || vehicleSearchConfig.searchUrl));
@@ -722,9 +720,6 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const isApiOnlyReview = reviewVersion === VEHICLE_API_REVIEW_VERSION
       && Boolean(evidenceItem)
       && isVehicleApiReviewItem(evidenceItem, round?.snapshot);
-    const apiProofLabel = isPlateContext
-      ? "ภาพจากกล้อง LPR ภาพ Crop และผลอ่านป้ายจาก API"
-      : "ภาพรถ ประเภทรถ และน้ำหนักรวมจาก API";
     const evidenceSlots = Array.isArray(evidenceItem?.evidenceSlots) ? evidenceItem.evidenceSlots : [];
     const evidenceState = evidenceItemValue || { status: evidenceItem?.applicable === false ? "na" : "pending", evidence: {}, attachment: null };
     const evidenceBypassed = evidenceItem?.applicable === false || isEvidenceBypassItemStatus(evidenceState.status || "pending");
@@ -751,6 +746,8 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const [decisionSnapshot, setDecisionSnapshot] = useState(null);
     const [error, setError] = useState("");
     const [selectedRowId, setSelectedRowId] = useState("");
+    const [deletionComplete, setDeletionComplete] = useState(false);
+    const deletionFocusRef = useRef(false);
     const [queueQuery, setQueueQuery] = useState("");
     const [queueStatusFilter, setQueueStatusFilter] = useState("all");
     const [queuePage, setQueuePage] = useState(0);
@@ -808,7 +805,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const activeThreshold = VEHICLE_REVIEW_THRESHOLDS[context?.key];
     const isPendingRow = (row) => activeDimensions.some((dimension) => row?.[dimension.statusKey] === "pending");
     const orderedRows = useMemo(() => getVehicleReviewRows(searchState), [searchState]);
-    const selectedRow = orderedRows.find((row) => row.id === selectedRowId) || orderedRows[0] || null;
+    const selectedRow = deletionComplete ? null : orderedRows.find((row) => row.id === selectedRowId) || orderedRows[0] || null;
     useLayoutEffect(() => {
       if (!selectedRow) return;
       const details = document.querySelector(`[data-vehicle-review-focus="${domSafeId(selectedRow.id)}"] .ops-vehicle-classification-details`);
@@ -886,7 +883,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
       return [period.key, { state, counts: getVehicleSearchReviewSummary(decisionSnapshot?.scopeKey === period.key ? decisionSnapshot.state : state, { context: context?.key }) }];
     })), [reviewDatasets, decisionSnapshot, context?.key]);
     const reviewStatusLabel = getVehicleReviewStatusLabel(reviewState, summary, context?.key, outcome);
-    const reviewStatusTone = getVehicleReviewStatusTone(reviewState, criteriaDirty, outcome);
+    const reviewStatusTone = getVehicleReviewStatusTone(criteriaDirty, outcome);
     useEffect(() => {
       if (!isApiOnlyReview) return;
       onReviewStatusChange?.(searchState.fetchedAt
@@ -923,9 +920,6 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
       const targetValue = isScopedReview
         ? getVehicleReviewScopeState(reviewDatasets, nextScopeKey, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile })
         : scopeValue;
-      const dayValue = isScopedReview
-        ? getVehicleReviewScopeState(reviewDatasets, "day", fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile })
-        : value;
       const nextValue = targetValue;
       setCriteria(normalizeVehicleSearchState(nextValue, fallbackCriteria, { baseUrl: vehicleSearchBaseUrl, apiProfile: vehicleSearchConfig.apiProfile }).criteria);
       setError("");
@@ -953,6 +947,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     }, [selectedRow?.id, selectedRow?.sampleEligibility?.status, selectedRow?.sampleEligibility?.reasonCode, selectedRow?.sampleEligibility?.note]);
 
     useEffect(() => {
+      if (deletionComplete) return;
       if (!orderedRows.length) {
         setSelectedRowId("");
         return;
@@ -960,12 +955,12 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
       if (!orderedRows.some((row) => row.id === selectedRowId)) {
         setSelectedRowId(getNextPendingVehicleId(searchState, { context: context?.key, includeUnableToVerify: false }) || orderedRows[0].id);
       }
-    }, [orderedRows, selectedRowId, searchState.fetchedAt, context?.key]);
+    }, [orderedRows, selectedRowId, searchState.fetchedAt, context?.key, deletionComplete]);
 
     useEffect(() => () => abortRef.current?.abort(), []);
 
     useEffect(() => {
-      if (!focusRowId) return undefined;
+      if (!focusRowId || deletionFocusRef.current) return undefined;
       const target = orderedRows.find((row) => row.id === focusRowId);
       if (!target) return undefined;
       setSelectedRowId(target.id);
@@ -981,6 +976,21 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
       return () => window.cancelAnimationFrame(frame);
     }, [focusRowId, focusReviewKind, orderedRows, onFocusComplete]);
 
+    useEffect(() => { setDeletionComplete(false); }, [activeScopeKey, searchState.fetchedAt]);
+    useEffect(() => { if (deletionComplete && queueStatusCounts.pending > 0) setDeletionComplete(false); }, [deletionComplete, queueStatusCounts.pending]);
+    useEffect(() => {
+      if (!deletionFocusRef.current || deleteTarget) return;
+      const frame = window.requestAnimationFrame(() => {
+        const target = panelRef.current?.querySelector(deletionComplete || !orderedRows.length
+          ? "[data-deletion-summary]"
+          : `[data-vehicle-review-focus="${domSafeId(selectedRow?.id)}"]`);
+        target?.focus({ preventScroll: true });
+        target?.scrollIntoView({ block: "nearest" });
+        deletionFocusRef.current = false;
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }, [deleteTarget, selectedRow?.id, deletionComplete, orderedRows.length, queuePage]);
+
     const updateCriteria = (key, nextValue) => setCriteria((current) => ({ ...current, [key]: nextValue }));
     const confirmDelete = async () => {
       if (!deleteTarget || deleteBusyRef.current) return;
@@ -993,29 +1003,25 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
         const nextValue = deleteVehicleReviewRows(latestValueRef.current, context?.key, deleteTarget.scopeKey, deleteTarget.rows.map(row => row.id), fallbackCriteria, options, { readOnly, roundStatus: latestRoundRef.current?.status });
         setDecisionSnapshot({ scopeKey: deleteTarget.scopeKey, state: current });
         await persistVehicleReviewChange(onChange, nextValue);
-        const deletedRowIds = new Set(deleteTarget.rows.map(row => row.id));
-        if (deletedRowIds.has(selectedRow?.id)) {
-          const selectedIndex = Math.max(0, orderedRows.findIndex(row => row.id === selectedRow.id));
-          const remainingRows = [
-            ...orderedRows.slice(selectedIndex + 1),
-            ...orderedRows.slice(0, selectedIndex + 1),
-          ].filter(row => !deletedRowIds.has(row.id));
-          const nextRow = remainingRows.find(isPendingRow) || remainingRows[0] || null;
-
-          if (nextRow) {
-            const nextIsPending = isPendingRow(nextRow);
-            if (nextIsPending && queueStatusFilter === "reviewed") setQueueStatusFilter("pending");
-            else if (!nextIsPending && queueStatusFilter === "pending") setQueueStatusFilter("all");
-            if (!matchesQueueQuery(nextRow)) setQueueQuery("");
-          }
-          setSelectedRowId(nextRow?.id || "");
+        const navigation = getVehicleAfterDeletion(orderedRows, deleteTarget.rows.map(row => row.id), isPendingRow);
+        const nextRow = navigation.nextRow;
+        if (nextRow) {
+          const nextFilter = queueStatusFilter === "reviewed" ? "pending" : queueStatusFilter;
+          const keepQuery = matchesQueueQuery(nextRow);
+          const visibleRows = navigation.remainingRows.filter(row => matchesQueueStatus(row, nextFilter) && (!keepQuery || matchesQueueQuery(row)));
+          setQueueStatusFilter(nextFilter);
+          if (!keepQuery) setQueueQuery("");
+          setQueuePage(Math.floor(visibleRows.findIndex(row => row.id === nextRow.id) / queuePageSize));
         }
+        setDeletionComplete(navigation.complete);
+        setSelectedRowId(nextRow?.id || "");
+        deletionFocusRef.current = true;
         for (const row of deleteTarget.rows) for (const dimension of activeDimensions) vehicleDecisionDrafts.delete(`${round?.id}:${row.id}:${dimension.key}`);
         setBulkIds([]); setBulkMode(false);
         setDecisionSnapshot(null); setDeleteTarget(null);
         notify?.("ลบรายการจากชุดตรวจแล้ว · คะแนนคำนวณใหม่ตามรายการที่เหลือ");
       } catch (failure) { setError(failure.message || "ลบไม่สำเร็จ รายการเดิมยังอยู่"); }
-      finally { setDecisionSnapshot(null); deleteBusyRef.current = false; setDeleting(false); }
+      finally { deleteBusyRef.current = false; setDeleting(false); }
     };
 
     const replaceTest = async ({ criteria: nextCriteria, limit }) => {
@@ -1131,6 +1137,7 @@ export function createVehicleReviewComponents({ AttachmentField, EvidenceField, 
     const selectRow = (row) => {
       if (!row) return;
       setDecisionSnapshot(null);
+      setDeletionComplete(false);
       setSelectedRowId(row.id);
       if (!window.matchMedia("(min-width: 1280px)").matches) setQueueOpen(false);
       const targetQueueIndex = queueRows.findIndex((queueRow) => queueRow.id === row.id);
@@ -1309,7 +1316,7 @@ const goToPending = () => selectRow(orderedRows.find((row) => row.id === getNext
       {searchState.fetchedAt && !criteriaDirty && <div className="ops-vehicle-responsive-tabs" role="tablist" aria-label="มุมมองพื้นที่ตรวจ Vehicle API">
         {[['queue', 'คิวรถ'], ['evidence', 'ภาพหลักฐาน'], ['decision', 'ผลตรวจ']].map(([key, label]) => <button type="button" role="tab" key={key} aria-selected={responsivePanel === key} className={responsivePanel === key ? "is-active" : ""} onClick={() => setResponsivePanel(key)}>{label}</button>)}
       </div>}
-      {criteriaDirty ? <div className="ops-vehicle-search-empty is-stale"><Icon name="refresh" /><strong>ต้องดึงข้อมูลรถใหม่</strong><span>ผลตรวจเดิมถูกพักไว้ เพราะช่วงเวลาที่เลือกเปลี่ยนจากครั้งล่าสุด</span></div> : !searchState.fetchedAt ? <div className="ops-vehicle-search-empty"><Icon name="search" /><strong>ยังไม่ได้ดึงข้อมูลรถ</strong><span>{readOnly ? "รอบนี้ไม่มีข้อมูลรถที่บันทึกไว้ · ประวัติเป็นข้อมูลอ่านอย่างเดียว" : "เลือกวันและเวลา แล้วกด “ดึงข้อมูลรถจาก API”"}</span></div> : isPlateEligibilityTriage ? <VehicleSampleEligibilityTriage rows={orderedRows} visibleRows={visibleEligibilityRows} page={queuePage} pageCount={eligibilityPageCount} selectedRow={selectedRow} summary={eligibilitySummary} readOnly={readOnly} reason={eligibilityReason} setReason={setEligibilityReason} note={eligibilityNote} setNote={setEligibilityNote} onSelect={selectRow} onDecide={decideEligibility} onPage={setQueuePage} onOpenImage={openMedia} sampleSettings={sampleSettings} /> : !searchState.rows.length ? <div className="ops-vehicle-search-empty"><Icon name="info" /><strong>{searchState.sample?.adjustedAt ? "ไม่มีรายการเหลือในชุดตรวจ" : "ไม่พบข้อมูลรถ"}</strong><span>{searchState.sample?.adjustedAt ? "รายการถูกลบออกจากชุดตรวจ · ไม่สามารถสรุปว่าผ่าน" : isScopedReview ? "API ตอบสำเร็จแล้ว แต่ผลว่างยังไม่ถือว่าเสร็จ ต้องยืนยันว่าไม่มีรถในช่วงเวลานี้" : "API ตอบสำเร็จและไม่พบรถในช่วงเวลา จึงถือว่าเป็นผลตรวจที่ถูกต้อง"}</span>{isScopedReview && !searchState.sample?.adjustedAt && !readOnly && !searchState.emptyResultAcknowledgedAt && <button type="button" className="ops-button ops-button-secondary" onClick={acknowledgeEmptyResult}>ยืนยันว่าไม่มีรถช่วงนี้</button>}{isScopedReview && searchState.emptyResultAcknowledgedAt && <small>ยืนยันผลแล้ว {formatDateTime(searchState.emptyResultAcknowledgedAt)}</small>}</div> : <div className="ops-vehicle-focus-layout" data-vehicle-workspace={isPlateContext ? "plate" : "classification"}>
+      {criteriaDirty ? <div className="ops-vehicle-search-empty is-stale"><Icon name="refresh" /><strong>ต้องดึงข้อมูลรถใหม่</strong><span>ผลตรวจเดิมถูกพักไว้ เพราะช่วงเวลาที่เลือกเปลี่ยนจากครั้งล่าสุด</span></div> : !searchState.fetchedAt ? <div className="ops-vehicle-search-empty"><Icon name="search" /><strong>ยังไม่ได้ดึงข้อมูลรถ</strong><span>{readOnly ? "รอบนี้ไม่มีข้อมูลรถที่บันทึกไว้ · ประวัติเป็นข้อมูลอ่านอย่างเดียว" : "เลือกวันและเวลา แล้วกด “ดึงข้อมูลรถจาก API”"}</span></div> : isPlateEligibilityTriage ? <VehicleSampleEligibilityTriage rows={orderedRows} visibleRows={visibleEligibilityRows} page={queuePage} pageCount={eligibilityPageCount} selectedRow={selectedRow} readOnly={readOnly} reason={eligibilityReason} setReason={setEligibilityReason} note={eligibilityNote} setNote={setEligibilityNote} onSelect={selectRow} onDecide={decideEligibility} onPage={setQueuePage} onOpenImage={openMedia} sampleSettings={sampleSettings} /> : !searchState.rows.length ? <div className="ops-vehicle-search-empty" data-deletion-summary tabIndex={-1}><Icon name="info" /><strong>{searchState.sample?.adjustedAt ? "ไม่มีรายการเหลือในชุดตรวจ" : "ไม่พบข้อมูลรถ"}</strong><span>{searchState.sample?.adjustedAt ? "รายการถูกลบออกจากชุดตรวจ · ไม่สามารถสรุปว่าผ่าน" : isScopedReview ? "API ตอบสำเร็จแล้ว แต่ผลว่างยังไม่ถือว่าเสร็จ ต้องยืนยันว่าไม่มีรถในช่วงเวลานี้" : "API ตอบสำเร็จและไม่พบรถในช่วงเวลา จึงถือว่าเป็นผลตรวจที่ถูกต้อง"}</span>{isScopedReview && !searchState.sample?.adjustedAt && !readOnly && !searchState.emptyResultAcknowledgedAt && <button type="button" className="ops-button ops-button-secondary" onClick={acknowledgeEmptyResult}>ยืนยันว่าไม่มีรถช่วงนี้</button>}{isScopedReview && searchState.emptyResultAcknowledgedAt && <small>ยืนยันผลแล้ว {formatDateTime(searchState.emptyResultAcknowledgedAt)}</small>}</div> : deletionComplete ? <div className="ops-vehicle-search-empty" data-deletion-summary tabIndex={-1} role="status"><Icon name="check" /><strong>ตรวจครบแล้ว</strong><span>ตรวจแล้ว {queueStatusCounts.reviewed} จาก {queueStatusCounts.all} คัน · ค้างตรวจ {queueStatusCounts.pending} คัน</span><button type="button" className="ops-button ops-button-secondary" onClick={() => { setDeletionComplete(false); setQueueStatusFilter("all"); setQueueQuery(""); setSelectedRowId(orderedRows[0]?.id || ""); deletionFocusRef.current = true; }}>ดูรายการที่ตรวจแล้ว</button></div> : <div className="ops-vehicle-focus-layout" data-vehicle-workspace={isPlateContext ? "plate" : "classification"}>
         <aside className="ops-vehicle-focus-queue" data-dock-panel="queue" aria-label="คิวตรวจรถ" data-vehicle-queue="review" data-queue-open={queueOpen}><button type="button" className="ops-button ops-button-secondary ops-vehicle-queue-toggle" aria-expanded={queueOpen} onClick={() => setQueueOpen(open => !open)}>คิวรถ · {queueRows.length} คัน · ค้าง {queueStatusCounts.pending} คัน</button>
           <div className="ops-vehicle-focus-queue-heading"><div><p className="ops-eyebrow">QUEUE</p><h4>คิวรถ</h4></div><strong>พบ {queueRows.length} จากทั้งหมด {orderedRows.length} คัน</strong></div>
           {summary.total > 0 && (summary.pendingChecks > 0 ? <button type="button" className="ops-button ops-button-secondary ops-vehicle-focus-pending-action" onClick={goToPending}><Icon name="list" size="small" />ตรวจคันค้างถัดไป</button> : <span className="ops-vehicle-recorded-status" role="status" aria-live="polite"><Icon name="check" size="small" />บันทึกผลครบทุกคัน</span>)}
@@ -1326,7 +1333,7 @@ const goToPending = () => selectRow(orderedRows.find((row) => row.id === getNext
           <nav className="ops-vehicle-queue-pagination" aria-label="แบ่งหน้าคิวรถ"><button type="button" className="ops-button ops-button-ghost" onClick={() => setQueuePage((page) => Math.max(0, page - 1))} disabled={queuePage <= 0} aria-label="หน้าก่อนหน้า">‹</button><div>{queuePageNumbers.map((page, index) => <span key={page} className="ops-vehicle-queue-page-item">{index > 0 && page - queuePageNumbers[index - 1] > 1 && <span aria-hidden="true">…</span>}<button type="button" className={queuePage === page ? "is-active" : ""} aria-current={queuePage === page ? "page" : undefined} onClick={() => setQueuePage(page)} aria-label={`หน้า ${page + 1}`}>{page + 1}</button></span>)}</div><button type="button" className="ops-button ops-button-ghost" onClick={() => setQueuePage((page) => Math.min(queuePageCount - 1, page + 1))} disabled={queuePage >= queuePageCount - 1} aria-label="หน้าถัดไป">›</button><small>แสดง {queueRows.length ? queuePage * queuePageSize + 1 : 0}–{Math.min((queuePage + 1) * queuePageSize, queueRows.length)} จาก {queueRows.length} รายการ</small></nav>
         </aside>
         {selectedRow && <>
-          <main className="ops-vehicle-focus-main is-comparison-review" data-dock-panel="evidence" data-vehicle-review-focus={domSafeId(selectedRow.id)}>
+          <section aria-label="รายละเอียดและหลักฐานรถคันปัจจุบัน" tabIndex={-1} className="ops-vehicle-focus-main is-comparison-review" data-dock-panel="evidence" data-vehicle-review-focus={domSafeId(selectedRow.id)}>
             <div className="ops-vehicle-focus-main-heading"><div><p className="ops-eyebrow">{isPlateContext ? "ตรวจเลขทะเบียน" : "ตรวจประเภทรถ"} · {selectedRow.lane || "ไม่ระบุ Lane"}</p><h4>คันที่ {selectedRowIndex + 1} จาก {orderedRows.length}</h4><span>{selectedRow.occurredAt ? formatDateTime(selectedRow.occurredAt) : "ไม่พบเวลา"}</span></div></div>
             <div className="ops-vehicle-comparison-workspace">
             <section className={`ops-vehicle-focus-evidence-stack${isPlateContext ? "" : " is-classification"}`} aria-label={isPlateContext ? "หลักฐานภาพป้ายทะเบียน" : "หลักฐานภาพรถและผลคัดแยก"}>
@@ -1351,7 +1358,7 @@ const goToPending = () => selectRow(orderedRows.find((row) => row.id === getNext
                     <VehicleClassExample label={selectedRow.vehicleClassLabel} title="" axleCount={selectedRow.axleCount} />
                   </section>
                   {vehicleDetailsOpen && selectedRow.vehicleDescription && selectedRow.vehicleDescription !== selectedRow.vehicleClassLabel && <details className="vehicle-class-source-details"><summary>รายละเอียดเพิ่มเติมจากระบบ</summary><p>{selectedRow.vehicleDescription}</p></details>}{vehicleDetailsOpen && <dl className="ops-vehicle-focus-facts is-classification-facts"><div><dt><Icon name="lane" size="small" />ช่องทาง</dt><dd>{selectedRow.lane || "ไม่ระบุช่องทาง"}</dd></div><div><dt><Icon name="clock" size="small" />เวลา</dt><dd>{selectedRow.occurredAt ? formatDateTime(selectedRow.occurredAt) : "ไม่พบเวลา"}</dd></div><div><dt><Icon name="scan" size="small" />ทะเบียน / จังหวัด</dt><dd>{!selectedRow.plateNumber || selectedRow.plateNumber.startsWith("ไม่พบ") ? "ไม่พบข้อมูลทะเบียน" : [selectedRow.plateNumber, selectedRow.province && !selectedRow.province.startsWith("ไม่พบ") ? selectedRow.province : null].filter(Boolean).join(" · ")}</dd></div></dl>}</div>}<header className="ops-vehicle-inspector-heading"><strong>ผลตรวจคันนี้</strong></header><div className="ops-vehicle-review-dimension-list">{activeDimensions.map((dimension) => <VehicleReviewDimensionActions key={`${selectedRow.id}:${dimension.key}`} row={selectedRow} dimension={dimension} hideOriginalClass classOptions={VEHICLE_CLASS_OPTIONS} readOnly={readOnly} onReview={review} canSaveNext={summary.pendingChecks > 0 || selectedRowIndex < orderedRows.length - 1} onSavedNext={decision => selectRow(orderedRows.find(row => row.id === getNextPendingVehicleAfterDecision(searchState, { ...decision, context: context?.key })) || orderedRows[selectedRowIndex + 1])} requireFullPlateTruth={isEvidenceScore && dimension.key === "plate"} draftContext={`${round?.id}:${vehicleSearchConfig.systemKey || "legacy"}:${context?.key}:${activeScopeKey}`} />)}</div><nav className="ops-vehicle-focus-navigation is-local-navigation" aria-label="เดินรถและไปงานตรวจถัดไป"><button type="button" className="ops-button ops-button-secondary" onClick={() => navigateRow("previous")} disabled={selectedRowIndex <= 0}><Icon name="arrow-left" size="small" />คันก่อนหน้า</button><button type="button" className="ops-button ops-button-secondary" onClick={() => navigateRow("next")} disabled={selectedRowIndex < 0 || selectedRowIndex >= orderedRows.length - 1}><Icon name="arrow-right" size="small" />คันถัดไป</button></nav><div className="ops-vehicle-focus-inspector-body">{evidenceItem && !isApiOnlyReview && <section className="ops-vehicle-review-evidence" aria-labelledby="vehicle-review-evidence-title"><div className="ops-vehicle-review-evidence-heading"><div><p className="ops-eyebrow">DOCUMENT / EVIDENCE</p><h4 id="vehicle-review-evidence-title">หลักฐานประกอบ</h4></div><span>{evidenceBypassed ? "ไม่ต้องใช้หลักฐาน" : evidenceSlots.length ? `ครบ ${evidenceComplete}/${evidenceSlots.length} ช่อง` : "หลักฐานเสริม"}</span></div>{evidenceBypassed ? <div className="ops-evidence-drawer-disabled"><Icon name="info" size="small" /><span>รายการนี้ไม่ต้องแนบหลักฐาน</span></div> : evidenceSlots.length ? evidenceSlots.map((slot) => <EvidenceField key={slot.id} item={evidenceItem} slot={slot} value={evidenceState.evidence?.[slot.id]} readOnly={readOnly} disabled={false} onChange={(slotId, patch) => onChange?.({ evidence: { ...(evidenceState.evidence || {}), [slotId]: { ...(evidenceState.evidence?.[slotId] || {}), ...patch } } })} onAttachmentChange={(slotDefinition, file) => onEvidenceAttachmentChange?.(slotDefinition, file)} onAttachmentRemove={(slotDefinition, attachment, label) => onEvidenceAttachmentRemove?.(slotDefinition, attachment, label)} />) : <AttachmentField item={evidenceItem} attachment={evidenceState.attachment} readOnly={readOnly} disabled={false} onChange={(file) => onEvidenceAttachmentChange?.(null, file)} onRemove={() => onEvidenceAttachmentRemove?.(null, evidenceState.attachment, evidenceItem.label)} />}</section>}</div>{!isPlateContext && <button type="button" className="ops-vehicle-details-toggle" aria-expanded={vehicleDetailsOpen} onClick={() => setVehicleDetailsOpen(open => !open)}><Icon name="info" size="small" /><span>รายละเอียดรถ</span><Icon name={vehicleDetailsOpen ? "chevron-down" : "chevron-right"} size="small" /></button>}{isPlateContext && <button type="button" className="ops-vehicle-details-toggle" aria-expanded={vehicleDetailsOpen} onClick={() => setVehicleDetailsOpen(open => !open)}><Icon name="info" size="small" /><span>รายละเอียดป้ายทะเบียน</span><Icon name={vehicleDetailsOpen ? "chevron-down" : "chevron-right"} size="small" /></button>}</section></div>
-          </main>
+          </section>
         </>}
       </div>}
       {unverifiedListOpen && createPortal(<div className="ops-vehicle-decision-modal-backdrop"><section role="dialog" aria-modal="true" aria-label="รายการที่ตรวจยืนยันไม่ได้" className="ops-vehicle-decision-modal" onKeyDown={event => { if(event.key === "Escape") setUnverifiedListOpen(false); if(event.key === "Tab") { const nodes = [...event.currentTarget.querySelectorAll("button:not(:disabled)")]; const first=nodes[0], last=nodes[nodes.length-1]; if(event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if(!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } } }}><header><div><h3>บันทึกแล้ว · ตรวจไม่ได้ ({summary.unableToVerifyChecks})</h3><small>ตรวจเสร็จและบันทึกแล้ว · ไม่ใช่คิวค้างตรวจ</small></div><button autoFocus type="button" aria-label="ปิดรายการที่ตรวจยืนยันไม่ได้" onClick={() => setUnverifiedListOpen(false)}><Icon name="close" /></button></header><div className="ops-vehicle-unverified-modal-list"><div className="ops-vehicle-unverified-links">{orderedRows.flatMap(row => activeDimensions.filter(dimension => row[dimension.statusKey] === "unable-to-verify").map(dimension => <button type="button" key={row.id + ":" + dimension.key} className="ops-button ops-button-secondary" onClick={() => goToUnverified(row, dimension)}>{row.plateNumber || "ไม่พบทะเบียน"} · {row.lane || "ไม่ระบุช่องทาง"} · {row.occurredAt ? formatDateTime(row.occurredAt) : "ไม่พบเวลา"}<small>บันทึกแล้ว · {VEHICLE_REVIEW_REASON_OPTIONS[dimension.key]?.find(option => option.value === getVehicleReviewDetail(row, dimension.key).reasonCode)?.label || "ตรวจยืนยันไม่ได้"}</small><strong>{dimension.label} · ดูผลที่บันทึก →</strong></button>))}</div></div></section></div>,document.body)}

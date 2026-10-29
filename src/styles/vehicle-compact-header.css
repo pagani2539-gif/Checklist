@@ -115,6 +115,7 @@
 }
 @media (max-width: 767px) {
   .ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-search-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .ops-shell .ops-vehicle-api-page .ops-vehicle-focus-panel[data-photo-review="true"] .ops-vehicle-progress-metric > strong { white-space: nowrap !important; }
   .ops-vehicle-api-page .ops-vehicle-review-header-actions > .ops-button { flex: 1 1 8rem; min-height: 44px; }
   .ops-vehicle-api-page .ops-vehicle-review-header-actions > nav { flex: 1 1 auto; }
   .ops-vehicle-api-page .ops-vehicle-compact-session .ops-vehicle-period-tabs .ops-button { min-height: 44px; }

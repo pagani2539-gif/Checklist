@@ -72,9 +72,6 @@
   .combined-lane-row { display: grid; grid-template-columns: 130px 1fr 1fr auto; gap: 18px; align-items: end; padding: 16px 0; border-bottom: 1px solid var(--ops-line); }
   .combined-lane-row strong small { display: block; font-size: var(--ops-type-caption); color: var(--ops-muted); font-weight: var(--ops-weight-regular); margin-top: 8px; }
   .combined-general { max-width: 960px; }
-  .combined-round-links, .combined-progress-summary { display: flex; flex-wrap: wrap; gap: 20px; }
-  .combined-progress-summary { padding: 16px 0; border-bottom: 1px solid var(--ops-line); color: var(--ops-muted); }
-  .combined-progress-summary strong { color: var(--ops-ink); }
   .ops-compact-queue { display: none; }
   .ops-task-queue-item { min-height: 64px; }
   .ops-taskflow-main .ops-status-choice-body { min-height: 48px; font-size: var(--ops-type-label); }
@@ -416,6 +413,36 @@
   justify-content: flex-start;
 }
 
+.ops-report-format-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--ops-line);
+  border-radius: 10px;
+}
+.ops-report-format-actions legend {
+  padding: 0 6px;
+  color: var(--ops-ink);
+  font-size: var(--ops-type-meta);
+  font-weight: var(--ops-weight-bold);
+}
+.ops-report-format-actions .ops-button {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.45;
+}
+.ops-report-format-actions .ops-button > .ops-icon { flex-shrink: 0; }
+.ops-report-action-note {
+  color: var(--ops-muted);
+  font-size: var(--ops-type-caption-sm);
+  line-height: 1.45;
+}
+
 .ops-print-preparation-dialog .ops-dialog-icon { background: var(--ops-blue-soft); color: var(--ops-blue); }
 .ops-print-preparation-dialog .ops-dialog-actions { flex-wrap: wrap; }
 .ops-print-preparation-meter { margin-top: 20px; }
@@ -475,7 +502,6 @@
   .combined-table td small { font-size: var(--ops-type-caption); }
   .combined-status { flex-direction: column; align-items: start; font-size: var(--ops-type-caption); }
   .ops-compact-queue { grid-template-columns: minmax(0,1fr); }
-  .combined-progress-summary { flex-direction: column; gap: 8px; }
 }
 @media print { .ops-compact-queue { display: none !important; } }
 
@@ -1161,7 +1187,7 @@
 .ops-print-vehicle-scope { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--company-line, var(--ops-line)); }
 .ops-print-vehicle-scope-heading { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .ops-print-vehicle-scope-heading strong { color: var(--company-heading, var(--ops-ink)); font-size: var(--ops-type-label); }
-.ops-print-vehicle-scope-heading span { color: var(--ops-accent); font-size: var(--ops-type-caption-sm); font-weight: var(--ops-weight-bold); }
+.ops-print-vehicle-scope-heading span { color: var(--ops-color-primary); font-size: var(--ops-type-caption-sm); font-weight: var(--ops-weight-bold); }
 .ops-print-vehicle-scope-heading small { flex-basis: 100%; color: var(--ops-muted); font-size: var(--ops-type-micro); }
 .ops-print-vehicle-summary { display: block; grid-template-columns: none; }
 .ops-print-vehicle-outcome { display: grid; gap: 3px; margin-top: 8px; padding: 9px 11px; border: 1px solid var(--company-line, var(--ops-line)); border-left: 4px solid var(--company-accent, var(--ops-blue)); border-radius: 8px; background: var(--company-paper, var(--ops-color-white)); color: var(--ops-muted); font-size: var(--ops-type-micro); }
@@ -2554,10 +2580,6 @@ html:has(.checklist-page:not(.is-report-previewing)), body:has(.checklist-page:n
 .checklist-page > .ops-taskflow-layout > .ops-evidence-drawer .ops-attachment-picker-actions .ops-button { min-width: 0; min-height: 44px; padding-inline: 8px; }
 
 @media screen and (max-width: 1279px) {
-  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
   .checklist-page:not(.is-report-previewing) .ops-checklist-context-tools {
     width: 100%;
     grid-template-columns: minmax(190px, 1fr) auto auto;
@@ -2611,21 +2633,9 @@ html:has(.checklist-page:not(.is-report-previewing)), body:has(.checklist-page:n
   .checklist-page .ops-taskflow-main .ops-status-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media screen and (max-width: 820px) {
-  .ops-main:has(.checklist-page:not(.is-report-previewing)) {
-    height: 100dvh;
-    padding: 8px 12px;
-  }
-}
-
 @media screen and (max-width: 780px) {
   .ops-main:has(.checklist-page:not(.is-report-previewing)) { padding-inline: 8px; }
   .checklist-page:not(.is-report-previewing) { gap: 7px; }
-  .checklist-page:not(.is-report-previewing) > .ops-checklist-context-header {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    padding-bottom: 7px;
-  }
   .checklist-page .ops-checklist-context-copy > .ops-eyebrow { display: none; }
   .checklist-page .ops-checklist-title-row h1 { font-size: 21px; }
   .checklist-page .ops-checklist-context-copy > p:not(.ops-eyebrow) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2830,7 +2840,6 @@ html:has(.checklist-page:not(.is-report-previewing)), body:has(.checklist-page:n
 
 /* Contextual station setup: the selected system stays visible while its BOQ
    categories and equipment are edited in the adjacent detail pane. */
-.ops-station-stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ops-contextual-config { gap: 16px; }
 .ops-contextual-config > .ops-panel-heading { align-items: flex-start; }
 .ops-context-step-count { display: inline-flex; min-height: 32px; align-items: center; padding: 0 10px; border-radius: 8px; background: var(--ops-blue-soft); color: var(--ops-text-black); font-size: var(--ops-type-caption-sm); font-weight: var(--ops-weight-extrabold); white-space: nowrap; }

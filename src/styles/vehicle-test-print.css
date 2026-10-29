@@ -1,0 +1,59 @@
+/* Standalone vehicle reports use 320 x 180 mm, independently of the
+   Checklist presentation's 16 x 9 inch named page. Screen/PDF export keeps
+   its existing geometry; only the browser print path is affected here. */
+@media print {
+  @page vehicleTestPresentation16x9 {
+    size: 320mm 180mm;
+    margin: 0;
+  }
+
+  .ops-shell:has(.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"]) {
+    page: vehicleTestPresentation16x9;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .ops-shell:has(.vehicle-test-report-page .ops-print-report[data-report-mode="presentation"]) .ops-main,
+  .vehicle-test-report-page:has(.ops-print-report[data-report-mode="presentation"]),
+  .vehicle-test-report-page:has(.ops-print-report[data-report-mode="presentation"]) > .vehicle-test-report-preview {
+    display: block !important;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible;
+  }
+
+  .vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] {
+    page: vehicleTestPresentation16x9;
+    width: 320mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .snapshot-vehicle-page {
+    box-sizing: border-box;
+    width: 320mm;
+    /* Leave a rounding buffer instead of spilling the final page by a pixel. */
+    height: calc(180mm - 1px) !important;
+    margin: 0 !important;
+    break-before: page;
+    page-break-before: always;
+    break-after: auto;
+    page-break-after: auto;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] > .snapshot-vehicle-page:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  .vehicle-test-report-page .ops-print-report[data-report-mode="presentation"] .vehicle-analytics-rendered-page {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+}

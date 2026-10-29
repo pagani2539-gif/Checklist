@@ -1,4 +1,11 @@
-export const DEFAULT_ROUTE_HASH = "#/dashboard";
+export const DEFAULT_ROUTE_HASH = "#/inspections";
+
+export function skipToMainContent(event) {
+  event.preventDefault();
+  const main = document.getElementById("main-content");
+  main?.focus({ preventScroll: true });
+  main?.scrollIntoView({ block: "start" });
+}
 const APP_HISTORY_KEY = "__checklistAppNavigation";
 const APP_HISTORY_VERSION = 1;
 const trailEnds = new Map();

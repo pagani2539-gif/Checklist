@@ -150,7 +150,8 @@ assert.deepEqual(revision.snapshot, closed.snapshot);
 assert.deepEqual(revision.inspectionItems, closed.inspectionItems);
 
 assert.equal(parseHash("#/stations/station-1").name, "stationDetail");
-assert.equal(parseHash("#/settings/checklist-copy").name, "dashboard");
+assert.equal(parseHash("#/settings/checklist-copy").name, "inspections");
+assert.equal(parseHash("#/settings/checklist-copy").redirectTo, "#/inspections");
 assert.equal(parseHash("#/history/round-1/revise").name, "historyRevise");
 assert.deepEqual(parseHash("#/inspections/round-1/vehicle-api/plate"), { name: "vehicleApi", id: "round-1", context: "plate", query: {} });
 assert.deepEqual(parseHash("#/inspections/round-1/vehicle-api/classification"), { name: "vehicleApi", id: "round-1", context: "classification", query: {} });

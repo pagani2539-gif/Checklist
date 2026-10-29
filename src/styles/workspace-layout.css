@@ -11,31 +11,6 @@
   .ops-shell[data-page-layout] .ops-page-header h1 { overflow-wrap: anywhere; }
   .ops-shell[data-page-layout] .ops-page-description { max-width: 75ch; }
 
-  /* Overview: station context and the next task have comparable visual weight. */
-  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station {
-    padding: 16px; gap: 16px; align-items: center;
-  }
-  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station .ops-panel-toolbar {
-    display: grid; gap: 8px; margin: 0;
-  }
-  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station .station-summary {
-    padding: 0; border: 0;
-  }
-  .ops-shell[data-page-layout="dashboard"] .ops-latest-round {
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 240px) auto;
-    gap: 16px; padding: 18px;
-  }
-  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px; padding: 12px 0;
-  }
-  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary > span {
-    min-width: 0; overflow-wrap: anywhere;
-  }
-  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary > span:nth-child(4) {
-    grid-column: 1 / -1;
-  }
-
   /* Directories: readable names, aligned progress, and a stable action column. */
   .ops-shell:is([data-page-layout="station-directory"], [data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-filter-bar {
     display: grid; grid-template-columns: minmax(240px, 1fr) minmax(240px, 360px);
@@ -84,14 +59,20 @@
   /* Dedicated API pages share the review layout, including closed Snapshots. */
 
   /* Screen preview is a document surface, not another inspection-workspace column. */
+  .ops-shell:has(.checklist-page.is-report-previewing) {
+    overflow: visible;
+  }
   .checklist-page.is-report-previewing {
     display: block;
     width: 100%;
     max-width: none;
     min-width: 0;
-    overflow-x: auto;
+    overflow: visible;
   }
   .checklist-page.is-report-previewing > .ops-report-preview-toolbar {
+    position: sticky;
+    top: 8px;
+    z-index: 30;
     display: flex;
     width: min(100%, 1200px);
     min-width: 0;
@@ -290,12 +271,6 @@
   }
 }
 
-@media screen and (min-width: 1100px) {
-  .ops-shell[data-page-layout="dashboard"] .ops-dashboard-station {
-    grid-template-columns: minmax(280px, .9fr) minmax(0, 1.1fr);
-  }
-}
-
 @media screen and (min-width: 1280px) and (min-height: 761px) {
   .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) { height: 100dvh; overflow: hidden; }
   .ops-shell:is([data-page-layout="vehicle-review"], [data-page-layout="history-vehicle-review"]) .ops-main {
@@ -307,7 +282,6 @@
 @media screen and (max-width: 1099px) {
   .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card { grid-template-columns: minmax(0, 1fr) minmax(130px, 180px); }
   .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions { grid-column: 1 / -1; }
-  .ops-shell[data-page-layout="dashboard"] .ops-latest-round { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media screen and (max-width: 980px) {
@@ -320,7 +294,7 @@
 /* Shared shell controls remain visible above the mobile navigation. */
 .ops-topbar-leading { gap: 12px; }
 .ops-shell-back { white-space: nowrap; }
-.ops-shell[data-page-layout="dashboard"]:has(.ops-reference-page-header) .ops-topbar, .ops-shell[data-page-layout="station-setup"]:has(.ops-station-workspace-header) .ops-topbar {
+.ops-shell[data-page-layout="station-setup"]:has(.ops-station-workspace-header) .ops-topbar {
   width: 100%;
   max-width: none;
   margin-inline: 0;
@@ -366,9 +340,6 @@
   .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions { justify-content: stretch; }
   .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-actions > .ops-button { flex: 1 1 140px; }
   .ops-shell[data-page-layout="station-directory"] .station-directory-filters { grid-template-columns: minmax(0, 1fr); }
-  .ops-shell[data-page-layout="dashboard"] .combined-progress-summary { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .ops-shell[data-page-layout="dashboard"] .ops-followup-row { grid-template-columns: auto minmax(0, 1fr); }
-  .ops-shell[data-page-layout="dashboard"] .ops-followup-row > .ops-status { grid-column: 2; justify-self: start; }
   .ops-shell[data-page-layout="station-workspace"] .sc-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ops-shell[data-page-layout="station-workspace"] .sc-metrics article:last-child { grid-column: 1 / -1; }
   .ops-shell[data-page-layout="station-workspace"] .sc-table-wrap {
@@ -377,9 +348,6 @@
 }
 
 @media screen {
-  .ops-shell[data-page-layout="dashboard"] .ops-page, .ops-shell[data-page-layout="dashboard"] .ops-topbar {
-    width: 100%; max-width: 1280px; margin-inline: auto;
-  }
   .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-page, .ops-shell:is([data-page-layout="station-setup"], [data-page-layout="round-setup"], [data-page-layout="revision-setup"]) .ops-topbar {
     width: 100%; max-width: 1120px; margin-inline: auto;
   }
@@ -2369,8 +2337,8 @@
 .station-directory-pagination-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .ops-shell[data-page-layout="station-directory"] .station-directory-filters { display: grid; grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(150px, 1fr)); align-items: end; gap: 12px; }
 .ops-shell[data-page-layout="station-directory"] .station-directory-filters .ops-search { min-width: 0; }
-.ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; }
-.ops-shell[data-page-layout="station-directory"] .ops-station-directory-row { height: 100%; justify-content: flex-start; }
+.ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; }
+.ops-shell[data-page-layout="station-directory"] .ops-station-directory-row { height: auto; flex: 0 1 calc((100% - 40px) / 5); min-width: 0; justify-content: flex-start; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-actions { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: auto; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-actions .ops-button { min-width: 0; width: 100%; padding-inline: 8px; white-space: normal; }
@@ -2384,16 +2352,7 @@
   .ops-shell[data-page-layout="station-directory"] .station-directory-filters .ops-search { grid-column: 1 / -1; }
 }
 @media (max-width: 1280px) {
-  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (max-width: 1024px) {
-  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width: 760px) {
-  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 520px) {
-  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-list { grid-template-columns: minmax(0, 1fr); }
+  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-row { flex-basis: calc((100% - 30px) / 4); }
 }
 @media (max-width: 600px) {
   .ops-shell[data-page-layout="station-directory"] .station-directory-filters { grid-template-columns: minmax(0, 1fr); }
@@ -2464,7 +2423,7 @@
   .ops-shell[data-page-layout="inspection-workspace"] .is-unified .ops-inspection-round-controls:has(.ops-report-menu[open]) { flex: 1 1 100%; }
   .ops-shell[data-page-layout="inspection-workspace"] .is-unified .ops-page-actions:has(.ops-report-menu[open]) { flex-wrap: wrap; }
 }
-@media screen and (max-width: 1599px) {
+@media screen and (max-width: 1199px) {
   .ops-shell[data-page-layout="inspection-workspace"] .checklist-page > .ops-checklist-context-header.is-unified {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-areas: "title title actions actions" "section item status evidence" "save save save save";
@@ -2537,7 +2496,7 @@
     overflow: visible !important;
   }
 
-  .ops-shell[data-page-layout="dashboard"] :is(.ops-dashboard-station, .ops-latest-round, .combined-progress-summary), .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card, .ops-shell[data-page-layout="station-directory"] :is(.station-directory-filters, .ops-station-directory-list, .ops-station-directory-meta-grid) {
+  .ops-shell:is([data-page-layout="round-queue"], [data-page-layout="history-library"]) .ops-round-card, .ops-shell[data-page-layout="station-directory"] :is(.station-directory-filters, .ops-station-directory-list, .ops-station-directory-meta-grid) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
@@ -2547,6 +2506,10 @@
 
   .ops-shell[data-page-layout="station-directory"] .ops-station-directory-list {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ops-shell[data-page-layout="station-directory"] .ops-station-directory-row {
+    flex-basis: 100%;
   }
 
   .ops-shell[data-page-layout="station-directory"] .station-directory-filters {
@@ -2757,7 +2720,8 @@
 .ops-brand-mark { flex: 0 0 auto; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-row { container-type: inline-size; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-main { display: block; width: 100%; }
-.ops-shell[data-page-layout="station-directory"] .ops-station-directory-main .ops-round-meta { gap: 8px; }
+.ops-shell[data-page-layout="station-directory"] .ops-station-directory-main .ops-round-meta { display: grid; grid-template-columns: max-content max-content max-content; justify-content: start; align-items: center; gap: 8px; }
+.ops-shell[data-page-layout="station-directory"] .ops-station-directory-main .ops-round-meta > .ops-status { grid-column: 1 / -1; justify-self: start; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-main h3 { margin: 12px 0; line-height: 1.55; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-meta-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .ops-shell[data-page-layout="station-directory"] .ops-station-directory-meta-grid > span { min-width: 0; overflow-wrap: anywhere; }
@@ -2773,13 +2737,6 @@
 
 
 .ops-acdc-archive { margin-block: 16px; padding: 16px; overflow-wrap: anywhere; }
-.ops-dashboard-vehicle-summary { margin-block: 16px; padding: 16px; }
-.ops-dashboard-vehicle-summary h3 { margin: 0 0 16px; }
-.ops-dashboard-vehicle-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.ops-dashboard-vehicle-grid article { min-width: 0; padding-block: 8px; border-top: 1px solid var(--ops-line); overflow-wrap: anywhere; }
-.ops-dashboard-vehicle-grid p { margin: 8px 0 0; color: var(--ops-muted); }
-.ops-dashboard-vehicle-grid p strong { color: var(--ops-ink); }
-@media (max-width: 760px) { .ops-dashboard-vehicle-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
 .ops-acdc-archive summary { cursor: pointer; font-weight: 700; }
 .ops-acdc-archive-entry { padding-block: 16px; border-top: 1px solid var(--ops-line, #cbd5e1); min-width: 0; }
 .ops-acdc-archive-entry h4 { margin-block: 8px; }

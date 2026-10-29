@@ -2240,6 +2240,16 @@ function disambiguateStationChecklistLabels(items) {
 // Presentation only. The unversioned path above remains frozen for rounds
 // already in progress. Source wording, item/slot IDs and inspection rules are
 // never changed by this copy policy.
+// Central names are a static catalog. Resolve these pairs once rather than
+// resolving every name for every item and evidence slot during startup.
+let contextualTopicNamePairs;
+function getContextualTopicNamePairs() {
+  return contextualTopicNamePairs ||= CHECKLIST_ITEM_NAME_REPLACEMENTS.flatMap(([, reference]) => {
+    const name = getChecklistName(reference);
+    return name?.nameEn && name?.nameTh ? [[`${name.nameEn} · ${name.nameTh}`, name.nameTh]] : [];
+  });
+}
+
 function contextualTopic(text, item = {}) {
   const parts = String(text || "").split(" · ");
   const topicStart = parts.findIndex((part) => /[ก-๙]/.test(part)
@@ -2249,9 +2259,8 @@ function contextualTopic(text, item = {}) {
     .replace(/\s*#\d+/g, "")
     .replace(/\s*ลำดับที่\s*\d+/g, "").trim();
   if (item.assetNo) topic = topic.replace(` · ${item.assetNo}`, "");
-  for (const [, reference] of CHECKLIST_ITEM_NAME_REPLACEMENTS) {
-    const name = getChecklistName(reference);
-    if (name?.nameEn && name?.nameTh) topic = topic.replaceAll(`${name.nameEn} · ${name.nameTh}`, name.nameTh);
+  for (const [combined, thai] of getContextualTopicNamePairs()) {
+    if (topic.includes(combined)) topic = topic.replaceAll(combined, thai);
   }
   // An English name embedded by the old name formatter is followed by its
   // Thai name. Keep the task and the Thai name together.
@@ -2693,7 +2702,6 @@ export function getEvidenceCatalogForSnapshot(snapshot) {
   return getEvidenceItemsForSnapshot(snapshot).flatMap((item) => item.evidenceSlots.map((slot) => ({
     itemId: item.id,
     itemLabel: item.label,
-    displayLabel: item.displayLabel || item.label,
     sectionCode: item.sectionCode,
     sectionTitle: item.sectionTitle,
     helper: item.helper,

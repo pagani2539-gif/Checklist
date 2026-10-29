@@ -5,9 +5,8 @@ import { Button } from "./controls/ActionControls.jsx";
 import CustomSelect from "./CustomSelect.jsx";
 import { ThaiDatePicker } from "./date-picker.jsx";
 import { getChecklistDisplayText } from "./checklist-queue-state.js";
-import { getActivePhysicalEquipment, getEquipmentDisplayLabel, getRoundSummary, STATUS_OPTIONS } from "../domain/master-checklist.js";
+import { getEquipmentDisplayLabel, getRoundSummary, STATUS_OPTIONS } from "../domain/master-checklist.js";
 import { evidenceAttachmentIds } from "../domain/evidence-checklist.js";
-import { sortEquipmentForDisplay } from "../domain/ordering.js";
 import { getContractContextForRound } from "../domain/contracts.js";
 import { getCorrectionSummary } from "../domain/correction.js";
 import { attachmentIdsForState } from "../domain/storage.js";
@@ -89,12 +88,6 @@ export function StationSelect({ profiles, value, onChange, label = "สถาน
     ? value
     : availableProfiles[0]?.id || "";
   return <label className="ops-field ops-field-select"><span>{label}</span><CustomSelect value={selectedValue} onChange={(event) => onChange(event.target.value)} disabled={!availableProfiles.length} aria-label={label} label={label}>{availableProfiles.length ? availableProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.stationCode} · {profile.stationName}{profile.active === false ? " · ปิดใช้งาน" : ""}</option>) : <option value="">ยังไม่มีสถานีที่ใช้งาน</option>}</CustomSelect></label>;
-}
-
-export function StationSummary({ profile }) {
-  const active = sortEquipmentForDisplay(getActivePhysicalEquipment(profile?.equipment), profile?.lanes);
-  const grouped = [...new Set(active.map((equipment) => getEquipmentDisplayLabel(equipment)))];
-  return <div className="station-summary"><span className="station-summary-mark"><Icon name="building" /></span><div><p className="ops-station-code">{profile?.stationCode || "ยังไม่มีสถานี"}</p><h3>{profile?.stationName || "สร้างสถานีเพื่อเริ่มต้น"}</h3><span>{active.length} อุปกรณ์ใช้งาน · {grouped.slice(0, 4).join(", ") || "ยังไม่มีอุปกรณ์"}</span></div></div>;
 }
 
 export function RoundCard({ state, round, onDelete }) {
